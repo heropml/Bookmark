@@ -76,7 +76,6 @@ def set_icon(skin: str) -> Path:
     icon = icon_path(skin)
     if not icon.is_file():
         raise SystemExit("missing " + icon.name)
-    (ICON_DIR / "bookmark.ico").write_bytes(icon.read_bytes())
     write_lnk(icon)
     return icon
 
