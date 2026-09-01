@@ -5,7 +5,9 @@ from __future__ import annotations
 import html
 import json
 import os
+import plistlib
 import re
+import sys
 import webbrowser
 from collections import Counter
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -73,15 +75,21 @@ def parse_html(text: str) -> list[dict]:
 
 
 def chrome_bookmarks_file(profile: str | None = None) -> tuple[str, Path]:
-    local_app_data = os.environ.get("LOCALAPPDATA")
-    if not local_app_data:
-        raise SystemExit("LOCALAPPDATA is not set")
-    user_data = Path(local_app_data) / "Google" / "Chrome" / "User Data"
+    if sys.platform == "darwin":
+        user_data = Path.home() / "Library" / "Application Support" / "Google" / "Chrome"
+    else:
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        if not local_app_data:
+            raise SystemExit("LOCALAPPDATA is not set")
+        user_data = Path(local_app_data) / "Google" / "Chrome" / "User Data"
     if profile is None:
         local_state = user_data / "Local State"
         if not local_state.is_file():
             raise SystemExit(f"not found: {local_state}")
-        state = json.loads(local_state.read_text(encoding="utf-8"))
+        try:
+            state = json.loads(local_state.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise SystemExit(f"unable to read Chrome profile: {local_state}: {exc}") from exc
         profile = state.get("profile", {}).get("last_used")
     if not profile:
         raise SystemExit("Chrome active profile was not found")
@@ -158,6 +166,61 @@ def parse_chrome(path: Path) -> list[dict]:
         for child in root.get("children") or []:
             if isinstance(child, dict):
                 walk(child, parents)
+    return items
+
+
+def safari_bookmarks_file() -> Path:
+    return Path.home() / "Library" / "Safari" / "Bookmarks.plist"
+
+
+def parse_safari(path: Path) -> list[dict]:
+    try:
+        with path.open("rb") as stream:
+            document = plistlib.load(stream)
+    except (OSError, plistlib.InvalidFileException) as exc:
+        raise SystemExit(f"invalid Safari bookmarks file: {path}: {exc}") from exc
+    if not isinstance(document, dict):
+        raise SystemExit(f"invalid Safari bookmarks file: {path}")
+
+    items = []
+    other = "\u5176\u4ed6"
+    folder_names = {
+        "BookmarksBar": "\u4e2a\u4eba\u6536\u85cf",
+        "BookmarksMenu": "\u4e66\u7b7e\u83dc\u5355",
+        "ReadingList": "\u9605\u8bfb\u5217\u8868",
+    }
+
+    def walk(node: dict, parents: list[str]) -> None:
+        href = str(node.get("URLString", "")).strip()
+        if href:
+            uri = node.get("URIDictionary")
+            title = str(uri.get("title", "")).strip() if isinstance(uri, dict) else ""
+            title = title or str(node.get("Title", "")).strip()
+            path_name = "/".join(parents) or other
+            items.append(
+                {
+                    "title": title or host_of(href),
+                    "href": href,
+                    "path": path_name,
+                    "group": parents[0] if parents else other,
+                    "host": host_of(href),
+                }
+            )
+            return
+
+        children = node.get("Children")
+        if not isinstance(children, list):
+            return
+        name = str(node.get("Title", "")).strip()
+        name = folder_names.get(name, name)
+        next_parents = parents + [name] if name else parents
+        for child in children:
+            if isinstance(child, dict):
+                walk(child, next_parents)
+
+    for child in document.get("Children") or []:
+        if isinstance(child, dict):
+            walk(child, [])
     return items
 
 
@@ -298,12 +361,25 @@ def sync_edge(profile: str | None = None):
     return build()
 
 
+def sync_safari():
+    path = safari_bookmarks_file()
+    print(f"Safari bookmarks: {path}")
+    write_bookmarks_html(parse_safari(path))
+    return build()
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(WEB_ROOT), **kwargs)
 
     def log_message(self, fmt, *args):
         print("[%s] %s" % (self.log_date_time_string(), fmt % args))
+
+    def end_headers(self):
+        path = self.path.split("?", 1)[0]
+        if path in ("/", "/index.html", "/data.example.js", "/data.js"):
+            self.send_header("Cache-Control", "no-store")
+        super().end_headers()
 
     def do_GET(self):
         from urllib.parse import parse_qs, urlparse
@@ -464,6 +540,8 @@ def main():
         if idx + 1 < len(args) and not args[idx + 1].startswith("-"):
             profile = args[idx + 1]
         sync_edge(profile)
+    elif "--sync-safari" in args:
+        sync_safari()
     else:
         build()
     if "--build" in args:

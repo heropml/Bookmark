@@ -2,6 +2,10 @@
 ROOT="$(cd "$(dirname "$0")/../../../../.." && pwd)"
 PORT=8765
 
+if [ ! -f "$ROOT/web/data.js" ] || [ "$ROOT/data/bookmarks.html" -nt "$ROOT/web/data.js" ]; then
+  python3 -X utf8 "$ROOT/scripts/manage.py" --build >/dev/null 2>&1 || exit 1
+fi
+
 page_ok() {
 python3 - "$1" << 'PY'
 from urllib.request import urlopen

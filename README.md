@@ -24,6 +24,8 @@
 ### macOS
 
 - 双击 `launchers/macos/open.command` 或 `launchers/macos/Bookmark.app` 打开页面。
+- 双击 `launchers/macos/sync-chrome.command`：手动把当前 Google Chrome 账号的书签同步到页面。
+- 双击 `launchers/macos/sync-safari.command`：手动把 Safari 书签同步到页面。
 - `launchers/macos/replace.command` 用于导入书签 HTML。
 
 ## 目录结构
@@ -44,7 +46,7 @@ Bookmark/
 ├─ runtime/
 │  └─ python/               Windows 便携 Python 运行时
 ├─ scripts/                 Python 管理脚本
-│  ├─ manage.py             构建数据、同步 Chrome/Edge、启动服务
+│  ├─ manage.py             构建数据、同步 Chrome/Edge/Safari、启动服务
 │  ├─ shortcut.py           创建快捷方式并更新图标
 │  └─ _make_icons.py        生成图标资源
 └─ launchers/
@@ -75,6 +77,8 @@ Chrome 新版本登录账号后的书签通常保存在 `AccountBookmarks`，旧
 
 Edge 手动同步使用相同流程，从当前活动 Profile 的 `AccountBookmarks/Bookmarks` 读取收藏夹，并通过 `scripts/manage.py --sync-edge` 更新本地页面。
 
+macOS 上 Chrome 同步会读取 `~/Library/Application Support/Google/Chrome` 中的当前 Profile；Safari 同步会读取 `~/Library/Safari/Bookmarks.plist`。Safari 数据受 macOS 隐私保护，首次同步时可能需要在系统设置中允许 Terminal 访问。
+
 ## 常用命令
 
 在项目根目录运行：
@@ -100,7 +104,8 @@ runtime\python\python.exe -X utf8 scripts/manage.py
 
 - `data/bookmarks.html` 和 `web/data.js` 包含私人书签，已被 Git 忽略，不能使用 `git add -f` 强制提交。
 - `web/data.js` 是本地生成文件，不建议手工编辑；公开示例位于 `data/bookmarks.example.html` 和 `web/data.example.js`。
-- 普通打开“书签”快捷方式不会同步 Chrome 或 Edge；只有执行手动同步脚本或命令时才会更新。
+- 普通打开“书签”快捷方式或 `Bookmark.app` 不会同步浏览器；只有执行对应的手动同步脚本或命令时才会更新。
+- `Bookmark.app` 每次打开都会使用当前的 UI 和 `web/data.js`；如果书签源文件更新较晚，会先重新生成页面数据。
 - 手动同步只读取浏览器本机缓存，不会修改浏览器内的书签；同步结果会覆盖 `data/bookmarks.html` 并保留为下次打开时的本地快照。
 - 页面默认端口是 `8765`。
 - Windows 启动脚本统一使用 `runtime/python/python.exe`，隐藏启动使用同目录的 `pythonw.exe`。
