@@ -5,11 +5,11 @@ Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 launcherDir = fso.GetParentFolderName(WScript.ScriptFullName)
 root = fso.GetParentFolderName(fso.GetParentFolderName(launcherDir))
-pythonw = shell.ExpandEnvironmentStrings("%LocalAppData%") & "\Programs\Python\Python313\pythonw.exe"
+pythonw = root & "\runtime\python\pythonw.exe"
 manage = root & "\scripts\manage.py"
 
 If Not fso.FileExists(pythonw) Then
-    MsgBox "Python 3.13 was not found. Run launchers\windows\start.bat to check Python.", 16, "Bookmark"
+    MsgBox "Portable Python was not found in runtime\python.", 16, "Bookmark"
     WScript.Quit 1
 End If
 

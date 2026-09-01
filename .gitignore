@@ -1,5 +1,7 @@
 __pycache__/
 *.py[cod]
+!runtime/python/DLLs/*.pyd
+!runtime/python/Lib/site-packages/PIL/*.pyd
 *.lnk
 data/.window-state.json
 data/bookmarks.html

@@ -93,6 +93,27 @@ def chrome_bookmarks_file(profile: str | None = None) -> tuple[str, Path]:
     raise SystemExit(f"Chrome bookmarks were not found in {profile_dir}")
 
 
+def edge_bookmarks_file(profile: str | None = None) -> tuple[str, Path]:
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if not local_app_data:
+        raise SystemExit("LOCALAPPDATA is not set")
+    user_data = Path(local_app_data) / "Microsoft" / "Edge" / "User Data"
+    if profile is None:
+        local_state = user_data / "Local State"
+        if not local_state.is_file():
+            raise SystemExit(f"not found: {local_state}")
+        state = json.loads(local_state.read_text(encoding="utf-8"))
+        profile = state.get("profile", {}).get("last_used")
+    if not profile:
+        raise SystemExit("Edge active profile was not found")
+    profile_dir = user_data / profile
+    for name in ("AccountBookmarks", "Bookmarks"):
+        path = profile_dir / name
+        if path.is_file():
+            return profile, path
+    raise SystemExit(f"Edge bookmarks were not found in {profile_dir}")
+
+
 def parse_chrome(path: Path) -> list[dict]:
     document = json.loads(path.read_text(encoding="utf-8"))
     roots = document.get("roots")
@@ -270,6 +291,13 @@ def sync_chrome(profile: str | None = None):
     return build()
 
 
+def sync_edge(profile: str | None = None):
+    profile, path = edge_bookmarks_file(profile)
+    print(f"Edge profile: {profile} ({path.name})")
+    write_bookmarks_html(parse_chrome(path))
+    return build()
+
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(WEB_ROOT), **kwargs)
@@ -430,6 +458,12 @@ def main():
         if idx + 1 < len(args) and not args[idx + 1].startswith("-"):
             profile = args[idx + 1]
         sync_chrome(profile)
+    elif "--sync-edge" in args:
+        idx = args.index("--sync-edge")
+        profile = None
+        if idx + 1 < len(args) and not args[idx + 1].startswith("-"):
+            profile = args[idx + 1]
+        sync_edge(profile)
     else:
         build()
     if "--build" in args:
