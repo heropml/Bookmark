@@ -1,0 +1,190 @@
+#!/bin/bash
+ROOT="$(cd "$(dirname "$0")/../../../../.." && pwd)"
+PORT=8765
+
+page_ok() {
+python3 - "$1" << 'PY'
+from urllib.request import urlopen
+import sys
+
+port = int(sys.argv[1])
+try:
+    with urlopen("http://127.0.0.1:%s/index.html" % port, timeout=0.5) as response:
+        page = response.read(4096)
+    with urlopen("http://127.0.0.1:%s/__health" % port, timeout=0.5) as response:
+        healthy = response.status == 200 and response.read(32) == b"bookmark\n"
+    sys.exit(0 if b"<title>\xe4\xb9\xa6\xe7\xad\xbe</title>" in page and healthy else 1)
+except OSError:
+    sys.exit(1)
+PY
+}
+
+while ! page_ok "$PORT"; do
+  if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+    PORT=$((PORT + 1))
+    continue
+  fi
+  python3 -X utf8 "$ROOT/scripts/manage.py" --serve "$PORT" >/dev/null 2>&1 &
+  for _ in {1..20}; do
+    page_ok "$PORT" && break
+    sleep 0.1
+  done
+  break
+done
+
+BASE_URL="http://127.0.0.1:${PORT}/index.html"
+URL="${BASE_URL}?v=$(date +%s)-$$"
+
+if [ -d "/Applications/Google Chrome.app" ]; then
+  WINDOW_ARGS=("--start-maximized")
+  if [ -f "$ROOT/data/.window-state.json" ]; then
+    while IFS= read -r arg; do
+      WINDOW_ARGS=("$arg")
+    done < <(python3 - "$ROOT/data/.window-state.json" << 'PY'
+import json, sys
+
+try:
+    state = json.load(open(sys.argv[1], encoding="utf-8"))
+    width = int(state["width"])
+    height = int(state["height"])
+    if 320 <= width <= 10000 and 240 <= height <= 10000:
+        if state.get("maximized") is True:
+            print("--start-maximized=%s,%s" % (width, height))
+        else:
+            print("--window-size=%s,%s" % (width, height))
+except (KeyError, TypeError, ValueError, json.JSONDecodeError, OSError):
+    pass
+PY
+)
+  fi
+  MAXIMIZED_SIZE=""
+  if [[ "${WINDOW_ARGS[0]}" == --start-maximized=* ]]; then
+    MAXIMIZED_SIZE="${WINDOW_ARGS[0]#--start-maximized=}"
+    WINDOW_ARGS=("--start-maximized")
+  fi
+  TARGET_URL="$URL"
+  if [ "${WINDOW_ARGS[0]}" = "--start-maximized" ]; then
+    URL="${URL}&window=maximized"
+  fi
+  if [ "${#WINDOW_ARGS[@]}" -gt 0 ]; then
+    WINDOW_MODE="normal"
+    WINDOW_WIDTH=""
+    WINDOW_HEIGHT=""
+    if [ "${WINDOW_ARGS[0]}" = "--start-maximized" ]; then
+      WINDOW_MODE="maximized"
+      if [ -n "$MAXIMIZED_SIZE" ]; then
+        WINDOW_WIDTH="${MAXIMIZED_SIZE%,*}"
+        WINDOW_HEIGHT="${MAXIMIZED_SIZE#*,}"
+      fi
+    else
+      WINDOW_SIZE="${WINDOW_ARGS[0]#--window-size=}"
+      WINDOW_WIDTH="${WINDOW_SIZE%,*}"
+      WINDOW_HEIGHT="${WINDOW_SIZE#*,}"
+    fi
+    (
+      SPLASH_PID=""
+      READY_DIR=""
+      READY_PIPE=""
+      if [ "$WINDOW_MODE" = "maximized" ]; then
+        READY_DIR="$(mktemp -d /private/tmp/bookmark-launch.XXXXXX)"
+        READY_PIPE="$READY_DIR/ready"
+        if [ -n "$READY_DIR" ] && mkfifo "$READY_PIPE"; then
+          osascript -l JavaScript >"$READY_PIPE" 2>/dev/null <<'JXA' &
+ObjC.import("AppKit");
+const app = $.NSApplication.sharedApplication;
+app.setActivationPolicy($.NSApplicationActivationPolicyAccessory);
+const screens = $.NSScreen.screens;
+const windows = [];
+for (let i = 0; i < Number(screens.count); i += 1) {
+  const screen = screens.objectAtIndex(i);
+  const win = $.NSWindow.alloc.initWithContentRectStyleMaskBackingDefer(
+    screen.visibleFrame,
+    $.NSWindowStyleMaskBorderless,
+    $.NSBackingStoreBuffered,
+    false
+  );
+  win.backgroundColor = $.NSColor.colorWithSRGBRedGreenBlueAlpha(0.016, 0.027, 0.067, 1);
+  win.opaque = true;
+  win.hasShadow = false;
+  win.ignoresMouseEvents = true;
+  win.level = $.NSFloatingWindowLevel;
+  win.animationBehavior = $.NSWindowAnimationBehaviorNone;
+  win.orderFrontRegardless;
+  windows.push(win);
+}
+const readyData = $("ready\n").dataUsingEncoding($.NSUTF8StringEncoding);
+$.NSFileHandle.fileHandleWithStandardOutput.writeData(readyData);
+if (windows.length > 0) {
+  $.NSRunLoop.currentRunLoop.runUntilDate($.NSDate.dateWithTimeIntervalSinceNow(3));
+}
+JXA
+          SPLASH_PID=$!
+        else
+          READY_DIR=""
+          READY_PIPE=""
+        fi
+      fi
+      osascript - "$TARGET_URL" "$WINDOW_MODE" "$WINDOW_WIDTH" "$WINDOW_HEIGHT" >/dev/null 2>&1 <<'APPLESCRIPT' &
+on run argv
+  set targetURL to item 1 of argv
+  set windowMode to item 2 of argv
+  repeat 250 times
+    if application "Google Chrome" is running then
+      try
+        tell application "Google Chrome"
+          repeat with w in windows
+            try
+              if URL of active tab of w starts with targetURL then
+                if windowMode is "maximized" then
+                  set zoomed of w to true
+                  if (item 3 of argv) is not "" then
+                    set savedWidth to (item 3 of argv) as integer
+                    set savedHeight to (item 4 of argv) as integer
+                    repeat 30 times
+                      set currentBounds to bounds of w
+                      set currentWidth to (item 3 of currentBounds) - (item 1 of currentBounds)
+                      set currentHeight to (item 4 of currentBounds) - (item 2 of currentBounds)
+                      if currentWidth is savedWidth and currentHeight is savedHeight then exit repeat
+                      delay 0.01
+                    end repeat
+                  else
+                    delay 0.15
+                  end if
+                  delay 0.03
+                else
+                  set savedWidth to (item 3 of argv) as integer
+                  set savedHeight to (item 4 of argv) as integer
+                  set zoomed of w to false
+                  set currentBounds to bounds of w
+                  set leftEdge to item 1 of currentBounds
+                  set topEdge to item 2 of currentBounds
+                  set bounds of w to {leftEdge, topEdge, leftEdge + savedWidth, topEdge + savedHeight}
+                end if
+                return
+              end if
+            end try
+          end repeat
+        end tell
+      end try
+    end if
+    delay 0.02
+  end repeat
+end run
+APPLESCRIPT
+      RESTORE_PID=$!
+      if [ -n "$READY_PIPE" ]; then
+        IFS= read -r -t 1 _ < "$READY_PIPE" || true
+        rm -f "$READY_PIPE"
+        rmdir "$READY_DIR" 2>/dev/null || true
+      fi
+      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --app="$URL" "${WINDOW_ARGS[@]}" >/dev/null 2>&1 &
+      wait "$RESTORE_PID" 2>/dev/null || true
+      if [ -n "$SPLASH_PID" ]; then
+        kill "$SPLASH_PID" >/dev/null 2>&1 || true
+        wait "$SPLASH_PID" 2>/dev/null || true
+      fi
+    ) &
+  fi
+else
+  open "$URL"
+fi

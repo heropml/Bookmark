@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+*.lnk
+data/.window-state.json
+data/bookmarks.html
+web/data.js
