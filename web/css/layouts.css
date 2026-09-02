@@ -1,0 +1,45 @@
+html[data-layout="compact"] .layout { gap: 6px; padding-inline: 14px; }
+html[data-layout="compact"] .grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+html[data-layout="compact"] .section { margin-bottom: 20px; }
+html[data-layout="compact"] .section + .section { margin-top: 20px; }
+html[data-layout="compact"] .section h2 { min-height: 30px; margin-bottom: 9px; font-size: 16px; }
+html[data-layout="compact"] .card { min-height: 70px; gap: 9px; padding: 10px; }
+html[data-layout="compact"] .ico { width: 34px; height: 34px; flex-basis: 34px; }
+html[data-layout="compact"] .ico img { width: 21px; height: 21px; }
+html[data-layout="compact"] .card h3 { margin-bottom: 2px; font-size: 13px; }
+html[data-layout="compact"] .meta { margin-top: 4px; }
+
+html[data-layout="list"] .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+html[data-layout="list"] .section { margin-bottom: 20px; }
+html[data-layout="list"] .section + .section { margin-top: 20px; }
+html[data-layout="list"] .card { min-height: 64px; align-items: center; gap: 10px; padding: 10px 12px; }
+html[data-layout="list"] .ico { width: 36px; height: 36px; flex-basis: 36px; }
+html[data-layout="list"] .ico img { width: 22px; height: 22px; }
+html[data-layout="list"] .card h3,
+html[data-layout="list"] .card p { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+html[data-layout="list"] .card h3 { display: block; margin-bottom: 2px; }
+html[data-layout="list"] .meta { margin-top: 4px; }
+
+html[data-layout="icons"] .grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+html[data-layout="icons"] .section { margin-bottom: 20px; }
+html[data-layout="icons"] .section + .section { margin-top: 20px; }
+html[data-layout="icons"] .section h2 { min-height: 30px; margin-bottom: 9px; font-size: 16px; }
+html[data-layout="icons"] .card {
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-height: 98px;
+  padding: 12px 8px 10px;
+  text-align: center;
+}
+html[data-layout="icons"] .card > div:not(.ico) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+html[data-layout="icons"] .card h3 { margin: 0; font-size: 12px; }
+html[data-layout="icons"] .card p,
+html[data-layout="icons"] .card .meta { display: none; }
+.choice[data-value="icons"] .layout-swatch { grid-template-columns: repeat(3, 1fr); gap: 3px; }
+.choice[data-value="icons"] .layout-swatch i { border-radius: 50%; }

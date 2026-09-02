@@ -1,0 +1,175 @@
+html[data-motion="float"] .card:is(:hover, :focus-visible) .ico {
+  animation: icon-float .62s cubic-bezier(.2,.85,.3,1.2) both;
+}
+html[data-motion="pulse"] .card:is(:hover, :focus-visible) .ico {
+  animation: icon-breathe .9s ease-in-out infinite alternate;
+}
+html[data-motion="sweep"] .ico::before {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  inset: -25% auto -25% -50%;
+  width: 34%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.74), transparent);
+  filter: blur(2px);
+  transform: skewX(-18deg);
+  opacity: 0;
+}
+html[data-motion="sweep"] .card:is(:hover, :focus-visible) .ico::before {
+  animation: icon-sweep .72s ease-out both;
+}
+html[data-motion="sway"] .card:is(:hover, :focus-visible) .ico {
+  animation: icon-sway 1.4s ease-in-out infinite;
+}
+html[data-motion="bounce"] .card:is(:hover, :focus-visible) .ico {
+  animation: icon-bounce 1.2s ease-in-out infinite;
+}
+html[data-motion="spin"] .card:is(:hover, :focus-visible) .ico {
+  animation: icon-spin 1.8s cubic-bezier(.45,0,.2,1) infinite;
+}
+html[data-motion="ripple"] .ico::before {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  inset: 12%;
+  border: 1.5px solid hsla(var(--h),90%,85%,.9);
+  border-radius: 50%;
+  box-shadow: 0 0 6px hsla(var(--h),90%,75%,.6);
+  pointer-events: none;
+  opacity: 0;
+}
+html[data-motion="ripple"] .card:is(:hover, :focus-visible) .ico::before {
+  animation: icon-ripple 1.2s ease-out infinite;
+}
+html[data-motion="still"] .card:hover .ico { animation: none; translate: none; }
+html[data-motion="still"]:not([data-icon="gem"]) .card:hover .ico img { transform: none; }
+html[data-motion="still"][data-icon="gem"] .card:hover .ico img { transform: rotate(-45deg) scale(1.2); }
+html[data-motion="still"][data-icon="pixel"] .card:hover .ico { transform: none; }
+html[data-motion="still"][data-icon="holo"] .card:is(:hover, :focus-visible) .ico::after {
+  transform: translateX(-120%);
+  transition: none;
+}
+@keyframes icon-float {
+  0% { translate: 0 0; rotate: 0deg; }
+  46% { translate: 0 -8px; rotate: 3deg; }
+  72% { translate: 0 -3px; rotate: -1deg; }
+  100% { translate: 0 -5px; rotate: 0deg; }
+}
+@keyframes icon-breathe {
+  from { filter: brightness(1) drop-shadow(0 0 0 transparent); }
+  to { filter: brightness(1.2) drop-shadow(0 0 10px hsla(var(--h), 90%, 68%, .72)); }
+}
+@keyframes icon-sweep {
+  0% { left: -50%; opacity: 0; }
+  18% { opacity: .9; }
+  100% { left: 125%; opacity: 0; }
+}
+@keyframes icon-sway {
+  0%, 70%, 100% { rotate: 0deg; }
+  15% { rotate: -14deg; }
+  30% { rotate: 11deg; }
+  45% { rotate: -7deg; }
+  58% { rotate: 4deg; }
+}
+@keyframes icon-bounce {
+  0%, 65%, 100% { translate: 0 0; scale: 1; }
+  12% { translate: 0 1px; scale: 1.08 .9; }
+  30% { translate: 0 -8px; scale: .95 1.05; }
+  48% { translate: 0 0; scale: 1.1 .9; }
+  57% { translate: 0 -3px; scale: 1; }
+}
+@keyframes icon-spin {
+  0%, 12% { rotate: 0deg; }
+  78%, 100% { rotate: 360deg; }
+}
+@keyframes icon-ripple {
+  0% { transform: scale(.25); opacity: 0; }
+  18% { opacity: .9; }
+  85%, 100% { transform: scale(1.8); opacity: 0; }
+}
+
+.card:focus-visible,
+.choice:focus-visible,
+.folder:focus-visible,
+.appearance-trigger:focus-visible,
+.weather:focus-visible {
+  outline: 2px solid rgba(125,211,252,.9);
+  outline-offset: 3px;
+}
+
+/* Keep scrolling compositor-friendly: moving glass layers are expensive on macOS. */
+html[data-skin] .card,
+html[data-skin] .nav-col {
+  background-color: var(--glass);
+}
+
+html[data-fx="off"] .aurora::before,
+html[data-fx="off"] .aurora::after,
+html[data-fx="off"] .cursor-glow,
+html[data-fx="off"] .search::before,
+html[data-fx="off"] .card::before,
+html[data-fx="off"] .card::after,
+html[data-fx="off"] .ico::before { display: none; }
+html[data-fx="off"] .aurora {
+  background: linear-gradient(180deg, #07101f, #03050c);
+}
+html[data-fx="off"][data-skin="cyber"] .aurora {
+  background: linear-gradient(180deg, #02140c, #000);
+}
+html[data-fx="off"][data-skin="ember"] .aurora {
+  background: linear-gradient(180deg, #2a1008, #0a0403);
+}
+html[data-fx="off"][data-skin="paper"] .aurora {
+  background: linear-gradient(180deg, #f7f0df, #e8d8b8);
+}
+html[data-fx="off"][data-skin="nebula"] .aurora {
+  background: linear-gradient(180deg, #080824, #02020d);
+}
+html[data-fx="off"][data-skin="prism"] .aurora {
+  background: linear-gradient(180deg, #06101c, #01040a);
+}
+html[data-fx="off"][data-skin="obsidian"] .aurora {
+  background: linear-gradient(180deg, #14110c, #030302);
+}
+html[data-fx="off"][data-skin="abyss"] .aurora {
+  background: linear-gradient(180deg, #06263a, #01070d);
+}
+html[data-fx="off"][data-skin="snow"] .aurora {
+  background: linear-gradient(180deg, #f9fbfe, #e3eaf4);
+}
+html[data-fx="off"][data-skin="sakura"] .aurora {
+  background: linear-gradient(180deg, #fff6f9, #f3dde8);
+}
+html[data-fx="off"][data-skin="celadon"] .aurora {
+  background: linear-gradient(180deg, #f6fbf8, #dfece5);
+}
+html[data-fx="off"]:is([data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"], [data-skin="yemo"]) .aurora {
+  background: var(--skin-art) var(--skin-position, center) / cover no-repeat, var(--bg);
+}
+html[data-fx="off"] .hello .time { filter: none; }
+html[data-fx="off"] .search input,
+html[data-fx="off"] .stat,
+html[data-fx="off"] .nav-col,
+html[data-fx="off"] .card {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+html[data-fx="off"] .card {
+  transition: none;
+}
+html[data-fx="off"] .ico,
+html[data-fx="off"] .motion-swatch .motion-anim,
+html[data-fx="off"] .trail-swatch {
+  animation: none !important;
+  transition: none !important;
+}
+html[data-fx="off"] .card:is(:hover, :focus-visible) .ico { translate: none; transform: none; }
+html[data-fx="off"][data-icon="gem"] .card:is(:hover, :focus-visible) .ico { transform: rotate(45deg) scale(.78); }
+html[data-fx="off"]:not([data-icon="gem"]) .card:is(:hover, :focus-visible) .ico img { transform: none; }
+html[data-fx="off"][data-icon="gem"] .card:is(:hover, :focus-visible) .ico img { transform: rotate(-45deg) scale(1.2); }
+html[data-fx="off"][data-icon="holo"] .card:is(:hover, :focus-visible) .ico::after { transform: translateX(-120%); }
+html[data-fx="off"] .card:hover {
+  transform: none;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255,255,255,0.14);
+}

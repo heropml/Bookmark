@@ -1,0 +1,949 @@
+html[data-skin="cyber"] {
+  --text: #e8fff6;
+  --muted: #7ea894;
+  --glass: rgba(2, 14, 10, 0.72);
+  --stroke: rgba(57, 255, 156, 0.22);
+  --glow: rgba(57, 255, 140, 0.32);
+  --bg: #010604;
+  --radius: 8px;
+  --radius-sm: 6px;
+}
+html[data-skin="cyber"] .aurora {
+  background:
+    radial-gradient(820px 480px at 6% -10%, rgba(57, 255, 140, 0.16), transparent 58%),
+    radial-gradient(640px 420px at 96% 8%, rgba(255, 0, 170, 0.18), transparent 52%),
+    linear-gradient(180deg, #02140c, #010704 48%, #000);
+}
+html[data-skin="cyber"] .aurora::before {
+  background:
+    radial-gradient(40vmax 26vmax at 16% 20%, rgba(57, 255, 140, 0.16), transparent 62%),
+    radial-gradient(34vmax 22vmax at 84% 16%, rgba(255, 45, 180, 0.14), transparent 64%);
+}
+html[data-skin="cyber"] .hello .time {
+  background: linear-gradient(110deg, #f4fff8 8%, #39ff8c 46%, #ff2eb6 96%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+html[data-skin="cyber"] .search::before {
+  background: linear-gradient(120deg, rgba(57,255,140,0.55), rgba(255,46,182,0.28));
+}
+html[data-skin="cyber"] .cursor-glow {
+  background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(57, 255, 140, 0.14), transparent 58%);
+}
+
+html[data-skin="ember"] {
+  --text: #fff3e6;
+  --muted: #c4a07a;
+  --glass: rgba(32, 12, 8, 0.62);
+  --stroke: rgba(255, 176, 96, 0.18);
+  --glow: rgba(255, 122, 46, 0.32);
+  --bg: #120806;
+  --radius: 22px;
+  --radius-sm: 14px;
+}
+html[data-skin="ember"] .aurora {
+  background:
+    radial-gradient(880px 500px at 10% -6%, rgba(255, 92, 40, 0.28), transparent 58%),
+    radial-gradient(680px 460px at 92% 4%, rgba(255, 196, 72, 0.16), transparent 52%),
+    radial-gradient(720px 480px at 60% 110%, rgba(180, 40, 20, 0.22), transparent 54%),
+    linear-gradient(180deg, #2a1008, #140806 46%, #0a0403);
+}
+html[data-skin="ember"] .aurora::before {
+  background:
+    radial-gradient(40vmax 26vmax at 20% 18%, rgba(255, 110, 40, 0.2), transparent 62%),
+    radial-gradient(32vmax 22vmax at 78% 22%, rgba(255, 200, 80, 0.12), transparent 64%);
+}
+html[data-skin="ember"] .hello .time {
+  background: linear-gradient(110deg, #fff7ec 10%, #ffb35c 48%, #ff5a2a 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+html[data-skin="ember"] .search::before {
+  background: linear-gradient(120deg, rgba(255,179,92,0.5), rgba(255,90,42,0.28));
+}
+html[data-skin="ember"] .cursor-glow {
+  background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(255, 140, 60, 0.16), transparent 58%);
+}
+
+html[data-skin="paper"] {
+  --text: #2c261d;
+  --muted: #7a6f60;
+  --glass: rgba(255, 248, 232, 0.72);
+  --stroke: rgba(90, 70, 40, 0.14);
+  --glow: rgba(180, 120, 50, 0.2);
+  --bg: #f3ead8;
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+html[data-skin="paper"] body {
+  font-family: "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+}
+html[data-skin="paper"] .aurora {
+  background:
+    radial-gradient(900px 520px at 8% -8%, rgba(210, 170, 110, 0.22), transparent 58%),
+    radial-gradient(720px 480px at 92% 8%, rgba(170, 90, 70, 0.1), transparent 52%),
+    linear-gradient(180deg, #f7f0df, #efe4cc 50%, #e8d8b8);
+}
+html[data-skin="paper"] .aurora::before {
+  background:
+    radial-gradient(38vmax 24vmax at 18% 20%, rgba(196, 150, 90, 0.14), transparent 62%),
+    radial-gradient(30vmax 20vmax at 80% 18%, rgba(160, 80, 60, 0.08), transparent 64%);
+}
+html[data-skin="paper"] .aurora::after {
+  background-image:
+    repeating-linear-gradient(8deg, rgba(106,78,45,0.032) 0 1px, transparent 1px 9px),
+    repeating-linear-gradient(96deg, rgba(106,78,45,0.018) 0 1px, transparent 1px 15px);
+  background-size: auto;
+  mask-image: none;
+  opacity: 0.72;
+}
+html[data-skin="paper"] .hello .time {
+  font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", "SimSun", serif;
+  background: linear-gradient(110deg, #3a2f22 12%, #8a5a32 55%, #b04030 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: none;
+}
+html[data-skin="paper"] .search::before {
+  background: linear-gradient(120deg, rgba(180,130,70,0.35), rgba(160,70,50,0.18));
+}
+html[data-skin="paper"] .cursor-glow {
+  background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(180, 130, 70, 0.12), transparent 58%);
+}
+html[data-skin="paper"] .card,
+html[data-skin="paper"] .nav-col,
+html[data-skin="paper"] .search input,
+html[data-skin="paper"] .stat {
+  box-shadow: 0 8px 20px rgba(90, 60, 20, 0.08), inset 0 1px 0 rgba(255,255,255,0.65);
+}
+
+html[data-skin="nebula"] {
+  --text: #f4f1ff;
+  --muted: #9a9bc7;
+  --glass: rgba(12, 9, 38, 0.64);
+  --stroke: rgba(165, 139, 255, 0.2);
+  --glow: rgba(124, 92, 255, 0.34);
+  --bg: #030313;
+  --radius: 20px;
+  --radius-sm: 13px;
+}
+html[data-skin="nebula"] .aurora {
+  background:
+    radial-gradient(900px 580px at 12% -8%, rgba(37,99,235,.34), transparent 60%),
+    radial-gradient(760px 520px at 90% 6%, rgba(168,85,247,.36), transparent 56%),
+    radial-gradient(720px 500px at 58% 112%, rgba(236,72,153,.17), transparent 56%),
+    linear-gradient(180deg, #080824, #050518 48%, #02020d);
+}
+html[data-skin="nebula"] .aurora::before {
+  background:
+    radial-gradient(38vmax 24vmax at 18% 20%, rgba(59,130,246,.25), transparent 64%),
+    radial-gradient(36vmax 24vmax at 82% 24%, rgba(192,132,252,.2), transparent 64%),
+    radial-gradient(28vmax 20vmax at 52% 78%, rgba(244,114,182,.12), transparent 68%);
+}
+html[data-skin="nebula"] .aurora::after {
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,.62) 0 1px, transparent 1.5px),
+    radial-gradient(circle, rgba(196,181,253,.4) 0 1px, transparent 1.4px);
+  background-position: 0 0, 21px 17px;
+  background-size: 47px 47px, 83px 83px;
+  mask-image: radial-gradient(ellipse at 50% 35%, #000 12%, transparent 78%);
+  opacity: .72;
+}
+html[data-skin="nebula"] .hello .time {
+  background: linear-gradient(110deg, #fff 8%, #93c5fd 42%, #c4b5fd 68%, #f0abfc 96%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+html[data-skin="nebula"] .search::before { background: linear-gradient(120deg, rgba(96,165,250,.54), rgba(167,139,250,.5), rgba(244,114,182,.3)); }
+html[data-skin="nebula"] .cursor-glow { background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(139,92,246,.2), transparent 58%); }
+
+html[data-skin="prism"] {
+  --text: #f3fbff;
+  --muted: #91a8bb;
+  --glass: rgba(4, 14, 27, 0.66);
+  --stroke: rgba(103, 232, 249, 0.19);
+  --glow: rgba(34, 211, 238, 0.32);
+  --bg: #020711;
+  --radius: 18px;
+  --radius-sm: 11px;
+}
+html[data-skin="prism"] .aurora {
+  background:
+    radial-gradient(780px 500px at 4% 0%, rgba(6,182,212,.3), transparent 60%),
+    radial-gradient(760px 500px at 96% 4%, rgba(236,72,153,.3), transparent 58%),
+    radial-gradient(800px 500px at 55% 108%, rgba(139,92,246,.24), transparent 56%),
+    linear-gradient(180deg, #06101c, #020812 48%, #01040a);
+}
+html[data-skin="prism"] .aurora::before {
+  inset: -28%;
+  background: conic-gradient(from 180deg at 50% 50%, rgba(34,211,238,.13), rgba(139,92,246,.18), rgba(236,72,153,.14), rgba(34,211,238,.13));
+  filter: blur(70px);
+  animation-duration: 14s;
+}
+html[data-skin="prism"] .hello .time {
+  background: linear-gradient(100deg, #ecfeff, #67e8f9 34%, #c4b5fd 62%, #f9a8d4);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+html[data-skin="prism"] .search::before { background: linear-gradient(105deg, rgba(34,211,238,.52), rgba(139,92,246,.43), rgba(236,72,153,.48)); }
+html[data-skin="prism"] .cursor-glow { background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(34,211,238,.18), transparent 58%); }
+
+/* ---- 浅色皮肤：雪 / 樱 / 瓷 ---- */
+html[data-skin="snow"] {
+  --text: #2b3646;
+  --muted: #7c8ba1;
+  --glass: rgba(252, 253, 255, 0.7);
+  --stroke: rgba(72, 92, 120, 0.16);
+  --glow: rgba(96, 136, 196, 0.26);
+  --bg: #edf1f7;
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+html[data-skin="sakura"] {
+  --text: #463440;
+  --muted: #a17f92;
+  --glass: rgba(255, 250, 252, 0.7);
+  --stroke: rgba(170, 95, 130, 0.16);
+  --glow: rgba(226, 120, 165, 0.26);
+  --bg: #faf0f4;
+  --radius: 18px;
+  --radius-sm: 11px;
+}
+html[data-skin="celadon"] {
+  --text: #2e4038;
+  --muted: #7f948a;
+  --glass: rgba(250, 253, 251, 0.7);
+  --stroke: rgba(70, 125, 100, 0.16);
+  --glow: rgba(70, 175, 140, 0.24);
+  --bg: #edf5f0;
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+html[data-skin="snow"] .aurora {
+  background:
+    radial-gradient(900px 520px at 8% -8%, rgba(140, 170, 220, 0.30), transparent 58%),
+    radial-gradient(720px 480px at 92% 8%, rgba(170, 150, 220, 0.18), transparent 52%),
+    linear-gradient(180deg, #f9fbfe, #edf2f9 50%, #e3eaf4);
+}
+html[data-skin="sakura"] .aurora {
+  background:
+    radial-gradient(900px 520px at 8% -8%, rgba(245, 175, 205, 0.35), transparent 58%),
+    radial-gradient(720px 480px at 92% 8%, rgba(250, 205, 180, 0.22), transparent 52%),
+    linear-gradient(180deg, #fff6f9, #f9e8ef 50%, #f3dde8);
+}
+html[data-skin="celadon"] .aurora {
+  background:
+    radial-gradient(900px 520px at 8% -8%, rgba(130, 200, 175, 0.30), transparent 58%),
+    radial-gradient(720px 480px at 92% 8%, rgba(170, 220, 200, 0.22), transparent 52%),
+    linear-gradient(180deg, #f6fbf8, #e9f3ee 50%, #dfece5);
+}
+html[data-skin="snow"] .aurora::before {
+  background:
+    radial-gradient(38vmax 24vmax at 18% 20%, rgba(110, 145, 205, 0.12), transparent 62%),
+    radial-gradient(30vmax 20vmax at 80% 18%, rgba(150, 130, 215, 0.08), transparent 64%);
+}
+html[data-skin="sakura"] .aurora::before {
+  background:
+    radial-gradient(38vmax 24vmax at 18% 20%, rgba(240, 150, 190, 0.14), transparent 62%),
+    radial-gradient(30vmax 20vmax at 80% 18%, rgba(250, 190, 160, 0.10), transparent 64%);
+}
+html[data-skin="celadon"] .aurora::before {
+  background:
+    radial-gradient(38vmax 24vmax at 18% 20%, rgba(100, 175, 150, 0.12), transparent 62%),
+    radial-gradient(30vmax 20vmax at 80% 18%, rgba(140, 200, 220, 0.10), transparent 64%);
+}
+html[data-skin="snow"] .aurora::after,
+html[data-skin="sakura"] .aurora::after,
+html[data-skin="celadon"] .aurora::after {
+  background-image:
+    linear-gradient(rgba(60, 80, 110, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(60, 80, 110, 0.045) 1px, transparent 1px);
+}
+html[data-skin="snow"] .hello .time {
+  background: linear-gradient(110deg, #37475c 12%, #5f83b8 55%, #8a6fc4 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: none;
+}
+html[data-skin="sakura"] .hello .time {
+  background: linear-gradient(110deg, #553a48 12%, #c96a96 55%, #a4598e 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: none;
+}
+html[data-skin="celadon"] .hello .time {
+  background: linear-gradient(110deg, #33473e 12%, #4f9c80 55%, #58a8c8 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: none;
+}
+html[data-skin="snow"] .search::before {
+  background: linear-gradient(120deg, rgba(110, 145, 210, 0.4), rgba(150, 120, 210, 0.22));
+}
+html[data-skin="sakura"] .search::before {
+  background: linear-gradient(120deg, rgba(235, 130, 175, 0.42), rgba(250, 170, 150, 0.25));
+}
+html[data-skin="celadon"] .search::before {
+  background: linear-gradient(120deg, rgba(95, 175, 145, 0.4), rgba(120, 190, 215, 0.22));
+}
+html[data-skin="snow"] .cursor-glow {
+  background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(110, 145, 205, 0.14), transparent 58%);
+}
+html[data-skin="sakura"] .cursor-glow {
+  background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(235, 140, 180, 0.14), transparent 58%);
+}
+html[data-skin="celadon"] .cursor-glow {
+  background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(100, 175, 150, 0.13), transparent 58%);
+}
+html[data-skin="snow"] .card {
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.92), rgba(238, 244, 251, 0.78));
+}
+html[data-skin="sakura"] .card {
+  background: linear-gradient(165deg, rgba(255, 252, 253, 0.92), rgba(250, 236, 242, 0.78));
+}
+html[data-skin="celadon"] .card {
+  background: linear-gradient(165deg, rgba(253, 255, 254, 0.92), rgba(238, 247, 242, 0.78));
+}
+html[data-skin="snow"] .card::after {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.7), transparent 30%, transparent 70%, rgba(120, 150, 210, 0.10));
+}
+html[data-skin="sakura"] .card::after {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.7), transparent 30%, transparent 70%, rgba(225, 130, 170, 0.10));
+}
+html[data-skin="celadon"] .card::after {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.7), transparent 30%, transparent 70%, rgba(90, 165, 140, 0.10));
+}
+html[data-skin="snow"] .card:hover {
+  border-color: rgba(100, 135, 195, 0.5);
+  box-shadow: 0 16px 30px rgba(70, 95, 140, 0.14), 0 0 24px rgba(110, 145, 205, 0.16);
+}
+html[data-skin="sakura"] .card:hover {
+  border-color: rgba(220, 120, 160, 0.5);
+  box-shadow: 0 16px 30px rgba(190, 90, 135, 0.14), 0 0 24px rgba(225, 130, 170, 0.16);
+}
+html[data-skin="celadon"] .card:hover {
+  border-color: rgba(90, 165, 135, 0.5);
+  box-shadow: 0 16px 30px rgba(60, 130, 105, 0.14), 0 0 24px rgba(90, 165, 140, 0.16);
+}
+html[data-skin="snow"] .search input,
+html[data-skin="sakura"] .search input,
+html[data-skin="celadon"] .search input,
+html[data-skin="snow"] .stat,
+html[data-skin="sakura"] .stat,
+html[data-skin="celadon"] .stat,
+html[data-skin="snow"] .nav-col,
+html[data-skin="sakura"] .nav-col,
+html[data-skin="celadon"] .nav-col {
+  color: var(--text);
+  border-color: var(--stroke);
+  background: rgba(255, 255, 255, 0.66);
+  box-shadow: 0 8px 22px rgba(80, 90, 120, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+html[data-skin="snow"] .search input::placeholder,
+html[data-skin="sakura"] .search input::placeholder,
+html[data-skin="celadon"] .search input::placeholder { color: var(--muted); }
+html[data-skin="snow"] .search input:focus,
+html[data-skin="sakura"] .search input:focus,
+html[data-skin="celadon"] .search input:focus {
+  border-color: var(--glow);
+  box-shadow: 0 0 0 4px var(--glow), 0 14px 34px rgba(80, 90, 110, 0.1);
+}
+html[data-skin="snow"] .card,
+html[data-skin="sakura"] .card,
+html[data-skin="celadon"] .card,
+html[data-skin="snow"] .nav-col,
+html[data-skin="sakura"] .nav-col,
+html[data-skin="celadon"] .nav-col {
+  box-shadow: 0 8px 20px rgba(80, 90, 110, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+html[data-skin="snow"] .dot,
+html[data-skin="sakura"] .dot,
+html[data-skin="celadon"] .dot { filter: saturate(0.8); }
+html[data-skin="snow"] .folder:hover,
+html[data-skin="sakura"] .folder:hover,
+html[data-skin="celadon"] .folder:hover { background: rgba(60, 80, 100, 0.06); }
+html[data-skin="snow"] .folder.on,
+html[data-skin="sakura"] .folder.on,
+html[data-skin="celadon"] .folder.on {
+  background: linear-gradient(90deg, hsla(var(--h), 55%, 50%, 0.16), rgba(255, 255, 255, 0.5));
+  box-shadow: inset 0 0 0 1px hsla(var(--h), 50%, 45%, 0.3);
+}
+html[data-skin="snow"] .folder span,
+html[data-skin="sakura"] .folder span,
+html[data-skin="celadon"] .folder span,
+html[data-skin="snow"] .tag,
+html[data-skin="sakura"] .tag,
+html[data-skin="celadon"] .tag {
+  color: var(--muted);
+  border-color: var(--stroke);
+  background: rgba(255, 255, 255, 0.55);
+}
+html[data-skin="snow"] .appearance-panel,
+html[data-skin="sakura"] .appearance-panel,
+html[data-skin="celadon"] .appearance-panel {
+  background: rgba(252, 253, 255, 0.94);
+  border-color: rgba(80, 100, 130, 0.18);
+  box-shadow: 0 24px 60px rgba(70, 90, 120, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+html[data-skin="snow"] .choice,
+html[data-skin="sakura"] .choice,
+html[data-skin="celadon"] .choice {
+  border-color: rgba(80, 100, 130, 0.14);
+  background: rgba(255, 255, 255, 0.5);
+}
+html[data-skin="snow"] .choice[aria-pressed="true"],
+html[data-skin="sakura"] .choice[aria-pressed="true"],
+html[data-skin="celadon"] .choice[aria-pressed="true"] {
+  border-color: var(--glow);
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 0 18px var(--glow);
+}
+html[data-skin="snow"] .appearance-trigger svg,
+html[data-skin="sakura"] .appearance-trigger svg,
+html[data-skin="celadon"] .appearance-trigger svg { color: var(--muted); }
+html[data-skin="snow"] .appearance-trigger[aria-expanded="true"],
+html[data-skin="sakura"] .appearance-trigger[aria-expanded="true"],
+html[data-skin="celadon"] .appearance-trigger[aria-expanded="true"] {
+  border-color: var(--glow);
+  box-shadow: 0 0 20px var(--glow), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+/* ---- 中国风水墨：水墨 / 黛青 / 朱砂 / 夜墨 ---- */
+html[data-skin="shuimo"] {
+  --text: #252c2b;
+  --muted: #646b63;
+  --glass: rgba(250, 249, 244, .94);
+  --stroke: rgba(48, 58, 52, .24);
+  --glow: rgba(63, 77, 65, .18);
+  --bg: #f5f3eb;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --skin-accent: #47584b;
+  --skin-panel: rgba(248, 247, 240, .97);
+  --skin-art: url("../themes/shuimo.svg?v=svg2");
+}
+html[data-skin="daiqing"] {
+  --text: #163f40;
+  --muted: #4e706a;
+  --glass: rgba(238, 250, 243, .92);
+  --stroke: rgba(29, 104, 93, .25);
+  --glow: rgba(35, 142, 121, .22);
+  --bg: #dceee5;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --skin-accent: #1b7d70;
+  --skin-panel: rgba(237, 248, 241, .97);
+  --skin-art: url("../themes/daiqing.svg?v=svg2");
+}
+html[data-skin="zhusha"] {
+  --text: #63352b;
+  --muted: #89604b;
+  --glass: rgba(255, 248, 232, .94);
+  --stroke: rgba(167, 53, 37, .25);
+  --glow: rgba(181, 56, 37, .2);
+  --bg: #f8edd7;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --skin-accent: #af3729;
+  --skin-panel: rgba(255, 246, 227, .97);
+  --skin-art: url("../themes/zhusha.svg?v=svg2");
+}
+html[data-skin="yemo"] {
+  --text: #ede0c4;
+  --muted: #b6a98e;
+  --glass: rgba(17, 27, 40, .92);
+  --stroke: rgba(193, 162, 107, .26);
+  --glow: rgba(193, 162, 107, .16);
+  --bg: #0d1520;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --skin-accent: #c1a26b;
+  --skin-panel: rgba(15, 24, 36, .97);
+  --skin-art: url("../themes/yemo.svg?v=svg2");
+}
+html:is([data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"], [data-skin="yemo"]) .aurora {
+  background: var(--skin-art) var(--skin-position, center) / cover no-repeat, var(--bg);
+}
+html:is([data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"], [data-skin="yemo"]) .aurora::before,
+html:is([data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"], [data-skin="yemo"]) .aurora::after {
+  display: none;
+}
+html[data-skin="shuimo"] .hello .time {
+  background: linear-gradient(110deg, #35322c 12%, #6b655a 55%, #4a463f 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: none;
+}
+html[data-skin="daiqing"] .hello .time {
+  background: linear-gradient(110deg, #2f4348 12%, #5c8188 55%, #3f6167 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: none;
+}
+html[data-skin="zhusha"] .hello .time {
+  background: linear-gradient(110deg, #4a3230 12%, #b04a38 55%, #7d3830 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: none;
+}
+html[data-skin="yemo"] .hello .time {
+  background: linear-gradient(110deg, #f3e8cf 8%, #d5b77c 52%, #a58b56 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+html[data-skin="shuimo"] .search::before {
+  background: linear-gradient(120deg, rgba(90, 85, 70, 0.35), rgba(60, 55, 45, 0.16));
+}
+html[data-skin="daiqing"] .search::before {
+  background: linear-gradient(120deg, rgba(80, 125, 130, 0.35), rgba(70, 95, 100, 0.16));
+}
+html[data-skin="zhusha"] .search::before {
+  background: linear-gradient(120deg, rgba(190, 70, 50, 0.34), rgba(150, 106, 60, 0.16));
+}
+html[data-skin="yemo"] .search::before {
+  background: linear-gradient(120deg, rgba(200, 193, 178, 0.28), rgba(160, 150, 130, 0.12));
+}
+html[data-skin="shuimo"] .cursor-glow {
+  background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(90, 85, 70, 0.10), transparent 58%);
+}
+html[data-skin="daiqing"] .cursor-glow {
+  background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(80, 125, 130, 0.11), transparent 58%);
+}
+html[data-skin="zhusha"] .cursor-glow {
+  background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(190, 70, 50, 0.10), transparent 58%);
+}
+html[data-skin="yemo"] .cursor-glow {
+  background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(200, 193, 178, 0.09), transparent 58%);
+}
+html[data-skin="shuimo"] .card {
+  border-color: rgba(48, 58, 52, .2);
+  background: linear-gradient(105deg, rgba(221, 224, 212, .7), transparent 28%), var(--glass);
+}
+html[data-skin="daiqing"] .card {
+  border-color: rgba(29, 104, 93, .28);
+  background: linear-gradient(155deg, rgba(250, 255, 243, .92), rgba(202, 234, 218, .94));
+}
+html[data-skin="zhusha"] .card {
+  border-color: rgba(167, 53, 37, .28);
+  background: linear-gradient(155deg, rgba(255, 252, 241, .96), rgba(248, 230, 197, .94));
+}
+html[data-skin="yemo"] .card {
+  border-color: rgba(193, 162, 107, .32);
+  background: linear-gradient(135deg, rgba(193, 162, 107, .08), transparent 50%), var(--glass);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .22), inset 0 1px 0 rgba(221, 199, 149, .07);
+}
+html[data-skin="shuimo"] .card::after {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.65), transparent 30%, transparent 70%, rgba(72, 68, 60, 0.07));
+}
+html[data-skin="daiqing"] .card::after {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.65), transparent 30%, transparent 70%, rgba(72, 100, 106, 0.08));
+}
+html[data-skin="zhusha"] .card::after {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.65), transparent 30%, transparent 70%, rgba(178, 62, 46, 0.08));
+}
+html[data-skin="yemo"] .card::after {
+  background: linear-gradient(135deg, rgba(226, 220, 206, 0.06), transparent 30%, transparent 70%, rgba(226, 220, 206, 0.03));
+}
+html[data-skin="shuimo"] .card:hover {
+  border-color: rgba(70, 66, 58, 0.48);
+  box-shadow: 0 16px 30px rgba(70, 66, 58, 0.14), 0 0 24px rgba(90, 85, 70, 0.14);
+}
+html[data-skin="daiqing"] .card:hover {
+  border-color: rgba(70, 100, 106, 0.48);
+  box-shadow: 0 16px 30px rgba(60, 95, 100, 0.14), 0 0 24px rgba(80, 125, 130, 0.14);
+}
+html[data-skin="zhusha"] .card:hover {
+  border-color: rgba(178, 62, 46, 0.48);
+  box-shadow: 0 16px 30px rgba(160, 60, 45, 0.14), 0 0 24px rgba(190, 70, 50, 0.14);
+}
+html[data-skin="yemo"] .card:hover {
+  border-color: rgba(200, 193, 178, 0.42);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4), 0 0 26px rgba(200, 193, 178, 0.1);
+}
+html[data-skin="shuimo"] .search input,
+html[data-skin="daiqing"] .search input,
+html[data-skin="zhusha"] .search input,
+html[data-skin="shuimo"] .stat,
+html[data-skin="daiqing"] .stat,
+html[data-skin="zhusha"] .stat,
+html[data-skin="shuimo"] .nav-col,
+html[data-skin="daiqing"] .nav-col,
+html[data-skin="zhusha"] .nav-col {
+  color: var(--text);
+  border-color: var(--stroke);
+  background: var(--glass);
+  box-shadow: 0 8px 22px rgba(70, 66, 58, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.78);
+}
+html[data-skin="shuimo"] .search input::placeholder,
+html[data-skin="daiqing"] .search input::placeholder,
+html[data-skin="zhusha"] .search input::placeholder { color: var(--muted); }
+html[data-skin="shuimo"] .search input:focus,
+html[data-skin="daiqing"] .search input:focus,
+html[data-skin="zhusha"] .search input:focus {
+  border-color: var(--glow);
+  box-shadow: 0 0 0 4px var(--glow), 0 14px 34px rgba(70, 66, 58, 0.09);
+}
+html[data-skin="shuimo"] .card,
+html[data-skin="daiqing"] .card,
+html[data-skin="zhusha"] .card,
+html[data-skin="shuimo"] .nav-col,
+html[data-skin="daiqing"] .nav-col,
+html[data-skin="zhusha"] .nav-col {
+  box-shadow: 0 8px 20px rgba(70, 66, 58, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.68);
+}
+html[data-skin="shuimo"] .folder:hover,
+html[data-skin="daiqing"] .folder:hover,
+html[data-skin="zhusha"] .folder:hover { background: rgba(70, 66, 58, 0.06); }
+html[data-skin="shuimo"] .folder.on,
+html[data-skin="daiqing"] .folder.on,
+html[data-skin="zhusha"] .folder.on {
+  background: linear-gradient(90deg, hsla(var(--h), 28%, 38%, 0.14), rgba(255, 255, 255, 0.5));
+  box-shadow: inset 0 0 0 1px hsla(var(--h), 26%, 34%, 0.28);
+}
+html[data-skin="shuimo"] .folder span,
+html[data-skin="daiqing"] .folder span,
+html[data-skin="zhusha"] .folder span,
+html[data-skin="shuimo"] .tag,
+html[data-skin="daiqing"] .tag,
+html[data-skin="zhusha"] .tag {
+  color: var(--muted);
+  border-color: var(--stroke);
+  background: rgba(255, 255, 252, 0.55);
+}
+html[data-skin="shuimo"] .dot,
+html[data-skin="daiqing"] .dot,
+html[data-skin="zhusha"] .dot {
+  background: hsl(var(--h), 26%, 42%);
+  box-shadow: 0 0 7px hsla(var(--h), 26%, 38%, 0.16);
+}
+html[data-skin="shuimo"] .appearance-panel,
+html[data-skin="daiqing"] .appearance-panel,
+html[data-skin="zhusha"] .appearance-panel {
+  background: var(--skin-panel);
+  border-color: var(--stroke);
+  box-shadow: 0 24px 60px rgba(70, 66, 58, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+html[data-skin="yemo"] .appearance-panel {
+  background: var(--skin-panel);
+  border-color: var(--stroke);
+}
+html[data-skin="shuimo"] .choice,
+html[data-skin="daiqing"] .choice,
+html[data-skin="zhusha"] .choice {
+  border-color: rgba(60, 55, 45, 0.14);
+  background: rgba(255, 255, 252, 0.5);
+}
+html[data-skin="shuimo"] .choice[aria-pressed="true"],
+html[data-skin="daiqing"] .choice[aria-pressed="true"],
+html[data-skin="zhusha"] .choice[aria-pressed="true"] {
+  border-color: var(--glow);
+  background: rgba(255, 255, 252, 0.75);
+  box-shadow: 0 0 18px var(--glow);
+}
+html[data-skin="shuimo"] .appearance-trigger svg,
+html[data-skin="daiqing"] .appearance-trigger svg,
+html[data-skin="zhusha"] .appearance-trigger svg,
+html[data-skin="yemo"] .appearance-trigger svg { color: var(--muted); }
+html[data-skin="shuimo"] .appearance-trigger[aria-expanded="true"],
+html[data-skin="daiqing"] .appearance-trigger[aria-expanded="true"],
+html[data-skin="zhusha"] .appearance-trigger[aria-expanded="true"] {
+  border-color: var(--glow);
+  box-shadow: 0 0 20px var(--glow), inset 0 1px 0 rgba(255, 255, 255, 0.68);
+}
+html[data-skin="shuimo"] .section h2,
+html[data-skin="daiqing"] .section h2,
+html[data-skin="zhusha"] .section h2,
+html[data-skin="yemo"] .section h2,
+html[data-skin="shuimo"] .appearance-head strong,
+html[data-skin="daiqing"] .appearance-head strong,
+html[data-skin="zhusha"] .appearance-head strong,
+html[data-skin="yemo"] .appearance-head strong {
+  font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", "SimSun", serif;
+}
+html[data-skin="shuimo"] .hello .time,
+html[data-skin="daiqing"] .hello .time,
+html[data-skin="zhusha"] .hello .time,
+html[data-skin="yemo"] .hello .time {
+  font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", "SimSun", serif;
+}
+html:is([data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"], [data-skin="yemo"]) .section h2 {
+  color: var(--skin-accent);
+  width: fit-content;
+  padding: 0 10px;
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  background: var(--skin-panel);
+}
+html:is([data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"], [data-skin="yemo"]) .folder.on {
+  color: var(--text);
+  background: color-mix(in srgb, var(--skin-accent) 12%, var(--glass));
+  box-shadow: inset 3px 0 0 var(--skin-accent), inset 0 0 0 1px var(--stroke);
+}
+html:is([data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"], [data-skin="yemo"]) .choice[aria-pressed="true"] {
+  border-color: var(--skin-accent);
+  background: color-mix(in srgb, var(--skin-accent) 9%, var(--skin-panel));
+  box-shadow: 0 3px 12px var(--glow);
+}
+html[data-skin="zhusha"] .section h2 em { border-radius: 2px; background: #af3729; box-shadow: none; }
+html[data-skin="yemo"] :is(.search input, .stat, .nav-col) {
+  color: var(--text); background: var(--glass); border-color: var(--stroke);
+}
+html[data-skin="yemo"] .card:hover { border-color: #c1a26b; box-shadow: 0 12px 28px rgba(0, 0, 0, .35), 0 0 16px var(--glow); }
+html[data-skin="obsidian"] {
+  --text: #fff8e9;
+  --muted: #b9aa8d;
+  --glass: rgba(18, 15, 11, 0.7);
+  --stroke: rgba(234, 191, 103, 0.2);
+  --glow: rgba(234, 179, 80, 0.26);
+  --bg: #050504;
+  --radius: 14px;
+  --radius-sm: 9px;
+}
+html[data-skin="obsidian"] .aurora {
+  background:
+    radial-gradient(900px 520px at 8% -8%, rgba(141,101,45,.25), transparent 60%),
+    radial-gradient(680px 460px at 92% 5%, rgba(234,191,103,.17), transparent 55%),
+    radial-gradient(720px 440px at 55% 112%, rgba(104,72,30,.18), transparent 58%),
+    linear-gradient(180deg, #14110c, #080706 48%, #030302);
+}
+html[data-skin="obsidian"] .aurora::before {
+  background:
+    radial-gradient(36vmax 22vmax at 20% 18%, rgba(222,170,75,.14), transparent 64%),
+    radial-gradient(30vmax 20vmax at 82% 22%, rgba(255,223,152,.09), transparent 68%);
+}
+html[data-skin="obsidian"] .aurora::after {
+  background-image:
+    linear-gradient(rgba(234,191,103,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(234,191,103,.025) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+html[data-skin="obsidian"] .hello .time {
+  background: linear-gradient(110deg, #fffdf5 10%, #f6d78e 52%, #b98234 94%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+html[data-skin="obsidian"] .search::before { background: linear-gradient(120deg, rgba(246,215,142,.44), rgba(185,130,52,.2)); }
+html[data-skin="obsidian"] .cursor-glow { background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(234,191,103,.14), transparent 58%); }
+
+html[data-skin="abyss"] {
+  --text: #eaffff;
+  --muted: #86acb6;
+  --glass: rgba(3, 20, 30, 0.68);
+  --stroke: rgba(94, 234, 212, 0.18);
+  --glow: rgba(45, 212, 191, 0.3);
+  --bg: #01070d;
+  --radius: 22px;
+  --radius-sm: 14px;
+}
+html[data-skin="abyss"] .aurora {
+  background:
+    radial-gradient(880px 540px at 8% -8%, rgba(14,116,144,.35), transparent 60%),
+    radial-gradient(720px 480px at 94% 7%, rgba(13,148,136,.25), transparent 55%),
+    radial-gradient(760px 520px at 58% 112%, rgba(8,145,178,.2), transparent 58%),
+    linear-gradient(180deg, #06263a, #02131f 48%, #01070d);
+}
+html[data-skin="abyss"] .aurora::before {
+  background:
+    radial-gradient(38vmax 24vmax at 18% 18%, rgba(34,211,238,.17), transparent 64%),
+    radial-gradient(34vmax 22vmax at 82% 20%, rgba(45,212,191,.15), transparent 66%),
+    radial-gradient(26vmax 18vmax at 54% 76%, rgba(56,189,248,.1), transparent 68%);
+  filter: blur(14px);
+}
+html[data-skin="abyss"] .aurora::after {
+  background-image:
+    radial-gradient(circle, rgba(165,243,252,.15) 0 2px, transparent 2.5px),
+    radial-gradient(circle, rgba(94,234,212,.1) 0 1px, transparent 1.5px);
+  background-position: 0 0, 31px 23px;
+  background-size: 79px 79px, 53px 53px;
+  mask-image: linear-gradient(to bottom, transparent, #000 24%, transparent 88%);
+  opacity: .8;
+}
+html[data-skin="abyss"] .hello .time {
+  background: linear-gradient(110deg, #efffff 8%, #67e8f9 48%, #5eead4 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+html[data-skin="abyss"] .search::before { background: linear-gradient(120deg, rgba(103,232,249,.48), rgba(45,212,191,.35)); }
+html[data-skin="abyss"] .cursor-glow { background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(45,212,191,.17), transparent 58%); }
+
+html[data-skin="aurora"] .card {
+  background:
+    radial-gradient(220px 90px at 10% 0%, rgba(56,189,248,0.13), transparent 70%),
+    linear-gradient(180deg, rgba(255,255,255,0.13), rgba(10,16,34,0.5));
+}
+html[data-skin="aurora"] .card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255,255,255,0.12), transparent 24%, transparent 72%, rgba(168,85,247,0.08));
+}
+
+html[data-skin="cyber"] .card {
+  border-radius: 0;
+  clip-path: polygon(0 10px, 10px 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+  background:
+    linear-gradient(90deg, rgba(57,255,140,0.06) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(57,255,140,0.08), rgba(1,10,7,0.68));
+  background-size: 18px 100%, auto;
+}
+html[data-skin="cyber"] .card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.28;
+  background: repeating-linear-gradient(180deg, transparent 0 5px, rgba(57,255,140,0.11) 6px);
+}
+html[data-skin="cyber"] .card:hover {
+  border-color: #39ff8c;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.38), -4px 0 0 rgba(57,255,140,0.55), 4px 0 0 rgba(255,46,182,0.38);
+}
+
+html[data-skin="ember"] .card {
+  background:
+    radial-gradient(170px 90px at 86% 110%, rgba(255,72,24,0.2), transparent 72%),
+    linear-gradient(165deg, rgba(255,207,88,0.1), rgba(31,10,6,0.62) 48%, rgba(12,4,3,0.78));
+}
+html[data-skin="ember"] .card::after {
+  content: "";
+  position: absolute;
+  inset: auto 12% 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, #ff7a2e, transparent);
+  box-shadow: 0 -5px 18px rgba(255,90,42,0.42);
+}
+html[data-skin="ember"] .card:hover {
+  border-color: rgba(255,179,92,0.72);
+  box-shadow: 0 20px 42px rgba(20,4,2,0.38), 0 0 30px rgba(255,90,42,0.22), inset 0 -1px 0 rgba(255,179,92,0.28);
+}
+
+html[data-skin="paper"] .card {
+  background:
+    repeating-linear-gradient(8deg, rgba(90,70,40,0.025) 0 1px, transparent 1px 8px),
+    linear-gradient(155deg, rgba(255,252,242,0.86), rgba(238,222,190,0.7));
+}
+html[data-skin="paper"] .card::after {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  pointer-events: none;
+  border: 1px solid rgba(126,83,45,0.08);
+  border-radius: calc(var(--radius) - 6px);
+}
+html[data-skin="paper"] .card:hover {
+  border-color: rgba(138,90,50,0.38);
+  box-shadow: 0 16px 30px rgba(90,60,20,0.13), 4px 5px 0 rgba(138,90,50,0.07);
+}
+html[data-skin="paper"] .appearance-panel {
+  border-color: rgba(90,70,40,0.18);
+  background: rgba(247,240,223,0.94);
+  box-shadow: 0 24px 60px rgba(90,60,20,0.18), inset 0 1px 0 rgba(255,255,255,0.8);
+}
+html[data-skin="paper"] .choice { border-color: rgba(90,70,40,0.14); background: rgba(255,255,255,0.28); }
+html[data-skin="paper"] .choice[aria-pressed="true"] { border-color: rgba(138,90,50,0.55); background: rgba(180,120,50,0.12); }
+
+html[data-skin="nebula"] .card {
+  background:
+    radial-gradient(190px 100px at 88% 110%, rgba(168,85,247,.2), transparent 72%),
+    radial-gradient(150px 80px at 0 0, rgba(59,130,246,.14), transparent 72%),
+    linear-gradient(160deg, rgba(255,255,255,.11), rgba(10,8,35,.62));
+}
+html[data-skin="nebula"] .card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255,255,255,.1), transparent 24%, transparent 72%, rgba(192,132,252,.1));
+}
+html[data-skin="nebula"] .card:hover { box-shadow: 0 20px 44px rgba(0,0,0,.38), 0 0 30px rgba(124,92,255,.25); }
+
+html[data-skin="prism"] .card {
+  background:
+    linear-gradient(125deg, rgba(34,211,238,.09), transparent 32%, rgba(139,92,246,.09) 60%, rgba(236,72,153,.1)),
+    linear-gradient(180deg, rgba(255,255,255,.1), rgba(3,12,24,.66));
+}
+html[data-skin="prism"] .card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(120deg, rgba(103,232,249,.13), transparent 30%, rgba(196,181,253,.09) 58%, rgba(249,168,212,.12));
+  mix-blend-mode: screen;
+}
+html[data-skin="prism"] .card:hover { border-color: rgba(103,232,249,.58); box-shadow: 0 20px 44px rgba(0,0,0,.4), -8px 4px 26px rgba(34,211,238,.13), 8px -4px 28px rgba(236,72,153,.14); }
+
+html[data-skin="obsidian"] .card {
+  background:
+    radial-gradient(170px 90px at 90% 110%, rgba(185,130,52,.15), transparent 72%),
+    linear-gradient(155deg, rgba(255,245,218,.08), rgba(18,15,11,.72) 46%, rgba(5,5,4,.82));
+  box-shadow: 0 14px 34px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,230,170,.12);
+}
+html[data-skin="obsidian"] .card::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  pointer-events: none;
+  border: 1px solid rgba(234,191,103,.07);
+  border-radius: calc(var(--radius) - 5px);
+}
+html[data-skin="obsidian"] .card:hover { border-color: rgba(246,215,142,.58); box-shadow: 0 20px 44px rgba(0,0,0,.44), 0 0 26px rgba(185,130,52,.2), inset 0 1px 0 rgba(255,235,190,.18); }
+
+html[data-skin="abyss"] .card {
+  background:
+    radial-gradient(190px 100px at 88% 112%, rgba(20,184,166,.18), transparent 72%),
+    linear-gradient(160deg, rgba(103,232,249,.1), rgba(3,20,30,.68) 52%, rgba(1,8,14,.8));
+}
+html[data-skin="abyss"] .card::after {
+  content: "";
+  position: absolute;
+  inset: auto 10% 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(94,234,212,.8), transparent);
+  box-shadow: 0 -5px 20px rgba(45,212,191,.32);
+}
+html[data-skin="abyss"] .card:hover { border-color: rgba(94,234,212,.62); box-shadow: 0 20px 44px rgba(0,0,0,.4), 0 0 32px rgba(45,212,191,.2); }
+
+html[data-skin="nebula"] .appearance-panel { background: rgba(8,7,27,.94); }
+html[data-skin="prism"] .appearance-panel { background: rgba(3,12,24,.94); }
+html[data-skin="obsidian"] .appearance-panel { background: rgba(14,12,9,.95); }
+html[data-skin="abyss"] .appearance-panel { background: rgba(2,16,25,.94); }
+html[data-skin="nebula"] .search input,
+html[data-skin="nebula"] .stat,
+html[data-skin="nebula"] .nav-col { background-color: rgba(10,8,35,.52); }
+html[data-skin="prism"] .search input,
+html[data-skin="prism"] .stat,
+html[data-skin="prism"] .nav-col { background-color: rgba(3,14,28,.54); }
+html[data-skin="obsidian"] .search input,
+html[data-skin="obsidian"] .stat,
+html[data-skin="obsidian"] .nav-col { background-color: rgba(18,15,11,.62); }
+html[data-skin="abyss"] .search input,
+html[data-skin="abyss"] .stat,
+html[data-skin="abyss"] .nav-col { background-color: rgba(3,20,30,.58); }
+html[data-skin="nebula"] .nav-col { background: linear-gradient(180deg, rgba(110,91,210,.13), rgba(10,8,35,.56)); }
+html[data-skin="prism"] .nav-col { background: linear-gradient(180deg, rgba(34,211,238,.1), rgba(3,14,28,.6)); }
+html[data-skin="obsidian"] .nav-col { background: linear-gradient(180deg, rgba(246,215,142,.09), rgba(18,15,11,.68)); }
+html[data-skin="abyss"] .nav-col { background: linear-gradient(180deg, rgba(94,234,212,.1), rgba(3,20,30,.64)); }
+html[data-skin="obsidian"] .choice[aria-pressed="true"] {
+  border-color: rgba(246,215,142,.58);
+  background: rgba(185,130,52,.13);
+  box-shadow: 0 0 18px rgba(185,130,52,.13);
+}
+html[data-skin="obsidian"] .appearance-trigger svg { color: #f6d78e; }
+html[data-skin="obsidian"] .appearance-trigger[aria-expanded="true"] {
+  border-color: rgba(246,215,142,.54);
+  box-shadow: 0 0 22px rgba(185,130,52,.2), inset 0 1px 0 rgba(255,245,218,.14);
+}
+html[data-skin="obsidian"] .search input:focus {
+  border-color: rgba(246,215,142,.62);
+  box-shadow: 0 0 0 4px rgba(185,130,52,.14), 0 16px 48px rgba(0,0,0,.4);
+}
+html[data-skin="obsidian"] .card:focus-visible,
+html[data-skin="obsidian"] .choice:focus-visible,
+html[data-skin="obsidian"] .folder:focus-visible,
+html[data-skin="obsidian"] .appearance-trigger:focus-visible,
+html[data-skin="obsidian"] .weather:focus-visible { outline-color: rgba(246,215,142,.92); }

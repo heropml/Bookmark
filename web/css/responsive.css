@@ -1,0 +1,64 @@
+@media (max-width: 900px) {
+  html:is([data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"], [data-skin="yemo"]) { --skin-position: 80% center; }
+  header, .layout { grid-template-columns: 1fr; }
+  .hello { justify-content: center; text-align: center; }
+  .hello-meta { text-align: left; }
+  .tools { justify-content: center; }
+  .nav-cols { position: static; flex-wrap: wrap; }
+  .appearance-panel { top: 64px; max-height: calc(100dvh - 80px); }
+}
+@media (max-width: 720px) {
+  html[data-layout="list"] .grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 1000px) {
+  .appearance-detail { right: 16px; width: min(660px, calc(100vw - 32px)); }
+  body.appearance-section-open .appearance-menu { visibility: hidden; pointer-events: none; }
+}
+@media (max-width: 600px) {
+  .appearance-detail .choice-grid,
+  .appearance-detail #skinChoices,
+  .appearance-detail #trailChoices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .appearance-detail .trail-size-row { gap: 6px; }
+}
+@media (max-width: 420px) {
+  .hello { height: auto; flex-direction: column; gap: 7px; }
+  .hello-meta { padding-left: 0; text-align: center; }
+  .hello-meta::before { display: none; }
+  .weather { justify-self: center; text-align: center; }
+}
+body.appearance-open header { z-index: 60; }
+@media (prefers-reduced-motion: reduce) {
+  .aurora::before,
+  .card,
+  .appearance-panel,
+  .ico,
+  .ico::before,
+  .motion-swatch .motion-anim,
+  .trail-swatch { animation: none !important; }
+  .card,
+  .card::before,
+  .ico,
+  .ico::after,
+  .ico img,
+  .choice { transition: none !important; }
+  html[data-icon="holo"] .card:is(:hover, :focus-visible) .ico::after { transform: translateX(-120%); }
+  .aurora::before,
+  .aurora::after {
+    translate: none !important;
+    transition: none !important;
+  }
+  html[data-fx="on"] .card,
+  html[data-fx="on"] .card:is(:hover, :focus-visible) {
+    transform: none;
+  }
+  html[data-fx="on"] .card:hover {
+    transform: translateY(-6px);
+  }
+  .aurora,
+  #fx-canvas {
+    transition: none !important;
+  }
+  .card-glow {
+    transition: none;
+  }
+}
