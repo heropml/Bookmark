@@ -43,3 +43,78 @@ html[data-layout="icons"] .card p,
 html[data-layout="icons"] .card .meta { display: none; }
 .choice[data-value="icons"] .layout-swatch { grid-template-columns: repeat(3, 1fr); gap: 3px; }
 .choice[data-value="icons"] .layout-swatch i { border-radius: 50%; }
+
+/* Grouped board: each category has its own page size, so large groups cannot hide others. */
+html[data-layout="board"] .nav-cols { flex-direction: column; align-self: start; max-height: calc(100vh - 24px); overflow-y: auto; }
+html[data-layout="board"] .nav-cols > .nav-col { flex-shrink: 0; width: 100%; max-height: none; }
+.board-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: 14px;
+  align-items: start;
+  padding-inline: 8px;
+}
+.board-column.nav-col {
+  width: auto;
+  min-width: 0;
+  max-height: none;
+  overflow: visible;
+  padding: 14px;
+  border-top: 2px solid hsl(var(--h), 55%, 60%);
+}
+.board-heading { margin: 0; font: inherit; }
+.board-heading button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.board-heading span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.board-heading b { padding: 2px 8px; border: 1px solid var(--stroke); border-radius: 999px; color: var(--muted); font-size: 12px; font-weight: 400; }
+.board-path { margin: 6px 0 14px 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 11px; }
+.board-column .grid { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.board-column .card { min-height: 76px; padding: 11px; gap: 10px; }
+.board-column .card > div:not(.ico) { min-width: 0; flex: 1; }
+.board-column .card p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-column .ico { width: 36px; height: 36px; flex-basis: 36px; }
+.board-column .meta { margin-top: 5px; }
+.board-column .tag { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-more { width: 100%; margin-top: 10px; padding: 10px 4px; border: 1px dashed var(--stroke); border-radius: 8px; background: transparent; color: var(--text); font: inherit; font-size: 12px; cursor: pointer; }
+.board-more span { color: var(--muted); }
+.board-more:hover { background: var(--glass); }
+
+/* A bounded sidebar replaces the expanding multi-column navigation only in tree mode. */
+.tree-nav.nav-col { width: max-content; min-width: 0; max-width: 240px; }
+.tree-caption { display: flex; justify-content: space-between; gap: 8px; padding: 5px 8px 12px; color: var(--text); font-size: 13px; }
+.tree-caption span { color: var(--muted); font-size: 11px; }
+.tree-nav ul { list-style: none; padding: 0; margin: 0; }
+.tree-row { display: flex; align-items: center; min-width: 0; padding-left: calc(var(--tree-depth) * 12px); }
+.tree-all { margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--stroke); }
+.tree-toggle, .tree-spacer { width: 24px; height: 30px; flex: 0 0 24px; }
+.tree-toggle { display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+.tree-toggle svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.tree-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
+.tree-toggle:hover { color: var(--text); background: var(--glass); }
+.tree-label.folder { width: auto; flex: 0 1 auto; min-width: 0; padding: 8px 6px; gap: 7px; }
+.tree-label.folder::after { display: none; }
+.tree-label.folder b { flex: 0 1 auto; width: auto; min-width: 2.8em; text-align: justify; text-align-last: justify; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; font-size: 13px; }
+.tree-label.folder span { min-width: 24px; flex-shrink: 0; text-align: center; font-size: 11px; }
+.tree-folder-icon { width: 17px; height: 17px; flex: 0 0 17px; color: hsl(var(--h), 55%, 58%); fill: currentColor; fill-opacity: .15; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
+.board-heading button:focus-visible, .board-more:focus-visible, .tree-toggle:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+@media (max-width: 900px) {
+  html[data-layout="tree"] .nav-cols { display: block; min-width: 0; }
+  .tree-nav.nav-col { max-width: min(240px, 100%); max-height: 260px; }
+  html[data-layout="board"] .nav-cols { flex-direction: row; max-height: 260px; }
+  html[data-layout="board"] .nav-cols > .nav-col { display: flex; flex-wrap: wrap; gap: 4px; width: 100%; max-height: 180px; }
+  html[data-layout="board"] .nav-cols .folder { width: auto; }
+}
+@media (max-width: 600px) {
+  .board-columns { grid-template-columns: minmax(0, 1fr); padding-inline: 0; }
+}

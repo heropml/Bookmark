@@ -1,0 +1,155 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+
+function fixture({ layout = 'board', folder = '', items } = {}) {
+  const books = items || [
+    ...Array.from({ length: 45 }, (_, i) => ({ title: '工具 ' + i, href: 'https://example.com/tool/' + i, host: 'example.com', path: '工具/开发/前端', group: '工具' })),
+    ...Array.from({ length: 10 }, (_, i) => ({ title: '办公 ' + i, href: 'https://example.org/office/' + i, host: 'example.org', path: '公司/办公', group: '公司' }))
+  ];
+  const storage = new Map([['bm-folder', folder]]);
+  const handlers = new Map();
+  const elements = new Map();
+  const element = id => {
+    if (!elements.has(id)) elements.set(id, { innerHTML: '', textContent: '', hidden: false,
+      addEventListener: (name, handler) => handlers.set(id + ':' + name, handler) });
+    return elements.get(id);
+  };
+  const context = vm.createContext({
+    window: { BOOKMARKS: books },
+    document: { documentElement: { dataset: { layout, fx: 'off' } },
+      body: { classList: { toggle() {} } }, getElementById: element, querySelectorAll: () => [] },
+    localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
+    matchMedia: () => ({ matches: false }), setTimeout: callback => { callback(); return 1; }, clearTimeout() {}
+  });
+  for (const file of ['config.js', 'bookmarks.js', 'bookmark-layouts.js']) {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../web/js', file), 'utf8'), context, { filename: file });
+  }
+  const run = code => vm.runInContext(code, context);
+  run('initBookmarks(); render()');
+  return { run, context, elements, storage, handlers, html: () => element('main').innerHTML,
+    choose(value) {
+      const btn = { getAttribute: () => value };
+      context.event = { target: { closest: selector => selector === '[data-folder]' ? btn : null } };
+      run('pickFolder(event)');
+    },
+    more(name) {
+      context.event = { target: { closest: selector => selector === '[data-board-more]' ? { dataset: { boardMore: name } } : null } };
+      run('pickFolder(event)');
+    },
+    search(value) { handlers.get('q:input')({ target: { value } }); }
+  };
+}
+const cardCount = html => (html.match(/<a class="card"/g) || []).length;
+
+test('六种布局选项保留原四种并追加看板和目录树', () => {
+  const app = fixture();
+  assert.equal(app.run('LAYOUTS.map(x => x.id).join(",")'), 'classic,compact,list,icons,board,tree');
+});
+
+test('看板在全部分类中展示实际书签，每组独立限制，不受全局 36 条截断', () => {
+  const app = fixture();
+  assert.equal(cardCount(app.html()), 16);
+  assert.match(app.html(), /data-board="公司"/);
+  assert.match(app.html(), /data-board="工具"/);
+  assert.doesNotMatch(app.html(), /id="moreBtn"/);
+  assert.equal(app.elements.get('stats').textContent, '55 / 55');
+});
+
+test('看板加载更多只展开目标分类，最后一页按钮消失', () => {
+  const app = fixture();
+  app.more('工具');
+  assert.equal(cardCount(app.html()), 24);
+  assert.match(app.html(), /data-board-more="公司"/);
+  app.more('公司');
+  assert.equal(cardCount(app.html()), 26);
+  assert.doesNotMatch(app.html(), /data-board-more="公司"/);
+  assert.match(app.html(), /data-board-more="工具"/);
+});
+
+test('分类及搜索变化会重置看板展开数，保留原有过滤含义', () => {
+  const app = fixture();
+  app.more('工具');
+  app.choose('工具');
+  assert.equal(app.storage.get('bm-folder'), '工具');
+  assert.equal(cardCount(app.html()), 8);
+  assert.match(app.html(), /data-board="工具\/开发"/);
+  app.more('工具/开发');
+  assert.equal(cardCount(app.html()), 16);
+  app.search('工具 4');
+  assert.equal(cardCount(app.html()), 6);
+  app.search('');
+  assert.equal(cardCount(app.html()), 8);
+  app.search('不存在的书签');
+  assert.match(app.html(), /没有找到匹配的书签/);
+});
+
+test('切换布局不改变分类、查询和原有全局分页数量', () => {
+  const app = fixture({ folder: '工具' });
+  app.run('state.shown = 72; state.q = "工具"; document.documentElement.dataset.layout = "tree"; render()');
+  assert.equal(cardCount(app.html()), 45);
+  assert.equal(app.run('state.folder + ":" + state.q + ":" + state.shown'), '工具:工具:72');
+  app.run('document.documentElement.dataset.layout = "board"; render()');
+  assert.equal(cardCount(app.html()), 8);
+  app.run('document.documentElement.dataset.layout = "classic"; render()');
+  assert.equal(cardCount(app.html()), 45);
+  assert.doesNotMatch(app.elements.get('nav').innerHTML, /tree-nav/);
+});
+
+test('原四种布局保留根目录卡片和 36 条分页行为', () => {
+  for (const layout of ['classic', 'compact', 'list', 'icons']) {
+    const app = fixture({ layout });
+    assert.equal(cardCount(app.html()), 0);
+    assert.equal((app.html().match(/data-key="folder:/g) || []).length, 2);
+    app.choose('工具');
+    assert.equal(cardCount(app.html()), 36);
+    assert.match(app.html(), /id="moreBtn"/);
+    app.context.event = { target: { closest: selector => selector === '#moreBtn' ? {} : null } };
+    app.run('pickFolder(event)');
+    assert.equal(cardCount(app.html()), 45);
+    assert.doesNotMatch(app.html(), /id="moreBtn"/);
+  }
+});
+
+test('目录树展开当前分类祖先，点击箭头只改变展开状态、不切换分类或重绘卡片', () => {
+  const app = fixture({ layout: 'tree', folder: '工具/开发/前端' });
+  const nav = app.elements.get('nav').innerHTML;
+  assert.match(nav, /data-tree-toggle="工具" aria-expanded="true"/);
+  assert.match(nav, /data-tree-toggle="工具\/开发" aria-expanded="true"/);
+  assert.match(nav, /data-tree-toggle="公司" aria-expanded="false"/);
+  const before = app.html();
+  const attributes = { 'aria-expanded': 'true', 'aria-controls': 'fixture-children' };
+  app.context.event = { target: { closest: selector => selector === '[data-tree-toggle]' ? {
+    dataset: { treeToggle: '工具' }, getAttribute: name => attributes[name], setAttribute: (name, value) => { attributes[name] = value; }
+  } : null } };
+  app.run('pickFolder(event)');
+  assert.equal(attributes['aria-expanded'], 'false');
+  assert.equal(app.elements.get('fixture-children').hidden, true);
+  assert.equal(app.run('state.folder'), '工具/开发/前端');
+  assert.equal(app.html(), before);
+  app.run('render()');
+  assert.match(app.elements.get('nav').innerHTML, /data-tree-toggle="工具" aria-expanded="false"/);
+});
+
+test('搜索会展开匹配的深层目录，空结果仍可返回全部', () => {
+  const app = fixture({ layout: 'tree' });
+  app.search('工具 4');
+  assert.match(app.elements.get('nav').innerHTML, /data-tree-toggle="工具\/开发" aria-expanded="true"/);
+  assert.equal(cardCount(app.html()), 6);
+  app.search('无结果');
+  assert.match(app.elements.get('nav').innerHTML, /data-folder=""/);
+  assert.match(app.html(), /没有找到匹配的书签/);
+});
+
+test('新布局中的分类名称、标题和控件属性均转义', () => {
+  const name = '引号" <测试>&';
+  const items = [{ title: '<script>测试</script>', href: 'https://example.com/', host: 'example.com', path: name + '/子级', group: name }];
+  const app = fixture({ items });
+  assert.match(app.html(), /data-board="引号&quot; &lt;测试&gt;&amp;"/);
+  assert.doesNotMatch(app.html(), /<script>/);
+  app.run('document.documentElement.dataset.layout = "tree"; render()');
+  assert.doesNotMatch(app.elements.get('nav').innerHTML, /<测试>/);
+  assert.match(app.elements.get('nav').innerHTML, /aria-controls="tree-/);
+});

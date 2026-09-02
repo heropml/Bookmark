@@ -140,9 +140,12 @@ function render() {
     pathCounts.set(item.path, (pathCounts.get(item.path) || 0) + 1);
   }
   const tree = buildTree(pathCounts);
+  prepareLayoutState(tree);
   const cols = openColumns(state.folder, tree);
 
-  document.getElementById("nav").innerHTML = cols.map((colPath) => {
+  document.getElementById("nav").innerHTML = document.documentElement.dataset.layout === "tree"
+    ? treeNavHtml(tree, groupCounts, searched.length)
+    : cols.map((colPath) => {
     const node = nodeAt(tree, colPath);
     let items = [];
     if (colPath === "") {
@@ -183,6 +186,11 @@ function render() {
   const order = state.folder
     ? [...sections.keys()].sort((a, b) => a.localeCompare(b, "zh"))
     : sortNames(sections.keys(), new Map([...sections].map(([k, v]) => [k, v.length])));
+  if (document.documentElement.dataset.layout === "board") {
+    main.innerHTML = boardHtml(sections, order);
+    applyFlips();
+    return;
+  }
   if (!state.folder && !state.q.trim()) {
     main.innerHTML = `<div class="grid">${order.map((name) => `
       <button type="button" class="card" data-folder="${escapeHtml(name)}" data-key="folder:${escapeHtml(name)}" style="--h:${hue(name)}">
@@ -222,6 +230,7 @@ function escapeHtml(s) {
 }
 
 function pickFolder(e) {
+  if (handleLayoutClick(e)) return;
   const more = e.target.closest("#moreBtn");
   if (more) {
     state.shown += PAGE;
@@ -237,10 +246,18 @@ function pickFolder(e) {
   }
   const btn = e.target.closest("[data-folder]");
   if (!btn) return;
+  const treeScroll = document.getElementById("nav").firstElementChild?.scrollTop || 0;
   state.folder = btn.getAttribute("data-folder");
   try { localStorage.setItem("bm-folder", state.folder); } catch (e) {}
   state.shown = PAGE;
   render();
+  if (document.documentElement.dataset.layout === "tree") {
+    const selected = [...document.querySelectorAll(".tree-label")].find(el => el.dataset.folder === state.folder);
+    if (selected) {
+      selected.focus({ preventScroll: true });
+      selected.closest(".tree-nav").scrollTop = treeScroll;
+    }
+  }
 }
 
 function initBookmarks() {

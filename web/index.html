@@ -32,15 +32,16 @@
   <div class="cursor-glow" aria-hidden="true"></div>
   <header>
     <div class="hello">
-      <div id="clock" class="time">--:--</div>
-      <div class="hello-meta">
-        <div id="greet" class="greet">书签</div>
-        <div class="weather-row">
-          <button type="button" id="weather" class="weather" title="点击查看或切换城市"><span class="w-ico" id="weatherIco" aria-hidden="true"></span><span class="w-txt" id="weatherTxt">点击查看天气</span></button>
-          <button type="button" id="weatherRefresh" class="weather-refresh" title="刷新天气（每 10 分钟自动刷新）" aria-label="刷新天气">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 7a7 7 0 0 1 11.4-1L20 9M4 15l2.5 3A7 7 0 0 0 17.9 17"/></svg>
-          </button>
-        </div>
+      <div id="clock" class="time">--:--:--</div>
+      <div class="calendar-dates">
+        <div class="calendar-solar"><span class="calendar-label">公历</span><span id="greet">书签</span></div>
+        <div class="calendar-lunar"><span class="calendar-label">农历</span><span id="lunarDate"></span></div>
+      </div>
+      <div class="weather-row">
+        <button type="button" id="weather" class="weather" title="点击查看或切换城市"><span class="w-ico" id="weatherIco" aria-hidden="true"></span><span class="w-txt" id="weatherTxt">点击查看天气</span></button>
+        <button type="button" id="weatherRefresh" class="weather-refresh" title="刷新天气（每 10 分钟自动刷新）" aria-label="刷新天气">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 7a7 7 0 0 1 11.4-1L20 9M4 15l2.5 3A7 7 0 0 0 17.9 17"/></svg>
+        </button>
       </div>
     </div>
     <div class="search">
@@ -163,6 +164,7 @@
   <script defer src="js/config.js"></script>
   <script defer src="js/utils.js"></script>
   <script defer src="js/bookmarks.js"></script>
+  <script defer src="js/bookmark-layouts.js"></script>
   <script defer src="js/weather.js"></script>
   <script defer src="js/clock.js"></script>
   <script defer src="js/appearance.js"></script>

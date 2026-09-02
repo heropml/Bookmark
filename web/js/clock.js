@@ -1,5 +1,17 @@
 const clockEl = document.getElementById("clock");
-clockEl.innerHTML = "--:--".split("").map((c) => "<span>" + c + "</span>").join("");
+clockEl.innerHTML = "--:--:--".split("").map((c, i) => '<span' + (i >= 5 ? ' class="clock-seconds"' : '') + '>' + c + '</span>').join("");
+const LUNAR_DAYS = [
+  "初一", "初二", "初三", "初四", "初五", "初六", "初七", "初八", "初九", "初十",
+  "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十",
+  "廿一", "廿二", "廿三", "廿四", "廿五", "廿六", "廿七", "廿八", "廿九", "三十"
+];
+function lunarDateText(date) {
+  const parts = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", {
+    year: "numeric", month: "long", day: "numeric"
+  }).formatToParts(date);
+  const fields = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return fields.yearName + "年" + fields.month + LUNAR_DAYS[Number(fields.day) - 1];
+}
 let clockReady = false;
 function rollDigit(span, ch) {
   const out = span.animate(
@@ -33,20 +45,22 @@ function tick(roll = clockReady) {
   const now = new Date();
   const hh = String(now.getHours()).padStart(2, "0");
   const mm = String(now.getMinutes()).padStart(2, "0");
-  setClock(hh + ":" + mm, roll);
+  const ss = String(now.getSeconds()).padStart(2, "0");
+  setClock(hh + ":" + mm + ":" + ss, roll);
   clockReady = true;
-  const dateStr = now.toLocaleDateString("zh-CN", { weekday: "long", month: "long", day: "numeric" });
+  const dateStr = now.toLocaleDateString("zh-CN", { year: "numeric", weekday: "long", month: "long", day: "numeric" });
   document.getElementById("bgTime").textContent = hh + ":" + mm;
   document.getElementById("bgDate").textContent = dateStr;
   const h = now.getHours();
   const greet = h < 5 ? "夜深了" : h < 11 ? "早上好" : h < 14 ? "中午好" : h < 18 ? "下午好" : h < 22 ? "晚上好" : "夜深了";
-  document.getElementById("greet").textContent = dateStr + " · " + greet;
+  document.getElementById("greet").textContent = dateStr.replace(/星期/, " 星期");
+  document.getElementById("lunarDate").textContent = lunarDateText(now) + " · " + greet;
   if (weatherScene.dataset.period !== weatherPeriod()) syncParticles();
 }
 
 function initClock() {
   tick();
-  setInterval(tick, 10000);
+  setInterval(tick, 1000);
   window.addEventListener("focus", () => tick(false));
   window.addEventListener("blur", () => tick(false));
   document.addEventListener("visibilitychange", () => tick(false));

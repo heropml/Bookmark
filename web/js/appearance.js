@@ -51,6 +51,8 @@ const MOTION_ART = {
 function choicePreview(key, id) {
   if (key === "skin") return '<span class="skin-swatch"></span>';
   if (key === "icon") return '<span class="icon-swatch"><i>A</i></span>';
+  if (key === "layout" && id === "board") return '<span class="layout-art" aria-hidden="true"><svg viewBox="0 0 72 48" fill="none"><g stroke="currentColor" stroke-width="1.4"><rect x="2" y="3" width="20" height="42" rx="4"/><rect x="26" y="3" width="20" height="42" rx="4"/><rect x="50" y="3" width="20" height="42" rx="4"/></g><path d="M7 10h10m14 0h10m14 0h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><g fill="currentColor" opacity=".3"><rect x="6" y="16" width="12" height="10" rx="2"/><rect x="6" y="29" width="12" height="10" rx="2"/><rect x="30" y="16" width="12" height="10" rx="2"/><rect x="54" y="16" width="12" height="10" rx="2"/><rect x="54" y="29" width="12" height="10" rx="2"/></g></svg></span>';
+  if (key === "layout" && id === "tree") return '<span class="layout-art" aria-hidden="true"><svg viewBox="0 0 72 48" fill="none"><path d="M9 13v23h12M9 23h12" stroke="currentColor" stroke-width="1.5"/><g fill="currentColor" fill-opacity=".25" stroke="currentColor" stroke-width="1.4"><path d="M3 5h7l3 3h10v9H3Z"/><path d="M21 21h5l2 2h9v8H21ZM21 34h5l2 2h9v8H21Z"/><rect x="45" y="4" width="25" height="40" rx="4"/></g><path d="M51 12h13m-13 8h13m-13 8h13m-13 8h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>';
   if (key === "layout") return '<span class="layout-swatch"><i></i><i></i><i></i><i></i><i></i><i></i></span>';
   if (key === "motion") return '<span class="motion-swatch" aria-hidden="true"><svg viewBox="0 0 64 56" fill="none" stroke-linecap="round" stroke-linejoin="round">' + MOTION_ART[id] + '</svg></span>';
   if (key === "trail") return '<span class="trail-swatch"><i></i></span>';
@@ -90,7 +92,10 @@ function setupChoice(list, key, containerId, resolve) {
   container.addEventListener("click", (event) => {
     const btn = event.target.closest(".choice");
     if (!btn) return;
+    const previous = root.dataset[key];
     apply(btn.dataset.value, key === "skin");
+    if (key === "layout" && previous !== root.dataset.layout &&
+        [previous, root.dataset.layout].some(id => id === "board" || id === "tree")) render();
   });
 }
 

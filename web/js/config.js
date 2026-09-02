@@ -34,7 +34,9 @@ const LAYOUTS = [
   { id: "classic", name: "标准" },
   { id: "compact", name: "紧凑" },
   { id: "list", name: "列表" },
-  { id: "icons", name: "宫格" }
+  { id: "icons", name: "宫格" },
+  { id: "board", name: "分组看板" },
+  { id: "tree", name: "目录树" }
 ];
 const MOTIONS = [
   { id: "float", name: "悬浮" },
