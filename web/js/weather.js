@@ -14,6 +14,7 @@ const WMO = {
 async function locateCity() {
   const saved = readJson("bm-city");
   if (saved && Number.isFinite(saved.lat) && Number.isFinite(saved.lon)) return saved;
+  if (saved && typeof saved.name === "string" && saved.name.trim()) return saved;
   try {
     const city = await Promise.any([
       fetchJson("https://get.geojs.io/v1/ip/geo.json", 4000).then((ip) => {
@@ -27,7 +28,7 @@ async function locateCity() {
     ]);
     // 定位期间可能已经手动选了城市，用户的选择优先。
     const selected = readJson("bm-city");
-    if (selected && Number.isFinite(selected.lat) && Number.isFinite(selected.lon)) return selected;
+    if (selected && typeof selected.name === "string" && selected.name.trim()) return selected;
     writeJson("bm-city", city);
     return city;
   } catch (e) {
@@ -35,12 +36,21 @@ async function locateCity() {
   }
 }
 async function searchCity(name) {
-  const geo = await fetch(
-    "https://geocoding-api.open-meteo.com/v1/search?name=" + encodeURIComponent(name) + "&count=1&language=zh"
-  ).then((r) => r.json());
-  const hit = geo.results && geo.results[0];
-  if (!hit) return null;
-  return { name: hit.name, lat: hit.latitude, lon: hit.longitude };
+  const encoded = encodeURIComponent(name);
+  const geo = fetch(
+    "https://geocoding-api.open-meteo.com/v1/search?name=" + encoded + "&count=1&language=zh"
+  ).then((response) => {
+    if (!response.ok) throw new Error("city HTTP " + response.status);
+    return response.json();
+  }).then((data) => {
+    const hit = data.results && data.results[0];
+    if (!hit) throw new Error("city not found");
+    return { name: hit.name, lat: hit.latitude, lon: hit.longitude };
+  });
+  // 备用天气源可校验城市名；没有经纬度时会直接使用该天气源刷新。
+  const fallback = fetchJson(localWeatherUrl({ name }), WEATHER_FALLBACK_TIMEOUT_MS)
+    .then(() => ({ name }));
+  return Promise.any([geo, fallback]);
 }
 const W_ICONS = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5M4.8 4.8l1.7 1.7M17.5 17.5l1.7 1.7M19.2 4.8l-1.7 1.7M6.5 17.5l-1.7 1.7"/>',
@@ -74,8 +84,80 @@ function setWeatherUI(text, code) {
   document.getElementById("weatherTxt").textContent = text;
 }
 const WEATHER_REFRESH_MS = 10 * 60 * 1000;
+const WEATHER_PRIMARY_TIMEOUT_MS = 4000;
+const WEATHER_FALLBACK_TIMEOUT_MS = 7000;
+const WEATHER_RETRY_COUNT = 3;
+const WEATHER_RETRY_DELAY_MS = 1000;
 let weatherRequest = null;
 let cityLookup = 0;
+
+function localWeatherUrl(city) {
+  const params = new URLSearchParams({ city: city.name });
+  if (Number.isFinite(city.lat) && Number.isFinite(city.lon)) {
+    params.set("lat", city.lat);
+    params.set("lon", city.lon);
+  }
+  return "/__weather?" + params;
+}
+
+async function fetchWeatherResponse(url, timeout, signal) {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  const timer = setTimeout(abort, timeout);
+  signal.addEventListener("abort", abort, { once: true });
+  try {
+    const response = await fetch(url, { signal: controller.signal, cache: "no-store" });
+    if (!response.ok) throw new Error("weather HTTP " + response.status);
+    const data = await response.json();
+    if (!data.current || !Number.isFinite(data.current.weather_code) ||
+        !Number.isFinite(data.current.temperature_2m)) throw new Error("weather data");
+    return data;
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", abort);
+  }
+}
+
+async function fetchWeather(city, signal) {
+  const fallback = localWeatherUrl(city);
+  const sources = [fetchWeatherResponse(fallback, WEATHER_FALLBACK_TIMEOUT_MS, signal)];
+  if (Number.isFinite(city.lat) && Number.isFinite(city.lon)) {
+    const primary = "https://api.open-meteo.com/v1/forecast?latitude=" + city.lat +
+      "&longitude=" + city.lon +
+      "&current=temperature_2m,weather_code&timezone=auto";
+    sources.unshift(fetchWeatherResponse(primary, WEATHER_PRIMARY_TIMEOUT_MS, signal));
+  }
+  return Promise.any(sources);
+}
+
+function waitForWeatherRetry(signal) {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(signal.reason || new Error("weather request aborted"));
+      return;
+    }
+    const abort = () => {
+      clearTimeout(timer);
+      reject(signal.reason || new Error("weather request aborted"));
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", abort);
+      resolve();
+    }, WEATHER_RETRY_DELAY_MS);
+    signal.addEventListener("abort", abort, { once: true });
+  });
+}
+
+async function fetchWeatherWithRetry(city, signal) {
+  for (let attempt = 0; attempt <= WEATHER_RETRY_COUNT; attempt++) {
+    try {
+      return await fetchWeather(city, signal);
+    } catch (error) {
+      if (signal.aborted || attempt === WEATHER_RETRY_COUNT) throw error;
+      await waitForWeatherRetry(signal);
+    }
+  }
+}
 
 async function loadWeather(quiet, force = false) {
   const cache = readJson("bm-weather");
@@ -92,30 +174,24 @@ async function loadWeather(quiet, force = false) {
   const refresh = document.getElementById("weatherRefresh");
   refresh.disabled = true;
   refresh.setAttribute("aria-busy", "true");
+  refresh.setAttribute("data-state", "loading");
   refresh.title = "正在刷新天气…";
   try {
     const city = await locateCity();
-    const response = await fetch(
-      "https://api.open-meteo.com/v1/forecast?latitude=" + city.lat +
-      "&longitude=" + city.lon +
-      "&current=temperature_2m,weather_code&timezone=auto",
-      { signal: request.signal, cache: "no-store" }
-    );
-    if (!response.ok) throw new Error("weather HTTP " + response.status);
-    const data = await response.json();
+    const data = await fetchWeatherWithRetry(city, request.signal);
     if (weatherRequest !== request) return;
-    if (!data.current || !Number.isFinite(data.current.weather_code) ||
-        !Number.isFinite(data.current.temperature_2m)) throw new Error("weather data");
     const code = data.current.weather_code;
     const t = Math.round(data.current.temperature_2m);
-    const desc = WMO[code] || "天气";
+    const desc = data.description || WMO[code] || "天气";
     const text = desc + " " + t + "° · " + city.name;
     currentWeatherCode = code;
     setWeatherUI(text, code);
     writeJson("bm-weather", { text, at: Date.now(), code });
+    refresh.setAttribute("data-state", "ready");
     refresh.title = "刷新天气（每 10 分钟自动刷新）";
   } catch (e) {
     if (weatherRequest !== request) return;
+    refresh.setAttribute("data-state", "error");
     refresh.title = "天气刷新失败，点击重试";
     if (!quiet && !cache) setWeatherUI("天气刷新失败，请重试", null);
   } finally {

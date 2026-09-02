@@ -10,7 +10,12 @@
   --mx: 50%;
   --my: 18%;
 }
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar { display: none; }
 html, body { min-height: 100%; }
 html { background: var(--bg); }
 body {

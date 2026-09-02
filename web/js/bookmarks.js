@@ -98,6 +98,17 @@ function selectedInCol(colPath, itemPath) {
   if (itemPath === "") return false;
   return state.folder === itemPath || state.folder.startsWith(itemPath + "/");
 }
+
+function updateFolderNameScroll() {
+  for (const label of document.querySelectorAll("#nav .folder > b")) {
+    const name = label.querySelector(".folder-name");
+    if (!name) continue;
+    const overflow = Math.ceil(name.scrollWidth - label.clientWidth);
+    label.classList.toggle("is-overflow", overflow > 1);
+    if (overflow > 1) label.style.setProperty("--folder-overflow", overflow + "px");
+  }
+}
+
 let flipSnapshot = null;
 function snapshotFlips() {
   flipSnapshot = null;
@@ -165,10 +176,11 @@ function render() {
     }
     const buttons = items.map((it) => {
       const on = selectedInCol(colPath, it.path) || (it.path === "" && !state.folder);
-      return `<button class="folder ${it.hasKids ? "has-kids" : ""} ${on ? "on" : ""}" data-folder="${escapeHtml(it.path)}" style="--h:${hue(it.path || it.name)}"><em class="dot"></em><b>${escapeHtml(it.name)}</b><span>${it.count}</span></button>`;
+      return `<button class="folder ${it.hasKids ? "has-kids" : ""} ${on ? "on" : ""}" data-folder="${escapeHtml(it.path)}" style="--h:${hue(it.path || it.name)}"><em class="dot"></em><b><span class="folder-name">${escapeHtml(it.name)}</span></b><span>${it.count}</span></button>`;
     }).join("");
     return `<div class="nav-col">${buttons}</div>`;
   }).join("");
+  updateFolderNameScroll();
 
   document.getElementById("stats").textContent = `${visible.length} / ${ITEMS.length}`;
 

@@ -113,6 +113,11 @@ test('原四种布局保留根目录卡片和 36 条分页行为', () => {
   }
 });
 
+test('分类名称包在独立元素中，以便仅超长名称自动横向滚动', () => {
+  const app = fixture({ layout: 'classic', folder: '工具' });
+  assert.match(app.elements.get('nav').innerHTML, /<b><span class="folder-name">开发<\/span><\/b>/);
+});
+
 test('目录树展开当前分类祖先，点击箭头只改变展开状态、不切换分类或重绘卡片', () => {
   const app = fixture({ layout: 'tree', folder: '工具/开发/前端' });
   const nav = app.elements.get('nav').innerHTML;

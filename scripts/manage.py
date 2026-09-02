@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import json
+import math
 import os
 import plistlib
 import re
@@ -22,7 +23,114 @@ EXAMPLE_SRC = DATA_DIR / "bookmarks.example.html"
 DATA_JS = WEB_ROOT / "data.js"
 WINDOW_STATE = DATA_DIR / ".window-state.json"
 PORT = 8765
+HEALTH_RESPONSE = b"bookmark-weather-v3\n"
 HREF_RE = re.compile(r'<A HREF="([^"]+)"', re.I)
+
+
+def weather_code(description: str) -> int:
+    """Map the Chinese fallback provider's condition text to a WMO-style code."""
+    if "雷" in description:
+        return 96 if "冰雹" in description else 95
+    if "雪" in description:
+        if "大" in description or "暴" in description:
+            return 75
+        return 71
+    if "雨" in description:
+        if "阵" in description:
+            return 80
+        if "大" in description or "暴" in description:
+            return 65
+        if "中" in description:
+            return 63
+        return 61
+    if any(word in description for word in ("雾", "霾", "沙尘")):
+        return 45
+    if "阴" in description:
+        return 3
+    if "云" in description:
+        return 2
+    if "晴" in description:
+        return 0
+    return 3
+
+
+def weather_description(code: int) -> str:
+    """Use the same concise labels as the page for Open-Meteo responses."""
+    if code == 0:
+        return "晴"
+    if code in (1, 2):
+        return "多云"
+    if code == 3:
+        return "阴"
+    if code in (45, 48):
+        return "雾"
+    if 51 <= code <= 67 or 80 <= code <= 82:
+        return "雨"
+    if 71 <= code <= 77 or code in (85, 86):
+        return "雪"
+    if code >= 95:
+        return "雷雨"
+    return "天气"
+
+
+def weather_from_uapis(city: str) -> tuple[float, int, str]:
+    """Get Chinese city weather from the primary provider."""
+    from urllib.parse import urlencode
+    from urllib.request import Request, urlopen
+
+    url = "https://uapis.cn/api/v1/misc/weather?" + urlencode({"city": city})
+    request = Request(url, headers={"User-Agent": "Bookmark/1.0"})
+    with urlopen(request, timeout=2.5) as response:
+        upstream = json.load(response)
+    temperature = float(upstream["temperature"])
+    description = str(upstream["weather"]).strip()
+    if not description or not math.isfinite(temperature):
+        raise ValueError("invalid UAPIs weather response")
+    return temperature, weather_code(description), description
+
+
+def weather_from_open_meteo(
+    city: str, latitude: float | None, longitude: float | None
+) -> tuple[float, int, str]:
+    """Independent fallback: resolve a city if needed, then fetch Open-Meteo."""
+    from urllib.parse import urlencode
+    from urllib.request import Request, urlopen
+
+    valid_coordinates = (
+        latitude is not None and longitude is not None
+        and math.isfinite(latitude) and math.isfinite(longitude)
+        and -90 <= latitude <= 90 and -180 <= longitude <= 180
+    )
+    if not valid_coordinates:
+        geocode_url = "https://geocoding-api.open-meteo.com/v1/search?" + urlencode(
+            {"name": city, "count": 1, "language": "zh"}
+        )
+        request = Request(geocode_url, headers={"User-Agent": "Bookmark/1.0"})
+        with urlopen(request, timeout=2.5) as response:
+            geocode = json.load(response)
+        hit = (geocode.get("results") or [None])[0]
+        if not isinstance(hit, dict):
+            raise ValueError("Open-Meteo city not found")
+        latitude = float(hit["latitude"])
+        longitude = float(hit["longitude"])
+
+    weather_url = "https://api.open-meteo.com/v1/forecast?" + urlencode(
+        {
+            "latitude": latitude,
+            "longitude": longitude,
+            "current": "temperature_2m,weather_code",
+            "timezone": "auto",
+        }
+    )
+    request = Request(weather_url, headers={"User-Agent": "Bookmark/1.0"})
+    with urlopen(request, timeout=2.5) as response:
+        upstream = json.load(response)
+    current = upstream["current"]
+    temperature = float(current["temperature_2m"])
+    code = int(current["weather_code"])
+    if not math.isfinite(temperature):
+        raise ValueError("invalid Open-Meteo weather response")
+    return temperature, code, weather_description(code)
 
 
 def host_of(href: str) -> str:
@@ -380,7 +488,10 @@ class Handler(SimpleHTTPRequestHandler):
 
     def end_headers(self):
         path = self.path.split("?", 1)[0]
-        if path in ("/", "/index.html", "/data.example.js", "/data.js"):
+        if (
+            path in ("/", "/index.html", "/data.example.js", "/data.js")
+            or path.startswith(("/js/", "/css/", "/weather/"))
+        ):
             self.send_header("Cache-Control", "no-store")
         super().end_headers()
 
@@ -389,11 +500,50 @@ class Handler(SimpleHTTPRequestHandler):
 
         parsed = urlparse(self.path)
         if parsed.path == "/__health":
-            data = b"bookmark\n"
+            data = HEALTH_RESPONSE
             self.send_response(200)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
             self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(data)
+            return
+        if parsed.path == "/__weather":
+            query = parse_qs(parsed.query)
+            city = ((query.get("city") or [""])[0]).strip()[:80]
+            if not city:
+                self.send_error(400)
+                return
+            try:
+                latitude = float((query.get("lat") or [""])[0])
+                longitude = float((query.get("lon") or [""])[0])
+            except ValueError:
+                latitude = longitude = None
+
+            source = "uapis"
+            try:
+                temperature, code, description = weather_from_uapis(city)
+            except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError):
+                source = "open-meteo"
+                try:
+                    temperature, code, description = weather_from_open_meteo(
+                        city, latitude, longitude
+                    )
+                except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError):
+                    self.send_error(502)
+                    return
+            data = json.dumps(
+                {
+                    "current": {"temperature_2m": temperature, "weather_code": code},
+                    "description": description,
+                },
+                ensure_ascii=False,
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Weather-Source", source)
             self.end_headers()
             self.wfile.write(data)
             return
@@ -470,7 +620,10 @@ def page_ok(port: int) -> bool:
     try:
         with urlopen(f"http://127.0.0.1:{port}/index.html", timeout=0.8) as resp:
             chunk = resp.read(64).lower()
-            return resp.status == 200 and b"<html" in chunk
+            index_ok = resp.status == 200 and b"<html" in chunk
+        with urlopen(f"http://127.0.0.1:{port}/__health", timeout=0.8) as resp:
+            health = resp.read(64)
+        return index_ok and resp.status == 200 and health == HEALTH_RESPONSE
     except (OSError, URLError):
         return False
 

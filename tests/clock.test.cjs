@@ -18,7 +18,7 @@ function fixture({ at = '2026-09-02T03:04:05', focused = false, hidden = false, 
   });
   const clock = { children: [], set innerHTML(value) { this.children = [...value.matchAll(/<span[^>]*>(.*?)<\/span>/g)].map(match => span(match[1])); } };
   elements.set('clock', clock);
-  for (const id of ['greet', 'lunarDate', 'bgTime', 'bgDate']) elements.set(id, { textContent: '' });
+  for (const id of ['greet', 'lunarDate', 'bgTime']) elements.set(id, { textContent: '' });
   const document = { hidden, hasFocus: () => focused, getElementById: id => elements.get(id),
     addEventListener: (type, handler) => listeners.set(type, handler) };
   const context = vm.createContext({

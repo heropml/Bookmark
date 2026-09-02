@@ -50,7 +50,6 @@ function tick(roll = clockReady) {
   clockReady = true;
   const dateStr = now.toLocaleDateString("zh-CN", { year: "numeric", weekday: "long", month: "long", day: "numeric" });
   document.getElementById("bgTime").textContent = hh + ":" + mm;
-  document.getElementById("bgDate").textContent = dateStr;
   const h = now.getHours();
   const greet = h < 5 ? "夜深了" : h < 11 ? "早上好" : h < 14 ? "中午好" : h < 18 ? "下午好" : h < 22 ? "晚上好" : "夜深了";
   document.getElementById("greet").textContent = dateStr.replace(/星期/, " 星期");

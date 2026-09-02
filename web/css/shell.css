@@ -24,18 +24,12 @@
   right: 3vw;
   bottom: 1vh;
   z-index: 1;
-  display: grid;
-  justify-items: end;
-  gap: 10px;
+  display: flex;
+  align-items: center;
+  gap: clamp(12px, 1.2vw, 24px);
   pointer-events: none;
   user-select: none;
   color: var(--text);
-  opacity: 0.055;
-}
-.bg-clock .bg-date {
-  font-size: clamp(13px, 1.3vw, 17px);
-  letter-spacing: 0.4em;
-  margin-right: -0.4em;
 }
 .bg-clock .bg-time {
   font-size: clamp(110px, 20vw, 300px);
@@ -43,6 +37,7 @@
   line-height: 0.92;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
+  opacity: 0.055;
 }
 html[data-fx="on"] .aurora::before {
   translate: calc((var(--mx) - 50vw) * 0.045) calc((var(--my) - 50vh) * 0.045);
@@ -74,7 +69,7 @@ header {
 .hello {
   display: flex;
   align-items: stretch;
-  gap: 20px;
+  gap: 14px;
   width: max-content;
   max-width: 100%;
   min-width: 0;
@@ -86,7 +81,7 @@ header {
   gap: 4px;
   flex: 0 0 auto;
   height: var(--header-control-height);
-  padding-left: 20px;
+  padding-left: 14px;
   border-left: 1px solid var(--stroke);
   color: var(--muted);
   font-size: 13px;
@@ -94,6 +89,7 @@ header {
 }
 .hello .time {
   flex: 0 0 auto;
+  width: 7.1ch;
   height: var(--header-control-height);
   font-size: 40px;
   font-weight: 720;
@@ -108,11 +104,17 @@ header {
 }
 .calendar-solar,
 .calendar-lunar {
-  display: flex;
+  display: grid;
+  grid-template-columns: max-content 1fr;
   align-items: baseline;
-  gap: 7px;
+  column-gap: 7px;
   min-width: 0;
   white-space: nowrap;
+}
+.calendar-solar > :last-child,
+.calendar-lunar > :last-child {
+  text-align: justify;
+  text-align-last: justify;
 }
 .calendar-solar {
   color: var(--text);
@@ -153,7 +155,10 @@ header {
 .weather-refresh svg { width: 14px; height: 14px; }
 .weather-refresh:hover { color: var(--text); background: var(--glow); }
 .weather-refresh:disabled { opacity: .45; cursor: wait; }
+.weather-refresh[data-state="loading"] svg { animation: weather-refresh-spin .8s linear infinite; }
+.weather-refresh[data-state="error"] { color: #fb7185; background: rgba(251, 113, 133, .12); }
 .weather-refresh:focus-visible { outline: 2px solid var(--muted); outline-offset: 2px; }
+@keyframes weather-refresh-spin { to { transform: rotate(360deg); } }
 .weather {
   display: flex;
   align-items: center;

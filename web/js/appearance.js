@@ -105,7 +105,7 @@ const appearancePanel = document.getElementById("appearancePanel");
 const appearanceCategories = document.getElementById("appearanceCategories");
 const appearanceBack = document.getElementById("appearanceBack");
 let appearanceSection = null;
-function showAppearanceSection(key) {
+function showAppearanceSection(key, focusTarget = true) {
   const previous = appearanceSection;
   const section = key ? appearancePanel.querySelector('[data-setting-panel="' + key + '"]') : null;
   appearanceSection = section ? key : null;
@@ -120,7 +120,7 @@ function showAppearanceSection(key) {
     document.getElementById("appearanceDescription").textContent = section.dataset.description;
     appearancePanel.querySelector(".appearance-body").scrollTop = 0;
   }
-  if (!appearanceMenu.hidden) {
+  if (!appearanceMenu.hidden && focusTarget) {
     const target = section
       ? section.querySelector('.choice[aria-pressed="true"]')
       : appearanceCategories.querySelector('[data-setting="' + (previous || "skin") + '"]');
@@ -161,6 +161,12 @@ function initAppearance() {
   appearanceCategories.addEventListener("click", (event) => {
     const category = event.target.closest("[data-setting]");
     if (category) showAppearanceSection(category.dataset.setting);
+  });
+  appearanceCategories.addEventListener("pointerover", (event) => {
+    if (event.pointerType !== "mouse") return;
+    const category = event.target.closest("[data-setting]");
+    if (!category || category.contains(event.relatedTarget)) return;
+    showAppearanceSection(category.dataset.setting, false);
   });
   appearanceBack.addEventListener("click", () => showAppearanceSection(null));
   document.getElementById("appearanceClose").addEventListener("click", () => showAppearanceSection(null));

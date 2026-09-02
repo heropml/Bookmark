@@ -16,8 +16,8 @@ try:
     with urlopen("http://127.0.0.1:%s/index.html" % port, timeout=0.5) as response:
         page = response.read(4096)
     with urlopen("http://127.0.0.1:%s/__health" % port, timeout=0.5) as response:
-        healthy = response.status == 200 and response.read(32) == b"bookmark\n"
-    sys.exit(0 if b"<title>\xe4\xb9\xa6\xe7\xad\xbe</title>" in page and healthy else 1)
+        health = response.read(32)
+    sys.exit(0 if b"<title>\xe4\xb9\xa6\xe7\xad\xbe</title>" in page and health == b"bookmark-weather-v3\n" else 1)
 except OSError:
     sys.exit(1)
 PY
