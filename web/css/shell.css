@@ -19,6 +19,23 @@
   height: 100%;
   pointer-events: none;
 }
+.app-meta {
+  position: fixed;
+  left: 20px;
+  bottom: 16px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.app-version {
+  color: var(--text);
+  font: 500 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .04em;
+  opacity: .055;
+  pointer-events: none;
+  user-select: none;
+}
 .bg-clock {
   position: fixed;
   right: 3vw;
@@ -248,6 +265,26 @@ header {
   pointer-events: none;
 }
 .tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.update-notice {
+  display: inline-flex;
+}
+.update-notice[hidden] { display: none; }
+.update-action {
+  display: block;
+  width: 8px;
+  height: 8px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #5eead4;
+  box-shadow: 0 0 12px rgba(94, 234, 212, 0.85);
+  cursor: pointer;
+}
+.update-action:hover { box-shadow: 0 0 16px rgba(94, 234, 212, 1); }
+.update-action:disabled { cursor: wait; opacity: .65; }
+.update-action[data-state="error"] { background: #fb7185; box-shadow: 0 0 12px rgba(251, 113, 133, 0.8); }
+.update-action:focus-visible { outline: 2px solid rgba(125, 211, 252, 0.9); outline-offset: 3px; }
 .switch {
   cursor: pointer;
   font: inherit;

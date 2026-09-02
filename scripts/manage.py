@@ -8,7 +8,10 @@ import math
 import os
 import plistlib
 import re
+import subprocess
 import sys
+import threading
+import time
 import webbrowser
 from collections import Counter
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -23,8 +26,80 @@ EXAMPLE_SRC = DATA_DIR / "bookmarks.example.html"
 DATA_JS = WEB_ROOT / "data.js"
 WINDOW_STATE = DATA_DIR / ".window-state.json"
 PORT = 8765
+APP_VERSION = "v1.0.0"
 HEALTH_RESPONSE = b"bookmark-weather-v3\n"
 HREF_RE = re.compile(r'<A HREF="([^"]+)"', re.I)
+UPDATE_REMOTE = "origin"
+UPDATE_BRANCH = "main"
+GIT_TIMEOUT_SECONDS = 15
+
+
+class UpdateError(RuntimeError):
+    """A repository update cannot safely be completed."""
+
+
+def git_output(*args: str) -> str:
+    """Run a bounded Git command inside this repository."""
+    try:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=GIT_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise UpdateError("无法连接更新服务") from error
+    if result.returncode:
+        raise UpdateError("无法检查更新，请稍后重试")
+    return result.stdout.strip()
+
+
+def repository_update_status() -> dict[str, object]:
+    """Check whether main can fast-forward to origin/main without data loss."""
+    version = {"version": APP_VERSION}
+    if not (ROOT / ".git").is_dir():
+        raise UpdateError("当前安装不支持在线升级")
+    if git_output("branch", "--show-current") != UPDATE_BRANCH:
+        return {"available": False, "can_update": False, "reason": "当前不在 main 分支", **version}
+    if git_output("status", "--porcelain", "--untracked-files=no"):
+        return {"available": False, "can_update": False, "reason": "存在未提交的本地代码修改", **version}
+
+    git_output("fetch", "--quiet", UPDATE_REMOTE, UPDATE_BRANCH)
+    current = git_output("rev-parse", "HEAD")
+    remote = git_output("rev-parse", f"{UPDATE_REMOTE}/{UPDATE_BRANCH}")
+    base = git_output("merge-base", "HEAD", f"{UPDATE_REMOTE}/{UPDATE_BRANCH}")
+    if current == remote:
+        return {"available": False, "can_update": True, "current": current[:7], "remote": remote[:7], **version}
+    if base == current:
+        return {"available": True, "can_update": True, "current": current[:7], "remote": remote[:7], **version}
+    if base == remote:
+        return {"available": False, "can_update": False, "reason": "本地代码领先远程", **version}
+    return {"available": False, "can_update": False, "reason": "本地代码与远程存在分叉", **version}
+
+
+def update_repository() -> dict[str, object]:
+    """Fast-forward the complete repository after the user confirms an update."""
+    status = repository_update_status()
+    if not status.get("can_update"):
+        raise UpdateError(str(status.get("reason") or "当前无法升级"))
+    if not status.get("available"):
+        return {"ok": True, "updated": False, **status}
+    git_output("merge", "--ff-only", f"{UPDATE_REMOTE}/{UPDATE_BRANCH}")
+    return {
+        "ok": True,
+        "updated": True,
+        "previous": status["current"],
+        "current": git_output("rev-parse", "HEAD")[:7],
+    }
+
+
+def restart_after_update() -> None:
+    """Allow the HTTP response to finish before replacing this server process."""
+    time.sleep(0.35)
+    os.execv(sys.executable, [sys.executable, *sys.argv])
 
 
 def weather_code(description: str) -> int:
@@ -486,6 +561,15 @@ class Handler(SimpleHTTPRequestHandler):
     def log_message(self, fmt, *args):
         print("[%s] %s" % (self.log_date_time_string(), fmt % args))
 
+    def send_json(self, status: int, payload: dict[str, object]) -> None:
+        data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(data)
+
     def end_headers(self):
         path = self.path.split("?", 1)[0]
         if (
@@ -507,6 +591,12 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
             self.wfile.write(data)
+            return
+        if parsed.path == "/__update":
+            try:
+                self.send_json(200, repository_update_status())
+            except UpdateError as error:
+                self.send_json(503, {"available": False, "can_update": False, "reason": str(error)})
             return
         if parsed.path == "/__weather":
             query = parse_qs(parsed.query)
@@ -578,7 +668,18 @@ class Handler(SimpleHTTPRequestHandler):
     def do_POST(self):
         from urllib.parse import urlparse
 
-        if urlparse(self.path).path != "/__window_state":
+        path = urlparse(self.path).path
+        if path == "/__update":
+            try:
+                result = update_repository()
+            except UpdateError as error:
+                self.send_json(409, {"ok": False, "message": str(error)})
+                return
+            self.send_json(200, result)
+            if result.get("updated"):
+                threading.Thread(target=restart_after_update, daemon=True).start()
+            return
+        if path != "/__window_state":
             self.send_error(404)
             return
         try:

@@ -5,6 +5,7 @@ initPointerEffects();
 initAppearance();
 initSearchShortcuts();
 initWeatherControls();
+initUpdate();
 initEffects();
 initClock();
 initWeatherRefresh();
