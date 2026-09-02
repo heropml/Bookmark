@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="paper" x2="0" y2="1"><stop stop-color="#faf8f1"/><stop offset="1" stop-color="#e8e4d9"/></linearGradient>
+    <linearGradient id="ink" x2=".2" y2="1"><stop stop-color="#343b3b" stop-opacity=".8"/><stop offset="1" stop-color="#717873" stop-opacity=".2"/></linearGradient>
+    <linearGradient id="mist" x2="0" y2="1"><stop stop-color="#f6f4ed" stop-opacity="0"/><stop offset=".55" stop-color="#f6f4ed" stop-opacity=".9"/><stop offset="1" stop-color="#f6f4ed" stop-opacity="0"/></linearGradient>
+    <pattern id="grain" width="23" height="27" patternUnits="userSpaceOnUse"><path d="M2 8h3m13 11h2M9 2v3m4 18v2" stroke="#494e49" stroke-opacity=".07" stroke-width=".7"/></pattern>
+  </defs>
+  <path fill="url(#paper)" d="M0 0h1600v900H0z"/>
+  <circle cx="1210" cy="315" r="155" fill="none" stroke="#454d49" stroke-opacity=".12" stroke-width="30" stroke-dasharray="825 160" transform="rotate(-28 1210 315)"/>
+  <circle cx="1215" cy="313" r="151" fill="none" stroke="#454d49" stroke-opacity=".1" stroke-width="4" stroke-dasharray="90 11 218 24 395 210"/>
+  <path d="M0 649 76 601 135 622 254 466 302 548 353 510 405 610 479 567 552 667 664 602 765 700H0Z" fill="#8e9890" opacity=".18"/>
+  <path d="m706 748 102-135 73 61 95-176 56 65 81-167 51 122 80-59 43 90 74-164 76 166 76-62 87 116v295H706Z" fill="#8b9590" opacity=".25"/>
+  <path d="m922 900 30-185 88-59 47-147 61 72 60-230 43 103 48 15 39 143 64-80 56 118 71-137 71 81v306Z" fill="url(#ink)"/>
+  <path d="m1208 351-17 178-58 133m116-208 11 169 51 98m-224-212 6 146-43 124m379-266-24 157 42 69" fill="none" stroke="#f1eee4" stroke-opacity=".35" stroke-width="3"/>
+  <path d="M0 668c380-90 770 120 1600-14v181H0Z" fill="url(#mist)"/>
+  <path d="M64 836c147-43 273-42 467-19m-356 36c185-24 309-11 468 0" fill="none" stroke="#66716b" stroke-opacity=".15" stroke-width="2"/>
+  <path d="m977 272 15-6 13 6m28-15 12-5 12 6" fill="none" stroke="#525b55" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+  <g transform="translate(1350 290)" fill="none" stroke="#aa4d3d" stroke-width="3" opacity=".8"><rect width="33" height="46" rx="2"/><path d="M8 9h17M16 9v28M8 21h17M8 29v8h17V25"/></g>
+  <path fill="url(#grain)" d="M0 0h1600v900H0z"/>
+</svg>

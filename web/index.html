@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-skin="aurora" data-icon="logo" data-layout="classic" data-motion="float" data-fx="on">
+<html lang="zh-CN" data-skin="aurora" data-icon="logo" data-layout="classic" data-motion="float" data-fx="on" data-trail="stardust" data-sky="auto">
 <head>
   <script>
     try {
@@ -16,15 +16,19 @@
     } catch (e) {}
     try {
       let s = localStorage.getItem("bm-skin");
-      if (s === "auto") s = matchMedia("(prefers-color-scheme: light)").matches ? "paper" : "aurora";
+      if (s === "auto") s = matchMedia("(prefers-color-scheme: light)").matches ? "snow" : "aurora";
       const i = localStorage.getItem("bm-icon");
       const l = localStorage.getItem("bm-layout");
       const m = localStorage.getItem("bm-motion");
       const f = localStorage.getItem("bm-fx");
+      const t = localStorage.getItem("bm-trail");
+      const k = localStorage.getItem("bm-sky");
       if (s) document.documentElement.dataset.skin = s;
       if (i) document.documentElement.dataset.icon = i;
       if (l) document.documentElement.dataset.layout = l;
       if (m) document.documentElement.dataset.motion = m;
+      if (t) document.documentElement.dataset.trail = t;
+      if (k) document.documentElement.dataset.sky = k;
       if (f === "on" || f === "off") document.documentElement.dataset.fx = f;
       const fav = document.createElement("link");
       fav.rel = "icon";
@@ -325,17 +329,18 @@
     .appearance-panel {
       position: fixed;
       z-index: 60;
-      top: 96px;
-      right: 24px;
+      top: 72px;
+      right: 16px;
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 16px;
-      width: min(820px, calc(100vw - 48px));
-      max-height: calc(100dvh - 120px);
+      gap: 10px;
+      width: min(560px, calc(100vw - 32px));
+      max-height: calc(100dvh - 88px);
       overflow-y: auto;
-      padding: 16px;
+      scrollbar-gutter: stable;
+      padding: 10px;
       border: 1px solid rgba(255,255,255,0.16);
-      border-radius: 20px;
+      border-radius: 16px;
       background: rgba(7, 11, 24, 0.9);
       backdrop-filter: blur(28px) saturate(145%);
       -webkit-backdrop-filter: blur(28px) saturate(145%);
@@ -349,23 +354,25 @@
       to { opacity: 1; transform: none; }
     }
     .appearance-head { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; }
-    .appearance-head strong { font-size: 15px; letter-spacing: 0.04em; }
-    .appearance-head span { color: var(--muted); font-size: 11px; }
+    .appearance-head strong { font-size: 13px; letter-spacing: 0.04em; }
+    .appearance-head span { color: var(--muted); font-size: 10px; }
     .appearance-group + .appearance-group { margin-top: 0; }
     .appearance-group.wide { grid-column: 1 / -1; }
     .appearance-group h3 {
-      margin: 0 0 8px;
+      margin: 0 0 6px;
       color: var(--muted);
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 650;
       letter-spacing: 0.12em;
     }
-    .choice-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .choice-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    #skinChoices { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    #trailChoices { grid-template-columns: repeat(7, minmax(0, 1fr)); }
     .choice {
       min-width: 0;
-      padding: 7px;
+      padding: 5px;
       border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 12px;
+      border-radius: 10px;
       color: var(--muted);
       background: rgba(255,255,255,0.035);
       cursor: pointer;
@@ -379,12 +386,29 @@
       background: rgba(125,211,252,0.1);
       box-shadow: 0 0 18px rgba(56,189,248,0.14);
     }
-    .choice b { display: block; margin-top: 5px; overflow: hidden; font-size: 11px; font-weight: 600; text-overflow: ellipsis; }
+    .choice b { display: block; margin-top: 5px; overflow: hidden; font-size: 12px; font-weight: 600; text-overflow: ellipsis; }
     .skin-swatch {
       display: block;
-      height: 38px;
-      border-radius: 8px;
+      height: 18px;
+      border-radius: 6px;
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), inset 0 0 0 1px rgba(255,255,255,0.08);
+    }
+    .choice[data-value="auto"] .skin-swatch {
+      position: relative; overflow: hidden;
+      background:
+        radial-gradient(circle at 88% 28%, #e7f2ff 0 1px, transparent 1.5px),
+        radial-gradient(circle at 62% 76%, #a7c6e8 0 1px, transparent 1.5px),
+        linear-gradient(112deg, #f8eed8 0 48%, #192947 49% 100%);
+    }
+    .choice[data-value="auto"] .skin-swatch::before {
+      content: ""; position: absolute; left: 24%; top: 50%; width: 14px; height: 14px;
+      border-radius: 50%; background: #edb44b; transform: translate(-50%, -50%);
+      box-shadow: 0 0 0 3px rgba(237, 180, 75, .2), 0 0 12px rgba(237, 180, 75, .35);
+    }
+    .choice[data-value="auto"] .skin-swatch::after {
+      content: ""; position: absolute; left: 78%; top: 38%; width: 16px; height: 16px;
+      border-radius: 50%; transform: translate(-50%, -50%);
+      box-shadow: -5px 3px 0 0 #e7f2ff;
     }
     .choice[data-value="aurora"] .skin-swatch { background: radial-gradient(circle at 25% 20%, #22d3ee, transparent 42%), radial-gradient(circle at 80% 75%, #a855f7, transparent 48%), #07101f; }
     .choice[data-value="cyber"] .skin-swatch { background: linear-gradient(135deg, transparent 38%, rgba(57,255,140,.8) 39% 42%, transparent 43%), radial-gradient(circle at 78% 34%, #ff2eb6, transparent 28%), #010704; }
@@ -394,18 +418,27 @@
     .choice[data-value="prism"] .skin-swatch { background: conic-gradient(from 210deg at 52% 48%, #07111f, #0ea5e9, #8b5cf6, #ec4899, #07111f); }
     .choice[data-value="obsidian"] .skin-swatch { background: radial-gradient(circle at 70% 28%, #eabf67, transparent 22%), linear-gradient(145deg, #252019, #050505 58%, #3a2b15); }
     .choice[data-value="abyss"] .skin-swatch { background: radial-gradient(circle at 20% 26%, #67e8f9, transparent 24%), radial-gradient(circle at 76% 74%, #14b8a6, transparent 34%), linear-gradient(160deg, #06283c, #010811); }
+    .choice[data-value="snow"] .skin-swatch { background: radial-gradient(circle at 25% 20%, #dbe7f7, transparent 46%), radial-gradient(circle at 78% 76%, #d3c9ec, transparent 50%), #f4f7fb; }
+    .choice[data-value="sakura"] .skin-swatch { background: radial-gradient(circle at 25% 20%, #ffd7e6, transparent 46%), radial-gradient(circle at 78% 76%, #ffe4d1, transparent 50%), #fdf1f5; }
+    .choice[data-value="celadon"] .skin-swatch { background: radial-gradient(circle at 25% 20%, #cdeade, transparent 46%), radial-gradient(circle at 78% 76%, #d2ecf4, transparent 50%), #f0f7f3; }
+
+    .choice[data-value="shuimo"] .skin-swatch { background: url("themes/shuimo.svg?v=svg2") center 55% / cover; }
+    .choice[data-value="daiqing"] .skin-swatch { background: url("themes/daiqing.svg?v=svg2") center 55% / cover; }
+    .choice[data-value="zhusha"] .skin-swatch { background: url("themes/zhusha.svg?v=svg2") center 55% / cover; }
+    .choice[data-value="yemo"] .skin-swatch { background: url("themes/yemo.svg?v=svg2") center 55% / cover; }
+
     .icon-swatch {
       position: relative;
       display: grid;
-      width: 38px;
-      height: 38px;
+      width: 24px;
+      height: 24px;
       margin: auto;
       place-items: center;
-      border-radius: 11px;
+      border-radius: 7px;
       color: #fff;
       background: linear-gradient(145deg, #0ea5e9, #6d28d9);
       box-shadow: 0 0 14px rgba(56,189,248,0.25), inset 0 1px 0 rgba(255,255,255,0.35);
-      font-size: 14px;
+      font-size: 12px;
       font-weight: 800;
     }
     .choice[data-value="letter"] .icon-swatch { background: linear-gradient(145deg, #2563eb, #312e81); }
@@ -416,13 +449,13 @@
     .choice[data-value="holo"] .icon-swatch { background: linear-gradient(135deg, #67e8f9, #818cf8 45%, #f0abfc); clip-path: polygon(12% 0,88% 0,100% 25%,78% 100%,22% 100%,0 25%); }
     .choice[data-value="mono"] .icon-swatch { color: #dce7f7; background: transparent; border: 1px solid #8fa0c4; box-shadow: inset 0 0 0 3px rgba(143,160,196,.08); }
     .choice[data-value="pixel"] .icon-swatch { border-radius: 2px; background: #06120d; border: 2px solid #39ff8c; box-shadow: 4px 4px 0 rgba(255,46,182,.65); font-family: Consolas, monospace; }
-    .layout-grid { grid-template-columns: repeat(3, 1fr); }
-    .motion-grid { grid-template-columns: repeat(4, 1fr); }
+    .layout-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .motion-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .layout-swatch {
       display: grid;
-      width: 52px;
-      height: 34px;
-      margin: 2px auto 0;
+      width: 40px;
+      height: 20px;
+      margin: 1px auto 0;
       grid-template-columns: repeat(2, 1fr);
       gap: 3px;
     }
@@ -435,44 +468,353 @@
     .choice[data-value="compact"] .layout-swatch { grid-template-columns: repeat(3, 1fr); gap: 2px; }
     .choice[data-value="list"] .layout-swatch { grid-template-columns: 1fr; }
     .motion-swatch {
-      position: relative;
+      display: block;
+      width: 64px;
+      height: 56px;
+      margin: auto;
+    }
+    .motion-swatch svg { display: block; width: 100%; height: 100%; overflow: visible; }
+    .motion-swatch .motion-anim { transform-box: fill-box; transform-origin: center; }
+    .motion-swatch .motion-swing { transform-box: view-box; transform-origin: 50% 14%; }
+    .choice:is(:hover, :focus-visible, [aria-pressed="true"]) .motion-lift { animation: motion-preview-float 1.4s ease-in-out infinite alternate; }
+    .choice:is(:hover, :focus-visible, [aria-pressed="true"]) .motion-breathe { animation: motion-preview-pulse 1.3s ease-in-out infinite alternate; }
+    .choice:is(:hover, :focus-visible, [aria-pressed="true"]) .motion-shine { animation: motion-preview-sweep 1.8s ease-in-out infinite; }
+    .choice:is(:hover, :focus-visible, [aria-pressed="true"]) .motion-swing { animation: motion-preview-sway 1.4s ease-in-out infinite; }
+    .choice:is(:hover, :focus-visible, [aria-pressed="true"]) .motion-ball { animation: motion-preview-bounce 1.2s ease-in-out infinite; }
+    .choice:is(:hover, :focus-visible, [aria-pressed="true"]) .motion-turn { animation: motion-preview-spin 2.4s ease-in-out infinite; }
+    .choice:is(:hover, :focus-visible, [aria-pressed="true"]) .motion-wave { animation: motion-preview-ripple 1.6s ease-out infinite; }
+    .choice:is(:hover, :focus-visible, [aria-pressed="true"]) .motion-wave-late { animation-delay: -.8s; }
+    @keyframes motion-preview-float { to { transform: translateY(-4px); } }
+    @keyframes motion-preview-pulse { to { transform: scale(1.12); opacity: .72; } }
+    @keyframes motion-preview-sweep {
+      0%, 15% { transform: translateX(-9px); opacity: .25; }
+      50% { opacity: 1; }
+      85%, 100% { transform: translateX(12px); opacity: .25; }
+    }
+    @keyframes motion-preview-sway {
+      0%, 70%, 100% { transform: rotate(0); }
+      15% { transform: rotate(-15deg); }
+      32% { transform: rotate(12deg); }
+      50% { transform: rotate(-7deg); }
+    }
+    @keyframes motion-preview-bounce {
+      0%, 65%, 100% { transform: translateY(0) scale(1); }
+      12% { transform: translateY(2px) scale(1.08,.9); }
+      32% { transform: translateY(-8px) scale(.96,1.04); }
+      50% { transform: translateY(2px) scale(1.1,.9); }
+    }
+    @keyframes motion-preview-spin { 0%, 10% { transform: rotate(0); } 85%, 100% { transform: rotate(360deg); } }
+    @keyframes motion-preview-ripple {
+      from { transform: scale(.72); opacity: .8; }
+      to { transform: scale(1.12); opacity: .25; }
+    }
+    .trail-swatch {
       display: grid;
-      width: 40px;
-      height: 34px;
-      margin: 2px auto 0;
+      width: 24px;
+      height: 24px;
+      margin: auto;
       place-items: center;
     }
-    .motion-swatch i {
-      width: 22px;
-      height: 22px;
-      border-radius: 7px;
-      background: linear-gradient(145deg, #22d3ee, #7c3aed 65%, #ec4899);
-      box-shadow: 0 0 12px rgba(56,189,248,.36);
+    .trail-swatch i {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
     }
-    .choice[data-value="float"][aria-pressed="true"] .motion-swatch i { animation: motion-preview-float 1.4s ease-in-out infinite alternate; }
-    .choice[data-value="pulse"][aria-pressed="true"] .motion-swatch i { animation: motion-preview-pulse 1.2s ease-in-out infinite alternate; }
-    .choice[data-value="sweep"] .motion-swatch { overflow: hidden; border-radius: 8px; }
-    .choice[data-value="sweep"] .motion-swatch::after {
+    .choice[data-value="none"] .trail-swatch i {
+      position: relative;
+      background: color-mix(in srgb, var(--muted) 10%, transparent);
+      border: 2px solid var(--muted);
+    }
+    .choice[data-value="none"] .trail-swatch i::after {
       content: "";
       position: absolute;
-      inset: 2px auto 2px -15px;
-      width: 10px;
-      background: rgba(255,255,255,.72);
-      filter: blur(3px);
-      transform: skewX(-18deg);
-      opacity: 0;
+      inset: calc(50% - 1px) 2px auto;
+      height: 2px;
+      background: var(--muted);
+      transform: rotate(-45deg);
     }
-    .choice[data-value="sweep"][aria-pressed="true"] .motion-swatch::after { animation: motion-preview-sweep 1.6s ease-in-out infinite; }
-    .choice[data-value="still"] .motion-swatch i { background: linear-gradient(145deg, #64748b, #1e293b); box-shadow: none; }
-    @keyframes motion-preview-float { to { transform: translateY(-5px) rotate(4deg); } }
-    @keyframes motion-preview-pulse { to { filter: brightness(1.3); box-shadow: 0 0 18px rgba(192,132,252,.72); } }
-    @keyframes motion-preview-sweep { 0%, 20% { left: -15px; opacity: 0; } 34%, 68% { opacity: 1; } 70%, 100% { left: 48px; opacity: 0; } }
+    .choice[data-value="stardust"] .trail-swatch i {
+      background: radial-gradient(circle at 35% 32%, #f0f9ff, #7dd3fc 55%, #38bdf8);
+      box-shadow: 0 0 10px rgba(125, 211, 252, 0.6);
+    }
+    .choice[data-value="comet"] .trail-swatch i {
+      border-radius: 52% 48% 46% 10%;
+      background: linear-gradient(75deg, rgba(186, 230, 253, 0.2), #bae6fd 65%, #f8fbff);
+      box-shadow: 0 0 10px rgba(125, 211, 252, 0.5);
+      transform: rotate(-45deg);
+    }
+    .choice[data-value="bubble"] .trail-swatch i {
+      border: 1px solid rgba(186, 230, 253, 0.7);
+      background: radial-gradient(circle at 32% 30%, rgba(255, 255, 255, 0.85), rgba(125, 211, 252, 0.12) 46%);
+      box-shadow: inset 0 0 6px rgba(186, 230, 253, 0.35);
+    }
+    .choice[data-value="petal"] .trail-swatch i {
+      border-radius: 72% 8% 72% 8%;
+      background: linear-gradient(135deg, #fbcfe8, #f9a8d4 62%, #f472b6);
+      box-shadow: 0 0 8px rgba(244, 114, 182, 0.4);
+      transform: rotate(18deg);
+    }
+    .choice[data-value="firefly"] .trail-swatch i {
+      background: radial-gradient(circle, #fef9c3 22%, #bef264 58%, transparent 78%);
+      box-shadow: 0 0 12px rgba(190, 242, 100, 0.75);
+    }
+    .choice[data-value="rainbow"] .trail-swatch i {
+      background: conic-gradient(#f87171, #fbbf24, #34d399, #38bdf8, #a78bfa, #f472b6, #f87171);
+      box-shadow: 0 0 10px rgba(167, 139, 250, 0.45);
+    }
+    .choice[data-value="sparkle"] .trail-swatch {
+      position: relative;
+      filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.55));
+    }
+    .choice[data-value="sparkle"] .trail-swatch i,
+    .choice[data-value="sparkle"] .trail-swatch::after {
+      border-radius: 0;
+      background: linear-gradient(135deg, #fff8da, #fbbf24 58%, #d68a12);
+      clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+    }
+    .choice[data-value="sparkle"] .trail-swatch::after {
+      content: "";
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      top: 0;
+      right: 0;
+    }
+    .trail-grid .choice[aria-pressed="true"]:not([data-value="none"]) .trail-swatch {
+      animation: trail-preview-drift 1.5s ease-in-out infinite alternate;
+    }
+    @keyframes trail-preview-drift {
+      from { transform: translate(-2px, 1px); }
+      to { transform: translate(2px, -2px); }
+    }
     .fx-grid { grid-template-columns: repeat(2, 1fr); }
-    .fx-grid .choice { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; }
+    .trail-size-row {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 2px;
+      padding: 0 2px;
+    }
+    .trail-size {
+      flex: 1;
+      height: 12px;
+      margin: 0;
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+    }
+    .trail-size::-webkit-slider-runnable-track {
+      height: 3px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(125, 211, 252, 0.55), rgba(255, 255, 255, 0.14));
+    }
+    .trail-size::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 11px;
+      height: 11px;
+      margin-top: -4px;
+      border: 0;
+      border-radius: 50%;
+      background: #7dd3fc;
+      box-shadow: 0 0 8px rgba(125, 211, 252, 0.7);
+    }
+    .trail-size-label {
+      flex: 0 0 auto;
+      color: var(--muted);
+      font-size: 10px;
+    }
+    .trail-size-btn {
+      width: 20px;
+      height: 20px;
+      padding: 0;
+      border: 1px solid var(--stroke);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--muted);
+      font: inherit;
+      font-size: 13px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .trail-size-btn:hover { color: var(--text); border-color: var(--text); }
+    .trail-size-val {
+      min-width: 30px;
+      color: var(--muted);
+      font-size: 10px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .sky-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .sky-swatch {
+      display: block;
+      height: 18px;
+      border-radius: 6px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+    }
+    .choice[data-value="auto"] .sky-swatch { background: linear-gradient(100deg, #0b1e35 0 52%, #f59e0b 52% 60%, #38bdf8 60% 100%); }
+    .choice[data-value="rain"] .sky-swatch { background: repeating-linear-gradient(76deg, transparent 0 4px, rgba(125,211,252,.75) 4px 5px, transparent 5px 9px), #0b1220; }
+    .choice[data-value="snow"] .sky-swatch { background: radial-gradient(circle at 3px 4px, #fff 0 1.1px, transparent 1.6px) 0 0 / 9px 9px, #16294a; }
+    .choice[data-value="stars"] .sky-swatch { background: radial-gradient(circle at 2px 3px, rgba(255,255,255,.95) 0 0.8px, transparent 1.4px) 0 0 / 7px 8px, #050914; }
+    .choice[data-value="meteor"] .sky-swatch { background: linear-gradient(115deg, transparent 26%, rgba(255,255,255,.92) 40% 44%, transparent 58%), #050914; }
+    .choice[data-value="fireflies"] .sky-swatch { background: radial-gradient(circle at 28% 42%, rgba(190,242,100,.95) 0 1.6px, transparent 3.2px), radial-gradient(circle at 68% 66%, rgba(190,242,100,.7) 0 1.3px, transparent 2.8px), #0a1a0e; }
+    .choice[data-value="blossom"] .sky-swatch { background: linear-gradient(135deg, #fbcfe8, #f472b6); }
+    .choice[data-value="none"] .sky-swatch {
+      position: relative;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--muted) 8%, var(--bg)), color-mix(in srgb, var(--muted) 20%, var(--bg)));
+    }
+    .choice[data-value="none"] .sky-swatch::before,
+    .choice[data-value="none"] .sky-swatch::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+    }
+    .choice[data-value="none"] .sky-swatch::before {
+      width: 26px;
+      height: 26px;
+      border: 2px solid var(--muted);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .choice[data-value="none"] .sky-swatch::after {
+      width: 24px;
+      height: 2px;
+      background: var(--muted);
+      transform: translate(-50%, -50%) rotate(-45deg);
+    }
+    .fx-grid .choice { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 30px; }
     .fx-grid .choice b { margin: 0; }
     .fx-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
     .choice[data-value="on"] .fx-dot { background: #39ff8c; box-shadow: 0 0 10px #39ff8c; }
     .appearance-note { grid-column: 1 / -1; margin: 0 2px; color: var(--muted); font-size: 11px; }
+    .appearance-menu { display: block; width: min(308px, calc(100vw - 32px)); padding: 14px; scrollbar-gutter: auto; }
+    .appearance-menu .appearance-head { gap: 10px; margin-bottom: 14px; padding: 2px 2px 0; }
+    .appearance-menu .appearance-head strong { display: block; font-size: 16px; }
+    .appearance-menu .appearance-head small { display: block; margin-top: 5px; color: var(--muted); font-size: 11px; letter-spacing: .04em; }
+    .appearance-categories { display: grid; gap: 8px; }
+    .appearance-category {
+      --menu-accent: #38bdf8;
+      position: relative; isolation: isolate; display: flex; align-items: center; gap: 12px;
+      width: 100%; min-height: 66px; padding: 8px 12px 8px 8px; overflow: hidden;
+      border: 1px solid var(--stroke); border-radius: 13px; color: var(--text);
+      background: color-mix(in srgb, var(--menu-accent) 5%, transparent);
+      font: inherit; text-align: left; cursor: pointer;
+      transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+    }
+    .appearance-category[data-setting="skin"] { --menu-accent: #a78bfa; }
+    .appearance-category[data-setting="icon"] { --menu-accent: #38bdf8; }
+    .appearance-category[data-setting="layout"] { --menu-accent: #34d399; }
+    .appearance-category[data-setting="motion"] { --menu-accent: #fbbf24; }
+    .appearance-category[data-setting="trail"] { --menu-accent: #fb7185; }
+    .appearance-category[data-setting="sky"] { --menu-accent: #a78bfa; }
+    .appearance-category[data-setting="fx"] { --menu-accent: #34d399; }
+    .appearance-category::before {
+      content: ""; position: absolute; z-index: -1; inset: 0;
+      background: radial-gradient(ellipse at 8% 50%, color-mix(in srgb, var(--menu-accent) 18%, transparent), transparent 72%);
+      opacity: .6; transition: opacity .2s ease;
+    }
+    .appearance-category:hover,
+    .appearance-category[aria-expanded="true"] {
+      border-color: color-mix(in srgb, var(--menu-accent) 55%, var(--stroke));
+      background: color-mix(in srgb, var(--menu-accent) 10%, transparent);
+      box-shadow: inset 0 1px 0 color-mix(in srgb, var(--menu-accent) 12%, transparent), 0 4px 14px color-mix(in srgb, var(--menu-accent) 9%, transparent);
+    }
+    .appearance-category:hover::before,
+    .appearance-category[aria-expanded="true"]::before { opacity: 1; }
+    .appearance-art {
+      flex: 0 0 54px; display: grid; place-items: center; width: 54px; height: 48px;
+      color: var(--menu-accent); filter: drop-shadow(0 3px 6px color-mix(in srgb, var(--menu-accent) 30%, transparent));
+      transition: transform .25s cubic-bezier(.2,.8,.2,1);
+    }
+    .appearance-art svg { display: block; width: 52px; height: 48px; overflow: visible; }
+    .appearance-category:hover .appearance-art { transform: translateY(-2px) rotate(-5deg) scale(1.06); }
+    .appearance-category-copy { flex: 1; min-width: 0; }
+    .appearance-category b { display: block; font-size: 14px; font-weight: 650; line-height: 1.4; white-space: nowrap; }
+    .appearance-category small { display: block; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .appearance-category-arrow { flex: 0 0 22px; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: var(--muted); background: var(--stroke); transition: transform .2s ease; }
+    .appearance-category-arrow svg { width: 12px; height: 12px; }
+    .appearance-category:hover .appearance-category-arrow { transform: translateX(2px); color: var(--text); }
+    .appearance-category .art-orbit { transform-origin: 26px 24px; }
+    .appearance-category:hover .art-orbit { animation: appearance-orbit 5s linear infinite; }
+    @keyframes appearance-orbit { to { transform: rotate(360deg); } }
+    .appearance-category .art-animated { transform-box: fill-box; transform-origin: center; }
+    .appearance-category:hover .art-card { animation: appearance-card 2.4s ease-in-out infinite; }
+    .appearance-category:hover .art-tile { animation: appearance-tile 1.8s ease-in-out infinite; }
+    .appearance-category:hover .art-tile:nth-child(2) { animation-delay: .15s; }
+    .appearance-category:hover .art-tile:nth-child(3) { animation-delay: .45s; }
+    .appearance-category:hover .art-tile:nth-child(4) { animation-delay: .3s; }
+    .appearance-category:hover .art-bolt { animation: appearance-bolt 1.8s ease-in-out infinite; }
+    .appearance-category:hover .art-stream { animation: appearance-stream 1.4s linear infinite; }
+    .appearance-category:hover .art-spark { animation: appearance-breathe 2s ease-in-out infinite; }
+    .appearance-category:hover .art-power { animation: appearance-breathe 2.4s ease-in-out infinite; }
+    @keyframes appearance-card {
+      0%, 100% { transform: translateY(0) rotate(-3deg); }
+      50% { transform: translateY(-3px) rotate(7deg); }
+    }
+    @keyframes appearance-tile {
+      0%, 65%, 100% { transform: translateY(0); opacity: 1; }
+      30% { transform: translateY(-3px); opacity: .55; }
+    }
+    @keyframes appearance-bolt {
+      0%, 100% { transform: translateY(1px) scale(.94); opacity: .7; }
+      50% { transform: translateY(-2px) scale(1.06); opacity: 1; }
+    }
+    @keyframes appearance-stream { to { stroke-dashoffset: -28; } }
+    @keyframes appearance-breathe {
+      0%, 100% { transform: scale(.92); opacity: .65; }
+      50% { transform: scale(1.08); opacity: 1; }
+    }
+    html[data-fx="off"] .appearance-category,
+    html[data-fx="off"] .appearance-category::before,
+    html[data-fx="off"] .appearance-category .appearance-art,
+    html[data-fx="off"] .appearance-category .appearance-category-arrow,
+    html[data-fx="off"] .appearance-category .art-orbit,
+    html[data-fx="off"] .appearance-category .art-animated { animation: none; transition: none; transform: none; }
+    @media (prefers-reduced-motion: reduce) {
+      .appearance-category, .appearance-category::before, .appearance-art,
+      .appearance-category-arrow, .appearance-category .art-orbit,
+      .appearance-category .art-animated { animation: none !important; transition: none !important; transform: none !important; }
+    }
+    .appearance-close,
+    .appearance-back {
+      flex: 0 0 32px; width: 32px; height: 32px; padding: 0; border: 1px solid var(--stroke); border-radius: 8px;
+      background: transparent; color: var(--text); font: inherit; font-size: 22px; line-height: 1; cursor: pointer;
+    }
+    .appearance-close:hover,
+    .appearance-back:hover { background: var(--stroke); }
+    .appearance-panel :is(button, input):focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+    .appearance-detail {
+      display: flex; flex-direction: column; right: 340px; width: min(660px, calc(100vw - 372px));
+      padding: 0; gap: 0; overflow: hidden;
+    }
+    .appearance-detail .appearance-head { flex-shrink: 0; justify-content: flex-start; gap: 12px; padding: 18px 20px 12px; }
+    .appearance-detail .appearance-head strong { flex: 1; font-size: 18px; }
+    .appearance-description { flex-shrink: 0; margin: 0; padding: 0 20px 18px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+    .appearance-body { min-height: 0; padding: 0 20px 20px; overflow-y: auto; overscroll-behavior: contain; }
+    .appearance-detail [hidden] { display: none !important; }
+    .appearance-detail .choice-grid,
+    .appearance-detail #trailChoices { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .appearance-detail .fx-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .appearance-detail .choice { min-height: 100px; padding: 12px; border-radius: 12px; }
+    .appearance-detail .choice b { margin-top: 10px; font-size: 14px; }
+    .appearance-detail .skin-swatch,
+    .appearance-detail .sky-swatch { height: 40px; }
+    .appearance-detail .icon-swatch { width: 40px; height: 40px; font-size: 16px; }
+    .appearance-detail .layout-swatch { width: 60px; height: 40px; }
+    .appearance-detail .trail-swatch { width: 40px; height: 40px; }
+    .appearance-detail #motionChoices .choice { min-height: 112px; }
+    .appearance-detail .trail-swatch i { width: 30px; height: 30px; }
+    .appearance-detail .trail-size-row { gap: 10px; margin-top: 18px; }
+    .appearance-detail .trail-size { min-width: 0; height: 36px; }
+    .appearance-detail .trail-size-btn { flex: 0 0 36px; width: 36px; height: 36px; font-size: 18px; }
+    .appearance-detail .trail-size-label { font-size: 14px; }
+    .appearance-detail .trail-size-val { min-width: 38px; font-size: 13px; }
+    .appearance-detail .trail-size::-webkit-slider-thumb { width: 18px; height: 18px; margin-top: -7.5px; }
+    .appearance-detail .fx-grid .choice { min-height: 64px; }
+    .appearance-detail .fx-grid .choice b { margin: 0; }
+    .appearance-detail .appearance-note { flex-shrink: 0; margin: 0; padding: 12px 20px; border-top: 1px solid var(--stroke); font-size: 12px; line-height: 1.6; }
     .stat {
       padding: 9px 13px;
       color: var(--muted);
@@ -935,6 +1277,506 @@
     html[data-skin="prism"] .search::before { background: linear-gradient(105deg, rgba(34,211,238,.52), rgba(139,92,246,.43), rgba(236,72,153,.48)); }
     html[data-skin="prism"] .cursor-glow { background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(34,211,238,.18), transparent 58%); }
 
+    /* ---- 浅色皮肤：雪 / 樱 / 瓷 ---- */
+    html[data-skin="snow"] {
+      --text: #2b3646;
+      --muted: #7c8ba1;
+      --glass: rgba(252, 253, 255, 0.7);
+      --stroke: rgba(72, 92, 120, 0.16);
+      --glow: rgba(96, 136, 196, 0.26);
+      --bg: #edf1f7;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+    html[data-skin="sakura"] {
+      --text: #463440;
+      --muted: #a17f92;
+      --glass: rgba(255, 250, 252, 0.7);
+      --stroke: rgba(170, 95, 130, 0.16);
+      --glow: rgba(226, 120, 165, 0.26);
+      --bg: #faf0f4;
+      --radius: 18px;
+      --radius-sm: 11px;
+    }
+    html[data-skin="celadon"] {
+      --text: #2e4038;
+      --muted: #7f948a;
+      --glass: rgba(250, 253, 251, 0.7);
+      --stroke: rgba(70, 125, 100, 0.16);
+      --glow: rgba(70, 175, 140, 0.24);
+      --bg: #edf5f0;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+    html[data-skin="snow"] .aurora {
+      background:
+        radial-gradient(900px 520px at 8% -8%, rgba(140, 170, 220, 0.30), transparent 58%),
+        radial-gradient(720px 480px at 92% 8%, rgba(170, 150, 220, 0.18), transparent 52%),
+        linear-gradient(180deg, #f9fbfe, #edf2f9 50%, #e3eaf4);
+    }
+    html[data-skin="sakura"] .aurora {
+      background:
+        radial-gradient(900px 520px at 8% -8%, rgba(245, 175, 205, 0.35), transparent 58%),
+        radial-gradient(720px 480px at 92% 8%, rgba(250, 205, 180, 0.22), transparent 52%),
+        linear-gradient(180deg, #fff6f9, #f9e8ef 50%, #f3dde8);
+    }
+    html[data-skin="celadon"] .aurora {
+      background:
+        radial-gradient(900px 520px at 8% -8%, rgba(130, 200, 175, 0.30), transparent 58%),
+        radial-gradient(720px 480px at 92% 8%, rgba(170, 220, 200, 0.22), transparent 52%),
+        linear-gradient(180deg, #f6fbf8, #e9f3ee 50%, #dfece5);
+    }
+    html[data-skin="snow"] .aurora::before {
+      background:
+        radial-gradient(38vmax 24vmax at 18% 20%, rgba(110, 145, 205, 0.12), transparent 62%),
+        radial-gradient(30vmax 20vmax at 80% 18%, rgba(150, 130, 215, 0.08), transparent 64%);
+    }
+    html[data-skin="sakura"] .aurora::before {
+      background:
+        radial-gradient(38vmax 24vmax at 18% 20%, rgba(240, 150, 190, 0.14), transparent 62%),
+        radial-gradient(30vmax 20vmax at 80% 18%, rgba(250, 190, 160, 0.10), transparent 64%);
+    }
+    html[data-skin="celadon"] .aurora::before {
+      background:
+        radial-gradient(38vmax 24vmax at 18% 20%, rgba(100, 175, 150, 0.12), transparent 62%),
+        radial-gradient(30vmax 20vmax at 80% 18%, rgba(140, 200, 220, 0.10), transparent 64%);
+    }
+    html[data-skin="snow"] .aurora::after,
+    html[data-skin="sakura"] .aurora::after,
+    html[data-skin="celadon"] .aurora::after {
+      background-image:
+        linear-gradient(rgba(60, 80, 110, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(60, 80, 110, 0.045) 1px, transparent 1px);
+    }
+    html[data-skin="snow"] .hello .time {
+      background: linear-gradient(110deg, #37475c 12%, #5f83b8 55%, #8a6fc4 92%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      filter: none;
+    }
+    html[data-skin="sakura"] .hello .time {
+      background: linear-gradient(110deg, #553a48 12%, #c96a96 55%, #a4598e 92%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      filter: none;
+    }
+    html[data-skin="celadon"] .hello .time {
+      background: linear-gradient(110deg, #33473e 12%, #4f9c80 55%, #58a8c8 92%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      filter: none;
+    }
+    html[data-skin="snow"] .search::before {
+      background: linear-gradient(120deg, rgba(110, 145, 210, 0.4), rgba(150, 120, 210, 0.22));
+    }
+    html[data-skin="sakura"] .search::before {
+      background: linear-gradient(120deg, rgba(235, 130, 175, 0.42), rgba(250, 170, 150, 0.25));
+    }
+    html[data-skin="celadon"] .search::before {
+      background: linear-gradient(120deg, rgba(95, 175, 145, 0.4), rgba(120, 190, 215, 0.22));
+    }
+    html[data-skin="snow"] .cursor-glow {
+      background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(110, 145, 205, 0.14), transparent 58%);
+    }
+    html[data-skin="sakura"] .cursor-glow {
+      background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(235, 140, 180, 0.14), transparent 58%);
+    }
+    html[data-skin="celadon"] .cursor-glow {
+      background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(100, 175, 150, 0.13), transparent 58%);
+    }
+    html[data-skin="snow"] .card {
+      background: linear-gradient(165deg, rgba(255, 255, 255, 0.92), rgba(238, 244, 251, 0.78));
+    }
+    html[data-skin="sakura"] .card {
+      background: linear-gradient(165deg, rgba(255, 252, 253, 0.92), rgba(250, 236, 242, 0.78));
+    }
+    html[data-skin="celadon"] .card {
+      background: linear-gradient(165deg, rgba(253, 255, 254, 0.92), rgba(238, 247, 242, 0.78));
+    }
+    html[data-skin="snow"] .card::after {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.7), transparent 30%, transparent 70%, rgba(120, 150, 210, 0.10));
+    }
+    html[data-skin="sakura"] .card::after {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.7), transparent 30%, transparent 70%, rgba(225, 130, 170, 0.10));
+    }
+    html[data-skin="celadon"] .card::after {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.7), transparent 30%, transparent 70%, rgba(90, 165, 140, 0.10));
+    }
+    html[data-skin="snow"] .card:hover {
+      border-color: rgba(100, 135, 195, 0.5);
+      box-shadow: 0 16px 30px rgba(70, 95, 140, 0.14), 0 0 24px rgba(110, 145, 205, 0.16);
+    }
+    html[data-skin="sakura"] .card:hover {
+      border-color: rgba(220, 120, 160, 0.5);
+      box-shadow: 0 16px 30px rgba(190, 90, 135, 0.14), 0 0 24px rgba(225, 130, 170, 0.16);
+    }
+    html[data-skin="celadon"] .card:hover {
+      border-color: rgba(90, 165, 135, 0.5);
+      box-shadow: 0 16px 30px rgba(60, 130, 105, 0.14), 0 0 24px rgba(90, 165, 140, 0.16);
+    }
+    html[data-skin="snow"] .search input,
+    html[data-skin="sakura"] .search input,
+    html[data-skin="celadon"] .search input,
+    html[data-skin="snow"] .stat,
+    html[data-skin="sakura"] .stat,
+    html[data-skin="celadon"] .stat,
+    html[data-skin="snow"] .nav-col,
+    html[data-skin="sakura"] .nav-col,
+    html[data-skin="celadon"] .nav-col {
+      color: var(--text);
+      border-color: var(--stroke);
+      background: rgba(255, 255, 255, 0.66);
+      box-shadow: 0 8px 22px rgba(80, 90, 120, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+    html[data-skin="snow"] .search input::placeholder,
+    html[data-skin="sakura"] .search input::placeholder,
+    html[data-skin="celadon"] .search input::placeholder { color: var(--muted); }
+    html[data-skin="snow"] .search input:focus,
+    html[data-skin="sakura"] .search input:focus,
+    html[data-skin="celadon"] .search input:focus {
+      border-color: var(--glow);
+      box-shadow: 0 0 0 4px var(--glow), 0 14px 34px rgba(80, 90, 110, 0.1);
+    }
+    html[data-skin="snow"] .card,
+    html[data-skin="sakura"] .card,
+    html[data-skin="celadon"] .card,
+    html[data-skin="snow"] .nav-col,
+    html[data-skin="sakura"] .nav-col,
+    html[data-skin="celadon"] .nav-col {
+      box-shadow: 0 8px 20px rgba(80, 90, 110, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    }
+    html[data-skin="snow"] .dot,
+    html[data-skin="sakura"] .dot,
+    html[data-skin="celadon"] .dot { filter: saturate(0.8); }
+    html[data-skin="snow"] .folder:hover,
+    html[data-skin="sakura"] .folder:hover,
+    html[data-skin="celadon"] .folder:hover { background: rgba(60, 80, 100, 0.06); }
+    html[data-skin="snow"] .folder.on,
+    html[data-skin="sakura"] .folder.on,
+    html[data-skin="celadon"] .folder.on {
+      background: linear-gradient(90deg, hsla(var(--h), 55%, 50%, 0.16), rgba(255, 255, 255, 0.5));
+      box-shadow: inset 0 0 0 1px hsla(var(--h), 50%, 45%, 0.3);
+    }
+    html[data-skin="snow"] .folder span,
+    html[data-skin="sakura"] .folder span,
+    html[data-skin="celadon"] .folder span,
+    html[data-skin="snow"] .tag,
+    html[data-skin="sakura"] .tag,
+    html[data-skin="celadon"] .tag {
+      color: var(--muted);
+      border-color: var(--stroke);
+      background: rgba(255, 255, 255, 0.55);
+    }
+    html[data-skin="snow"] .appearance-panel,
+    html[data-skin="sakura"] .appearance-panel,
+    html[data-skin="celadon"] .appearance-panel {
+      background: rgba(252, 253, 255, 0.94);
+      border-color: rgba(80, 100, 130, 0.18);
+      box-shadow: 0 24px 60px rgba(70, 90, 120, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    }
+    html[data-skin="snow"] .choice,
+    html[data-skin="sakura"] .choice,
+    html[data-skin="celadon"] .choice {
+      border-color: rgba(80, 100, 130, 0.14);
+      background: rgba(255, 255, 255, 0.5);
+    }
+    html[data-skin="snow"] .choice[aria-pressed="true"],
+    html[data-skin="sakura"] .choice[aria-pressed="true"],
+    html[data-skin="celadon"] .choice[aria-pressed="true"] {
+      border-color: var(--glow);
+      background: rgba(255, 255, 255, 0.75);
+      box-shadow: 0 0 18px var(--glow);
+    }
+    html[data-skin="snow"] .appearance-trigger svg,
+    html[data-skin="sakura"] .appearance-trigger svg,
+    html[data-skin="celadon"] .appearance-trigger svg { color: var(--muted); }
+    html[data-skin="snow"] .appearance-trigger[aria-expanded="true"],
+    html[data-skin="sakura"] .appearance-trigger[aria-expanded="true"],
+    html[data-skin="celadon"] .appearance-trigger[aria-expanded="true"] {
+      border-color: var(--glow);
+      box-shadow: 0 0 20px var(--glow), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    }
+    /* ---- 中国风水墨：水墨 / 黛青 / 朱砂 / 夜墨 ---- */
+    html[data-skin="shuimo"] {
+      --text: #252c2b;
+      --muted: #646b63;
+      --glass: rgba(250, 249, 244, .94);
+      --stroke: rgba(48, 58, 52, .24);
+      --glow: rgba(63, 77, 65, .18);
+      --bg: #f5f3eb;
+      --radius: 16px;
+      --radius-sm: 10px;
+      --skin-accent: #47584b;
+      --skin-panel: rgba(248, 247, 240, .97);
+      --skin-art: url("themes/shuimo.svg?v=svg2");
+    }
+    html[data-skin="daiqing"] {
+      --text: #163f40;
+      --muted: #4e706a;
+      --glass: rgba(238, 250, 243, .92);
+      --stroke: rgba(29, 104, 93, .25);
+      --glow: rgba(35, 142, 121, .22);
+      --bg: #dceee5;
+      --radius: 16px;
+      --radius-sm: 10px;
+      --skin-accent: #1b7d70;
+      --skin-panel: rgba(237, 248, 241, .97);
+      --skin-art: url("themes/daiqing.svg?v=svg2");
+    }
+    html[data-skin="zhusha"] {
+      --text: #63352b;
+      --muted: #89604b;
+      --glass: rgba(255, 248, 232, .94);
+      --stroke: rgba(167, 53, 37, .25);
+      --glow: rgba(181, 56, 37, .2);
+      --bg: #f8edd7;
+      --radius: 16px;
+      --radius-sm: 10px;
+      --skin-accent: #af3729;
+      --skin-panel: rgba(255, 246, 227, .97);
+      --skin-art: url("themes/zhusha.svg?v=svg2");
+    }
+    html[data-skin="yemo"] {
+      --text: #ede0c4;
+      --muted: #b6a98e;
+      --glass: rgba(17, 27, 40, .92);
+      --stroke: rgba(193, 162, 107, .26);
+      --glow: rgba(193, 162, 107, .16);
+      --bg: #0d1520;
+      --radius: 16px;
+      --radius-sm: 10px;
+      --skin-accent: #c1a26b;
+      --skin-panel: rgba(15, 24, 36, .97);
+      --skin-art: url("themes/yemo.svg?v=svg2");
+    }
+    html:is([data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"], [data-skin="yemo"]) .aurora {
+      background: var(--skin-art) var(--skin-position, center) / cover no-repeat, var(--bg);
+    }
+    html:is([data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"], [data-skin="yemo"]) .aurora::before,
+    html:is([data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"], [data-skin="yemo"]) .aurora::after {
+      display: none;
+    }
+    html[data-skin="shuimo"] .hello .time {
+      background: linear-gradient(110deg, #35322c 12%, #6b655a 55%, #4a463f 92%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      filter: none;
+    }
+    html[data-skin="daiqing"] .hello .time {
+      background: linear-gradient(110deg, #2f4348 12%, #5c8188 55%, #3f6167 92%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      filter: none;
+    }
+    html[data-skin="zhusha"] .hello .time {
+      background: linear-gradient(110deg, #4a3230 12%, #b04a38 55%, #7d3830 92%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      filter: none;
+    }
+    html[data-skin="yemo"] .hello .time {
+      background: linear-gradient(110deg, #f3e8cf 8%, #d5b77c 52%, #a58b56 92%);
+      -webkit-background-clip: text;
+      background-clip: text;
+    }
+    html[data-skin="shuimo"] .search::before {
+      background: linear-gradient(120deg, rgba(90, 85, 70, 0.35), rgba(60, 55, 45, 0.16));
+    }
+    html[data-skin="daiqing"] .search::before {
+      background: linear-gradient(120deg, rgba(80, 125, 130, 0.35), rgba(70, 95, 100, 0.16));
+    }
+    html[data-skin="zhusha"] .search::before {
+      background: linear-gradient(120deg, rgba(190, 70, 50, 0.34), rgba(150, 106, 60, 0.16));
+    }
+    html[data-skin="yemo"] .search::before {
+      background: linear-gradient(120deg, rgba(200, 193, 178, 0.28), rgba(160, 150, 130, 0.12));
+    }
+    html[data-skin="shuimo"] .cursor-glow {
+      background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(90, 85, 70, 0.10), transparent 58%);
+    }
+    html[data-skin="daiqing"] .cursor-glow {
+      background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(80, 125, 130, 0.11), transparent 58%);
+    }
+    html[data-skin="zhusha"] .cursor-glow {
+      background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(190, 70, 50, 0.10), transparent 58%);
+    }
+    html[data-skin="yemo"] .cursor-glow {
+      background: radial-gradient(520px 380px at var(--mx) var(--my), rgba(200, 193, 178, 0.09), transparent 58%);
+    }
+    html[data-skin="shuimo"] .card {
+      border-color: rgba(48, 58, 52, .2);
+      background: linear-gradient(105deg, rgba(221, 224, 212, .7), transparent 28%), var(--glass);
+    }
+    html[data-skin="daiqing"] .card {
+      border-color: rgba(29, 104, 93, .28);
+      background: linear-gradient(155deg, rgba(250, 255, 243, .92), rgba(202, 234, 218, .94));
+    }
+    html[data-skin="zhusha"] .card {
+      border-color: rgba(167, 53, 37, .28);
+      background: linear-gradient(155deg, rgba(255, 252, 241, .96), rgba(248, 230, 197, .94));
+    }
+    html[data-skin="yemo"] .card {
+      border-color: rgba(193, 162, 107, .32);
+      background: linear-gradient(135deg, rgba(193, 162, 107, .08), transparent 50%), var(--glass);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .22), inset 0 1px 0 rgba(221, 199, 149, .07);
+    }
+    html[data-skin="shuimo"] .card::after {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.65), transparent 30%, transparent 70%, rgba(72, 68, 60, 0.07));
+    }
+    html[data-skin="daiqing"] .card::after {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.65), transparent 30%, transparent 70%, rgba(72, 100, 106, 0.08));
+    }
+    html[data-skin="zhusha"] .card::after {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.65), transparent 30%, transparent 70%, rgba(178, 62, 46, 0.08));
+    }
+    html[data-skin="yemo"] .card::after {
+      background: linear-gradient(135deg, rgba(226, 220, 206, 0.06), transparent 30%, transparent 70%, rgba(226, 220, 206, 0.03));
+    }
+    html[data-skin="shuimo"] .card:hover {
+      border-color: rgba(70, 66, 58, 0.48);
+      box-shadow: 0 16px 30px rgba(70, 66, 58, 0.14), 0 0 24px rgba(90, 85, 70, 0.14);
+    }
+    html[data-skin="daiqing"] .card:hover {
+      border-color: rgba(70, 100, 106, 0.48);
+      box-shadow: 0 16px 30px rgba(60, 95, 100, 0.14), 0 0 24px rgba(80, 125, 130, 0.14);
+    }
+    html[data-skin="zhusha"] .card:hover {
+      border-color: rgba(178, 62, 46, 0.48);
+      box-shadow: 0 16px 30px rgba(160, 60, 45, 0.14), 0 0 24px rgba(190, 70, 50, 0.14);
+    }
+    html[data-skin="yemo"] .card:hover {
+      border-color: rgba(200, 193, 178, 0.42);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4), 0 0 26px rgba(200, 193, 178, 0.1);
+    }
+    html[data-skin="shuimo"] .search input,
+    html[data-skin="daiqing"] .search input,
+    html[data-skin="zhusha"] .search input,
+    html[data-skin="shuimo"] .stat,
+    html[data-skin="daiqing"] .stat,
+    html[data-skin="zhusha"] .stat,
+    html[data-skin="shuimo"] .nav-col,
+    html[data-skin="daiqing"] .nav-col,
+    html[data-skin="zhusha"] .nav-col {
+      color: var(--text);
+      border-color: var(--stroke);
+      background: var(--glass);
+      box-shadow: 0 8px 22px rgba(70, 66, 58, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.78);
+    }
+    html[data-skin="shuimo"] .search input::placeholder,
+    html[data-skin="daiqing"] .search input::placeholder,
+    html[data-skin="zhusha"] .search input::placeholder { color: var(--muted); }
+    html[data-skin="shuimo"] .search input:focus,
+    html[data-skin="daiqing"] .search input:focus,
+    html[data-skin="zhusha"] .search input:focus {
+      border-color: var(--glow);
+      box-shadow: 0 0 0 4px var(--glow), 0 14px 34px rgba(70, 66, 58, 0.09);
+    }
+    html[data-skin="shuimo"] .card,
+    html[data-skin="daiqing"] .card,
+    html[data-skin="zhusha"] .card,
+    html[data-skin="shuimo"] .nav-col,
+    html[data-skin="daiqing"] .nav-col,
+    html[data-skin="zhusha"] .nav-col {
+      box-shadow: 0 8px 20px rgba(70, 66, 58, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.68);
+    }
+    html[data-skin="shuimo"] .folder:hover,
+    html[data-skin="daiqing"] .folder:hover,
+    html[data-skin="zhusha"] .folder:hover { background: rgba(70, 66, 58, 0.06); }
+    html[data-skin="shuimo"] .folder.on,
+    html[data-skin="daiqing"] .folder.on,
+    html[data-skin="zhusha"] .folder.on {
+      background: linear-gradient(90deg, hsla(var(--h), 28%, 38%, 0.14), rgba(255, 255, 255, 0.5));
+      box-shadow: inset 0 0 0 1px hsla(var(--h), 26%, 34%, 0.28);
+    }
+    html[data-skin="shuimo"] .folder span,
+    html[data-skin="daiqing"] .folder span,
+    html[data-skin="zhusha"] .folder span,
+    html[data-skin="shuimo"] .tag,
+    html[data-skin="daiqing"] .tag,
+    html[data-skin="zhusha"] .tag {
+      color: var(--muted);
+      border-color: var(--stroke);
+      background: rgba(255, 255, 252, 0.55);
+    }
+    html[data-skin="shuimo"] .dot,
+    html[data-skin="daiqing"] .dot,
+    html[data-skin="zhusha"] .dot {
+      background: hsl(var(--h), 26%, 42%);
+      box-shadow: 0 0 7px hsla(var(--h), 26%, 38%, 0.16);
+    }
+    html[data-skin="shuimo"] .appearance-panel,
+    html[data-skin="daiqing"] .appearance-panel,
+    html[data-skin="zhusha"] .appearance-panel {
+      background: var(--skin-panel);
+      border-color: var(--stroke);
+      box-shadow: 0 24px 60px rgba(70, 66, 58, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.82);
+    }
+    html[data-skin="yemo"] .appearance-panel {
+      background: var(--skin-panel);
+      border-color: var(--stroke);
+    }
+    html[data-skin="shuimo"] .choice,
+    html[data-skin="daiqing"] .choice,
+    html[data-skin="zhusha"] .choice {
+      border-color: rgba(60, 55, 45, 0.14);
+      background: rgba(255, 255, 252, 0.5);
+    }
+    html[data-skin="shuimo"] .choice[aria-pressed="true"],
+    html[data-skin="daiqing"] .choice[aria-pressed="true"],
+    html[data-skin="zhusha"] .choice[aria-pressed="true"] {
+      border-color: var(--glow);
+      background: rgba(255, 255, 252, 0.75);
+      box-shadow: 0 0 18px var(--glow);
+    }
+    html[data-skin="shuimo"] .appearance-trigger svg,
+    html[data-skin="daiqing"] .appearance-trigger svg,
+    html[data-skin="zhusha"] .appearance-trigger svg,
+    html[data-skin="yemo"] .appearance-trigger svg { color: var(--muted); }
+    html[data-skin="shuimo"] .appearance-trigger[aria-expanded="true"],
+    html[data-skin="daiqing"] .appearance-trigger[aria-expanded="true"],
+    html[data-skin="zhusha"] .appearance-trigger[aria-expanded="true"] {
+      border-color: var(--glow);
+      box-shadow: 0 0 20px var(--glow), inset 0 1px 0 rgba(255, 255, 255, 0.68);
+    }
+    html[data-skin="shuimo"] .section h2,
+    html[data-skin="daiqing"] .section h2,
+    html[data-skin="zhusha"] .section h2,
+    html[data-skin="yemo"] .section h2,
+    html[data-skin="shuimo"] .appearance-head strong,
+    html[data-skin="daiqing"] .appearance-head strong,
+    html[data-skin="zhusha"] .appearance-head strong,
+    html[data-skin="yemo"] .appearance-head strong {
+      font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", "SimSun", serif;
+    }
+    html[data-skin="shuimo"] .hello .time,
+    html[data-skin="daiqing"] .hello .time,
+    html[data-skin="zhusha"] .hello .time,
+    html[data-skin="yemo"] .hello .time {
+      font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", "SimSun", serif;
+    }
+    html:is([data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"], [data-skin="yemo"]) .section h2 {
+      color: var(--skin-accent);
+      width: fit-content;
+      padding: 0 10px;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background: var(--skin-panel);
+    }
+    html:is([data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"], [data-skin="yemo"]) .folder.on {
+      color: var(--text);
+      background: color-mix(in srgb, var(--skin-accent) 12%, var(--glass));
+      box-shadow: inset 3px 0 0 var(--skin-accent), inset 0 0 0 1px var(--stroke);
+    }
+    html:is([data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"], [data-skin="yemo"]) .choice[aria-pressed="true"] {
+      border-color: var(--skin-accent);
+      background: color-mix(in srgb, var(--skin-accent) 9%, var(--skin-panel));
+      box-shadow: 0 3px 12px var(--glow);
+    }
+    html[data-skin="zhusha"] .section h2 em { border-radius: 2px; background: #af3729; box-shadow: none; }
+    html[data-skin="yemo"] :is(.search input, .stat, .nav-col) {
+      color: var(--text); background: var(--glass); border-color: var(--stroke);
+    }
+    html[data-skin="yemo"] .card:hover { border-color: #c1a26b; box-shadow: 0 12px 28px rgba(0, 0, 0, .35), 0 0 16px var(--glow); }
     html[data-skin="obsidian"] {
       --text: #fff8e9;
       --muted: #b9aa8d;
@@ -1351,6 +2193,30 @@
     html[data-layout="list"] .card h3 { display: block; margin-bottom: 2px; }
     html[data-layout="list"] .meta { margin-top: 4px; }
 
+    html[data-layout="icons"] .grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+    html[data-layout="icons"] .section { margin-bottom: 20px; }
+    html[data-layout="icons"] .section + .section { margin-top: 20px; }
+    html[data-layout="icons"] .section h2 { min-height: 30px; margin-bottom: 9px; font-size: 16px; }
+    html[data-layout="icons"] .card {
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      min-height: 98px;
+      padding: 12px 8px 10px;
+      text-align: center;
+    }
+    html[data-layout="icons"] .card > div:not(.ico) {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+    html[data-layout="icons"] .card h3 { margin: 0; font-size: 12px; }
+    html[data-layout="icons"] .card p,
+    html[data-layout="icons"] .card .meta { display: none; }
+    .choice[data-value="icons"] .layout-swatch { grid-template-columns: repeat(3, 1fr); gap: 3px; }
+    .choice[data-value="icons"] .layout-swatch i { border-radius: 50%; }
+
     html[data-motion="float"] .card:is(:hover, :focus-visible) .ico {
       animation: icon-float .62s cubic-bezier(.2,.85,.3,1.2) both;
     }
@@ -1371,6 +2237,29 @@
     }
     html[data-motion="sweep"] .card:is(:hover, :focus-visible) .ico::before {
       animation: icon-sweep .72s ease-out both;
+    }
+    html[data-motion="sway"] .card:is(:hover, :focus-visible) .ico {
+      animation: icon-sway 1.4s ease-in-out infinite;
+    }
+    html[data-motion="bounce"] .card:is(:hover, :focus-visible) .ico {
+      animation: icon-bounce 1.2s ease-in-out infinite;
+    }
+    html[data-motion="spin"] .card:is(:hover, :focus-visible) .ico {
+      animation: icon-spin 1.8s cubic-bezier(.45,0,.2,1) infinite;
+    }
+    html[data-motion="ripple"] .ico::before {
+      content: "";
+      position: absolute;
+      z-index: 4;
+      inset: 12%;
+      border: 1.5px solid hsla(var(--h),90%,85%,.9);
+      border-radius: 50%;
+      box-shadow: 0 0 6px hsla(var(--h),90%,75%,.6);
+      pointer-events: none;
+      opacity: 0;
+    }
+    html[data-motion="ripple"] .card:is(:hover, :focus-visible) .ico::before {
+      animation: icon-ripple 1.2s ease-out infinite;
     }
     html[data-motion="still"] .card:hover .ico { animation: none; translate: none; }
     html[data-motion="still"]:not([data-icon="gem"]) .card:hover .ico img { transform: none; }
@@ -1394,6 +2283,29 @@
       0% { left: -50%; opacity: 0; }
       18% { opacity: .9; }
       100% { left: 125%; opacity: 0; }
+    }
+    @keyframes icon-sway {
+      0%, 70%, 100% { rotate: 0deg; }
+      15% { rotate: -14deg; }
+      30% { rotate: 11deg; }
+      45% { rotate: -7deg; }
+      58% { rotate: 4deg; }
+    }
+    @keyframes icon-bounce {
+      0%, 65%, 100% { translate: 0 0; scale: 1; }
+      12% { translate: 0 1px; scale: 1.08 .9; }
+      30% { translate: 0 -8px; scale: .95 1.05; }
+      48% { translate: 0 0; scale: 1.1 .9; }
+      57% { translate: 0 -3px; scale: 1; }
+    }
+    @keyframes icon-spin {
+      0%, 12% { rotate: 0deg; }
+      78%, 100% { rotate: 360deg; }
+    }
+    @keyframes icon-ripple {
+      0% { transform: scale(.25); opacity: 0; }
+      18% { opacity: .9; }
+      85%, 100% { transform: scale(1.8); opacity: 0; }
     }
 
     .card:focus-visible,
@@ -1442,6 +2354,18 @@
     html[data-fx="off"][data-skin="abyss"] .aurora {
       background: linear-gradient(180deg, #06263a, #01070d);
     }
+    html[data-fx="off"][data-skin="snow"] .aurora {
+      background: linear-gradient(180deg, #f9fbfe, #e3eaf4);
+    }
+    html[data-fx="off"][data-skin="sakura"] .aurora {
+      background: linear-gradient(180deg, #fff6f9, #f3dde8);
+    }
+    html[data-fx="off"][data-skin="celadon"] .aurora {
+      background: linear-gradient(180deg, #f6fbf8, #dfece5);
+    }
+    html[data-fx="off"]:is([data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"], [data-skin="yemo"]) .aurora {
+      background: var(--skin-art) var(--skin-position, center) / cover no-repeat, var(--bg);
+    }
     html[data-fx="off"] .hello .time { filter: none; }
     html[data-fx="off"] .search input,
     html[data-fx="off"] .stat,
@@ -1454,8 +2378,8 @@
       transition: none;
     }
     html[data-fx="off"] .ico,
-    html[data-fx="off"] .motion-swatch i,
-    html[data-fx="off"] .motion-swatch::after {
+    html[data-fx="off"] .motion-swatch .motion-anim,
+    html[data-fx="off"] .trail-swatch {
       animation: none !important;
       transition: none !important;
     }
@@ -1470,29 +2394,26 @@
     }
 
     @media (max-width: 900px) {
+      html:is([data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"], [data-skin="yemo"]) { --skin-position: 80% center; }
       header, .layout { grid-template-columns: 1fr; }
       .hello { justify-content: center; text-align: center; }
       .hello-meta { text-align: left; }
       .tools { justify-content: center; }
       .nav-cols { position: static; flex-wrap: wrap; }
-      .appearance-panel {
-        top: 88px;
-        right: 16px;
-        bottom: 16px;
-        grid-template-columns: 1fr;
-        width: calc(100vw - 32px);
-        max-height: calc(100vh - 104px);
-        overflow-y: auto;
-      }
+      .appearance-panel { top: 64px; max-height: calc(100dvh - 80px); }
     }
     @media (max-width: 720px) {
       html[data-layout="list"] .grid { grid-template-columns: 1fr; }
     }
+    @media (max-width: 1000px) {
+      .appearance-detail { right: 16px; width: min(660px, calc(100vw - 32px)); }
+      body.appearance-section-open .appearance-menu { visibility: hidden; pointer-events: none; }
+    }
     @media (max-width: 600px) {
-      .appearance-panel { gap: 12px; padding: 13px; }
-      .choice-grid,
-      .layout-grid,
-      .motion-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .appearance-detail .choice-grid,
+      .appearance-detail #skinChoices,
+      .appearance-detail #trailChoices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .appearance-detail .trail-size-row { gap: 6px; }
     }
     @media (max-width: 420px) {
       .hello { height: auto; flex-direction: column; gap: 7px; }
@@ -1507,8 +2428,8 @@
       .appearance-panel,
       .ico,
       .ico::before,
-      .motion-swatch i,
-      .motion-swatch::after { animation: none !important; }
+      .motion-swatch .motion-anim,
+      .trail-swatch { animation: none !important; }
       .card,
       .card::before,
       .ico,
@@ -1563,7 +2484,7 @@
       <kbd class="search-kbd" id="searchKbd" aria-hidden="true">Ctrl K</kbd>
     </div>
     <div class="tools">
-      <button type="button" id="appearanceBtn" class="stat appearance-trigger" aria-expanded="false" aria-controls="appearancePanel">
+      <button type="button" id="appearanceBtn" class="stat appearance-trigger" aria-expanded="false" aria-controls="appearanceMenu">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 3a9 9 0 1 0 0 18h1.2a1.8 1.8 0 0 0 0-3.6h-.7a1.5 1.5 0 0 1 0-3h2.4A6.1 6.1 0 0 0 21 8.3C20.3 5.2 16.5 3 12 3Z" stroke="currentColor" stroke-width="1.7"/>
           <circle cx="7.5" cy="10" r="1" fill="currentColor"/><circle cx="10" cy="6.8" r="1" fill="currentColor"/><circle cx="15" cy="7" r="1" fill="currentColor"/>
@@ -1572,29 +2493,98 @@
       </button>
       <div id="stats" class="stat"></div>
     </div>
-    <div id="appearancePanel" class="appearance-panel" hidden aria-label="外观设置">
-        <div class="appearance-head"><strong>外观实验室</strong><span>即时预览并自动记忆</span></div>
-        <section class="appearance-group wide">
-          <h3>页面主题</h3>
+    <div id="appearanceMenu" class="appearance-panel appearance-menu" hidden aria-label="外观设置">
+      <div class="appearance-head"><div><strong>外观实验室</strong><small>即时预览 · 自动记忆</small></div><button type="button" id="appearanceMenuClose" class="appearance-close" aria-label="关闭外观菜单">×</button></div>
+      <div id="appearanceCategories" class="appearance-categories">
+        <button type="button" class="appearance-category" data-setting="skin" aria-expanded="false" aria-controls="appearancePanel">
+          <span class="appearance-art" aria-hidden="true"><svg viewBox="0 0 52 48" fill="none"><defs><linearGradient id="menuPrism" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#38bdf8"/><stop offset=".5" stop-color="#a78bfa"/><stop offset="1" stop-color="#fb7185"/></linearGradient></defs><circle cx="26" cy="24" r="14" fill="url(#menuPrism)" opacity=".22"/><circle cx="26" cy="24" r="9" fill="url(#menuPrism)"/><g class="art-orbit"><ellipse cx="26" cy="24" rx="23" ry="10" fill="none" stroke="url(#menuPrism)" stroke-width="2" transform="rotate(-32 26 24)"/><circle cx="44" cy="12" r="3" fill="#38bdf8"/><circle cx="9" cy="35" r="2.5" fill="#fb7185"/></g><path d="m27 17 2 4-4-1" fill="#fff" opacity=".8"/></svg></span>
+          <span class="appearance-category-copy"><b>页面主题</b><small data-setting-summary="skin"></small></span>
+          <span class="appearance-category-arrow" aria-hidden="true"><svg viewBox="0 0 12 12" fill="none"><path d="m4.5 3 3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+        <button type="button" class="appearance-category" data-setting="icon" aria-expanded="false" aria-controls="appearancePanel">
+          <span class="appearance-art" aria-hidden="true"><svg viewBox="0 0 52 48" fill="none"><defs><linearGradient id="menuIcon" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#38bdf8"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs><rect x="8" y="7" width="28" height="32" rx="8" fill="currentColor" opacity=".16" transform="rotate(-15 22 23)"/><g class="art-animated art-card"><rect x="16" y="10" width="28" height="32" rx="8" fill="url(#menuIcon)" stroke="#fff" stroke-opacity=".4" transform="rotate(10 30 26)"/><path d="m29 17 2.8 6 6.5.8-4.8 4.4 1.2 6.4-5.7-3.3-5.7 3.3 1.2-6.4-4.8-4.4 6.5-.8Z" fill="#fff" opacity=".94"/></g></svg></span>
+          <span class="appearance-category-copy"><b>网站图标</b><small data-setting-summary="icon"></small></span>
+          <span class="appearance-category-arrow" aria-hidden="true"><svg viewBox="0 0 12 12" fill="none"><path d="m4.5 3 3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+        <button type="button" class="appearance-category" data-setting="layout" aria-expanded="false" aria-controls="appearancePanel">
+          <span class="appearance-art" aria-hidden="true"><svg viewBox="0 0 52 48" fill="none"><rect x="5" y="8" width="42" height="32" rx="6" fill="currentColor" fill-opacity=".1" stroke="currentColor" stroke-opacity=".65"/><path d="M5 16h42M16 16v24" stroke="currentColor" stroke-opacity=".45"/><circle cx="10" cy="12" r="1.2" fill="currentColor"/><circle cx="14" cy="12" r="1.2" fill="currentColor" opacity=".5"/><g><rect class="art-animated art-tile" x="21" y="21" width="9" height="6" rx="2" fill="currentColor"/><rect class="art-animated art-tile" x="33" y="21" width="9" height="6" rx="2" fill="currentColor" opacity=".55"/><rect class="art-animated art-tile" x="21" y="30" width="9" height="5" rx="2" fill="currentColor" opacity=".55"/><rect class="art-animated art-tile" x="33" y="30" width="9" height="5" rx="2" fill="currentColor" opacity=".3"/></g></svg></span>
+          <span class="appearance-category-copy"><b>页面布局</b><small data-setting-summary="layout"></small></span>
+          <span class="appearance-category-arrow" aria-hidden="true"><svg viewBox="0 0 12 12" fill="none"><path d="m4.5 3 3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+        <button type="button" class="appearance-category" data-setting="motion" aria-expanded="false" aria-controls="appearancePanel">
+          <span class="appearance-art" aria-hidden="true"><svg viewBox="0 0 52 48" fill="none"><ellipse cx="28" cy="26" rx="20" ry="16" fill="currentColor" opacity=".07"/><path d="M7 18h10M3 25h12M8 32h8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".45"/><g class="art-animated art-bolt"><path d="m30 6-12 21h11l-3 16 17-23H31l4-14Z" fill="currentColor"/><path d="m31 10-6 13h7" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".75"/></g></svg></span>
+          <span class="appearance-category-copy"><b>图标动效</b><small data-setting-summary="motion"></small></span>
+          <span class="appearance-category-arrow" aria-hidden="true"><svg viewBox="0 0 12 12" fill="none"><path d="m4.5 3 3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+        <button type="button" class="appearance-category" data-setting="trail" aria-expanded="false" aria-controls="appearancePanel">
+          <span class="appearance-art" aria-hidden="true"><svg viewBox="0 0 52 48" fill="none"><path d="M4 37c16 0 7-23 22-19s9 17 22-9" fill="none" stroke="currentColor" stroke-opacity=".18" stroke-width="7" stroke-linecap="round"/><path d="M4 37c16 0 7-23 22-19s9 17 22-9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" class="art-animated art-stream" stroke-dasharray="1 6"/><path class="art-animated art-spark" d="m34 10 3-7 3 7 7 3-7 3-3 7-3-7-7-3Z" fill="currentColor"/><circle cx="17" cy="28" r="3" fill="#a78bfa"/><circle cx="6" cy="38" r="2" fill="#38bdf8"/><circle cx="26" cy="35" r="1.6" fill="currentColor" opacity=".6"/></svg></span>
+          <span class="appearance-category-copy"><b>鼠标拖尾</b><small data-setting-summary="trail"></small></span>
+          <span class="appearance-category-arrow" aria-hidden="true"><svg viewBox="0 0 12 12" fill="none"><path d="m4.5 3 3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+        <button type="button" class="appearance-category" data-setting="sky" aria-expanded="false" aria-controls="appearancePanel">
+          <span class="appearance-art" aria-hidden="true"><svg viewBox="0 0 52 48" fill="none"><circle cx="26" cy="24" r="18" fill="currentColor" opacity=".1"/><g class="art-orbit"><path d="m10 29 12-16 15 9 7-14M22 13l8 25 7-16" fill="none" stroke="currentColor" stroke-opacity=".38" stroke-width="1.2"/><circle cx="10" cy="29" r="2.3" fill="#38bdf8"/><circle cx="22" cy="13" r="3" fill="currentColor"/><circle cx="37" cy="22" r="2.5" fill="#38bdf8"/><circle cx="30" cy="38" r="2" fill="currentColor"/><path d="m44 3 1.7 4.3L50 9l-4.3 1.7L44 15l-1.7-4.3L38 9l4.3-1.7Z" fill="currentColor"/><circle cx="9" cy="10" r="1" fill="currentColor"/><circle cx="44" cy="36" r="1" fill="currentColor"/></g></svg></span>
+          <span class="appearance-category-copy"><b>背景特效</b><small data-setting-summary="sky"></small></span>
+          <span class="appearance-category-arrow" aria-hidden="true"><svg viewBox="0 0 12 12" fill="none"><path d="m4.5 3 3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+        <button type="button" class="appearance-category" data-setting="fx" aria-expanded="false" aria-controls="appearancePanel">
+          <span class="appearance-art" aria-hidden="true"><svg viewBox="0 0 52 48" fill="none"><circle cx="26" cy="24" r="20" fill="currentColor" opacity=".07"/><circle class="art-orbit" cx="26" cy="24" r="19" fill="none" stroke="currentColor" stroke-opacity=".3" stroke-dasharray="3 5"/><g class="art-animated art-power"><path d="M18 13a14 14 0 1 0 16 0" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><path d="M26 7v17" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><circle cx="26" cy="39" r="1.6" fill="#fff" opacity=".8"/></g></svg></span>
+          <span class="appearance-category-copy"><b>动态效果</b><small data-setting-summary="fx"></small></span>
+          <span class="appearance-category-arrow" aria-hidden="true"><svg viewBox="0 0 12 12" fill="none"><path d="m4.5 3 3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+      </div>
+    </div>
+    <div id="appearancePanel" class="appearance-panel appearance-detail" hidden role="dialog" aria-labelledby="appearanceTitle" aria-describedby="appearanceDescription">
+      <div class="appearance-head">
+        <button type="button" id="appearanceBack" class="appearance-back" aria-label="返回外观菜单">‹</button>
+        <strong id="appearanceTitle">页面主题</strong>
+        <button type="button" id="appearanceClose" class="appearance-close" aria-label="关闭功能设置">×</button>
+      </div>
+      <p id="appearanceDescription" class="appearance-description"></p>
+      <div class="appearance-body">
+        <section class="appearance-group" data-setting-panel="skin" data-title="页面主题" data-description="选择整页配色。「自动」跟随系统深浅色，切换时同步快捷方式图标。" hidden>
           <div id="skinChoices" class="choice-grid"></div>
         </section>
-        <section class="appearance-group wide">
-          <h3>网站图标</h3>
+        <section class="appearance-group" data-setting-panel="icon" data-title="网站图标" data-description="调整书签卡片中的图标外观，不改变页面布局。" hidden>
           <div id="iconChoices" class="choice-grid"></div>
         </section>
-        <section class="appearance-group">
-          <h3>页面布局</h3>
+        <section class="appearance-group" data-setting-panel="layout" data-title="页面布局" data-description="选择书签卡片的排列方式和信息密度。" hidden>
           <div id="layoutChoices" class="choice-grid layout-grid"></div>
         </section>
-        <section class="appearance-group">
-          <h3>图标动效</h3>
+        <section class="appearance-group" data-setting-panel="motion" data-title="图标动效" data-description="选择鼠标悬停在书签卡片上时的图标动画。" hidden>
           <div id="motionChoices" class="choice-grid motion-grid"></div>
         </section>
-        <section class="appearance-group wide">
-          <h3>动态效果</h3>
+        <section class="appearance-group" data-setting-panel="trail" data-title="鼠标拖尾" data-description="选择鼠标移动时的粒子样式，并调整拖尾大小。" hidden>
+          <div id="trailChoices" class="choice-grid trail-grid"></div>
+          <div class="trail-size-row">
+            <span class="trail-size-label">大小</span>
+            <button type="button" id="trailSizeDown" class="trail-size-btn" aria-label="缩小">−</button>
+            <input id="trailSize" class="trail-size" type="range" min="50" max="250" step="10" value="100" aria-label="拖尾大小" />
+            <button type="button" id="trailSizeUp" class="trail-size-btn" aria-label="放大">+</button>
+            <span id="trailSizeVal" class="trail-size-val">1.0×</span>
+          </div>
+        </section>
+        <section class="appearance-group" data-setting-panel="sky" data-title="背景特效" data-description="选择背景粒子，或跟随天气；大小和数量可分别调整。" hidden>
+          <div id="skyChoices" class="choice-grid sky-grid"></div>
+          <div class="trail-size-row">
+            <span class="trail-size-label">大小</span>
+            <button type="button" id="skySizeDown" class="trail-size-btn" aria-label="缩小">−</button>
+            <input id="skySize" class="trail-size" type="range" min="50" max="250" step="10" value="100" aria-label="特效大小" />
+            <button type="button" id="skySizeUp" class="trail-size-btn" aria-label="放大">+</button>
+            <span id="skySizeVal" class="trail-size-val">1.0×</span>
+          </div>
+          <div class="trail-size-row">
+            <span class="trail-size-label">数量</span>
+            <button type="button" id="skyCountDown" class="trail-size-btn" aria-label="减少">−</button>
+            <input id="skyCount" class="trail-size" type="range" min="25" max="250" step="25" value="100" aria-label="特效数量" />
+            <button type="button" id="skyCountUp" class="trail-size-btn" aria-label="增多">+</button>
+            <span id="skyCountVal" class="trail-size-val">1.0×</span>
+          </div>
+        </section>
+        <section class="appearance-group" data-setting-panel="fx" data-title="动态效果" data-description="统一开启或关闭动态效果，保留各项样式与参数。" hidden>
           <div id="fxChoices" class="choice-grid fx-grid"></div>
         </section>
-        <p class="appearance-note">主题、布局和动效会自动记忆，「自动」主题跟随系统深浅色；切换主题时同步更新桌面快捷方式图标。</p>
+      </div>
+      <p class="appearance-note">即时预览并自动记忆，关闭后可查看完整效果。</p>
     </div>
   </header>
   <div class="layout">
@@ -1612,11 +2602,18 @@
       { id: "aurora", name: "极光" },
       { id: "cyber", name: "赛博" },
       { id: "ember", name: "余烬" },
-      { id: "paper", name: "宣纸" },
+      { id: "abyss", name: "深海" },
       { id: "nebula", name: "星海" },
       { id: "prism", name: "幻彩" },
       { id: "obsidian", name: "墨金" },
-      { id: "abyss", name: "深海" }
+      { id: "paper", name: "宣纸" },
+      { id: "snow", name: "雪" },
+      { id: "sakura", name: "樱" },
+      { id: "celadon", name: "瓷" },
+      { id: "shuimo", name: "水墨" },
+      { id: "daiqing", name: "黛青" },
+      { id: "zhusha", name: "朱砂" },
+      { id: "yemo", name: "夜墨" }
     ];
     const ICONS = [
       { id: "logo", name: "原始" },
@@ -1635,13 +2632,38 @@
     const LAYOUTS = [
       { id: "classic", name: "标准" },
       { id: "compact", name: "紧凑" },
-      { id: "list", name: "列表" }
+      { id: "list", name: "列表" },
+      { id: "icons", name: "宫格" }
     ];
     const MOTIONS = [
       { id: "float", name: "悬浮" },
       { id: "pulse", name: "呼吸" },
       { id: "sweep", name: "流光" },
+      { id: "sway", name: "摇摆" },
+      { id: "bounce", name: "弹跳" },
+      { id: "spin", name: "旋转" },
+      { id: "ripple", name: "涟漪" },
       { id: "still", name: "静止" }
+    ];
+    const TRAILS = [
+      { id: "stardust", name: "星尘" },
+      { id: "comet", name: "彗星" },
+      { id: "bubble", name: "气泡" },
+      { id: "petal", name: "花瓣" },
+      { id: "firefly", name: "萤火" },
+      { id: "rainbow", name: "彩虹" },
+      { id: "sparkle", name: "星芒" },
+      { id: "none", name: "关闭" }
+    ];
+    const SKYS = [
+      { id: "auto", name: "跟随天气" },
+      { id: "rain", name: "细雨" },
+      { id: "snow", name: "落雪" },
+      { id: "stars", name: "星空" },
+      { id: "meteor", name: "流星" },
+      { id: "fireflies", name: "流萤" },
+      { id: "blossom", name: "落樱" },
+      { id: "none", name: "关闭" }
     ];
     const PAGE = 36;
     let savedFolder = null;
@@ -1649,12 +2671,64 @@
     const state = { folder: savedFolder === null ? "常用" : savedFolder, q: "", shown: PAGE };
     const reduceMotionMq = matchMedia("(prefers-reduced-motion: reduce)");
     const motionOk = () => document.documentElement.dataset.fx !== "off" && !reduceMotionMq.matches;
-    const autoSkin = () => (matchMedia("(prefers-color-scheme: light)").matches ? "paper" : "aurora");
-    function choicePreview(key) {
+    const autoSkin = () => (matchMedia("(prefers-color-scheme: light)").matches ? "snow" : "aurora");
+    const MOTION_ART = {
+      float: `<defs><linearGradient id="motionFloat" x2="1" y2="1"><stop stop-color="#7dd3fc"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs>
+        <ellipse cx="32" cy="47" rx="18" ry="4" fill="#818cf8" opacity=".16"/>
+        <path d="M8 32V20m-4 4 4-4 4 4M56 32V20m-4 4 4-4 4 4" stroke="#38bdf8" stroke-width="2" opacity=".65"/>
+        <g class="motion-anim motion-lift"><path d="m32 9 17 10v17L32 46 15 36V19Z" fill="url(#motionFloat)"/>
+        <path d="m15 19 17 10 17-10M32 29v17" stroke="#e0f2fe" stroke-width="1.5" opacity=".75"/>
+        <path d="m24 16 8-4 8 4-8 5Z" fill="#fff" opacity=".45"/></g>`,
+      pulse: `<defs><radialGradient id="motionPulse" cx=".35" cy=".3"><stop stop-color="#ffe4f0"/><stop offset=".55" stop-color="#fb7185"/><stop offset="1" stop-color="#a855f7"/></radialGradient></defs>
+        <g class="motion-anim motion-breathe"><circle cx="32" cy="28" r="23" fill="#f472b6" opacity=".1"/>
+        <circle cx="32" cy="28" r="20" stroke="#f472b6" stroke-width="1.5" stroke-dasharray="3 5" opacity=".6"/>
+        <circle cx="32" cy="28" r="15" fill="url(#motionPulse)"/>
+        <path d="M23 23c1-4 4-6 8-6" stroke="#fff" stroke-width="2.5" opacity=".7"/>
+        <path d="M20 29h6l3-5 5 10 3-5h7" stroke="#fff" stroke-width="1.8" opacity=".9"/></g>`,
+      sweep: `<defs><linearGradient id="motionSweep" x2="1" y2="1"><stop stop-color="#38bdf8"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient><clipPath id="motionSweepClip"><rect x="12" y="12" width="40" height="34" rx="8"/></clipPath></defs>
+        <rect x="8" y="16" width="40" height="34" rx="8" fill="#818cf8" opacity=".13"/>
+        <rect x="12" y="12" width="40" height="34" rx="8" fill="url(#motionSweep)"/>
+        <path d="M19 36h14M19 40h8" stroke="#e0f2fe" stroke-width="2" opacity=".65"/>
+        <g clip-path="url(#motionSweepClip)"><path class="motion-anim motion-shine" d="m29 9 10 0-13 40H16Z" fill="#fff" opacity=".65"/></g>
+        <path d="m51 3 2.3 6.7L60 12l-6.7 2.3L51 21l-2.3-6.7L42 12l6.7-2.3Z" fill="#fcd34d"/>`,
+      sway: `<defs><linearGradient id="motionSway" x2="1" y2="1"><stop stop-color="#fde68a"/><stop offset="1" stop-color="#f59e0b"/></linearGradient></defs>
+        <path d="M7 24c-2 8 1 16 8 21m-1-7 1 7-7-1M57 24c2 8-1 16-8 21m1-7-1 7 7-1" stroke="#f59e0b" stroke-width="1.8" opacity=".55"/>
+        <g class="motion-anim motion-swing"><circle cx="32" cy="9" r="3" fill="#fbbf24"/>
+        <path d="M18 29c0-9 5-15 14-15s14 6 14 15v5l4 6H14l4-6Z" fill="url(#motionSway)"/>
+        <path d="M24 28c0-5 2-8 6-9" stroke="#fff7d6" stroke-width="2.5"/>
+        <path d="M27 44a5 5 0 0 0 10 0" fill="#d97706"/>
+        <path d="M15 40h34" stroke="#b45309" stroke-width="1.5" opacity=".5"/></g>`,
+      bounce: `<defs><radialGradient id="motionBounce" cx=".3" cy=".25"><stop stop-color="#dbeafe"/><stop offset=".5" stop-color="#818cf8"/><stop offset="1" stop-color="#7c3aed"/></radialGradient></defs>
+        <ellipse cx="33" cy="47" rx="18" ry="4" fill="#8b5cf6" opacity=".16"/>
+        <path d="M12 41c0-19 6-28 14-29" stroke="#a78bfa" stroke-width="1.8" stroke-dasharray="3 4" fill="none"/>
+        <path d="m21 9 6 2-3 6M46 20v7m5-3v8" stroke="#a78bfa" stroke-width="2"/>
+        <g class="motion-anim motion-ball"><circle cx="34" cy="31" r="14" fill="url(#motionBounce)"/>
+        <path d="M25 28c1-4 3-6 7-6" stroke="#eef2ff" stroke-width="2.5" opacity=".8"/></g>`,
+      spin: `<defs><linearGradient id="motionSpin" x2="1" y2="1"><stop stop-color="#5eead4"/><stop offset="1" stop-color="#3b82f6"/></linearGradient></defs>
+        <circle cx="32" cy="28" r="23" fill="#38bdf8" opacity=".07"/>
+        <g class="motion-anim motion-turn"><path d="M12 23a21 21 0 0 1 37-9M52 33a21 21 0 0 1-37 9" stroke="url(#motionSpin)" stroke-width="3.5" fill="none"/>
+        <path d="m42 13 9 3-1-10M22 43l-9-3 1 10" stroke="#2dd4bf" stroke-width="3" fill="none"/>
+        <path d="m32 15 11 13-11 13-11-13Z" fill="url(#motionSpin)"/>
+        <path d="m32 15 0 26 11-13Z" fill="#2563eb" opacity=".4"/></g>`,
+      ripple: `<defs><linearGradient id="motionRipple" x2="1" y2="1"><stop stop-color="#a5f3fc"/><stop offset="1" stop-color="#0ea5e9"/></linearGradient></defs>
+        <ellipse class="motion-anim motion-wave" cx="32" cy="41" rx="25" ry="10" fill="#38bdf8" fill-opacity=".08" stroke="#38bdf8" stroke-opacity=".55" stroke-width="1.5"/>
+        <ellipse class="motion-anim motion-wave motion-wave-late" cx="32" cy="41" rx="16" ry="6" fill="none" stroke="#0ea5e9" stroke-opacity=".7" stroke-width="1.5"/>
+        <path d="M32 5c-4 6-12 13-12 20a12 12 0 0 0 24 0C44 18 36 11 32 5Z" fill="url(#motionRipple)"/>
+        <path d="M25 25c0 4 2 6 5 7" stroke="#ecfeff" stroke-width="2.5" stroke-linecap="round"/>`,
+      still: `<defs><linearGradient id="motionStill" x2="1" y2="1"><stop stop-color="#94a3b8"/><stop offset="1" stop-color="#475569"/></linearGradient></defs>
+        <rect x="9" y="6" width="46" height="44" rx="13" fill="#94a3b8" opacity=".13"/>
+        <rect x="14" y="10" width="36" height="36" rx="10" fill="url(#motionStill)"/>
+        <rect x="24" y="20" width="5" height="16" rx="1.5" fill="#f1f5f9"/>
+        <rect x="35" y="20" width="5" height="16" rx="1.5" fill="#f1f5f9"/>
+        <path d="M24 51h16" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>`
+    };
+    function choicePreview(key, id) {
       if (key === "skin") return '<span class="skin-swatch"></span>';
       if (key === "icon") return '<span class="icon-swatch"><i>A</i></span>';
       if (key === "layout") return '<span class="layout-swatch"><i></i><i></i><i></i><i></i><i></i><i></i></span>';
-      if (key === "motion") return '<span class="motion-swatch"><i></i></span>';
+      if (key === "motion") return '<span class="motion-swatch" aria-hidden="true"><svg viewBox="0 0 64 56" fill="none" stroke-linecap="round" stroke-linejoin="round">' + MOTION_ART[id] + '</svg></span>';
+      if (key === "trail") return '<span class="trail-swatch"><i></i></span>';
+      if (key === "sky") return '<span class="sky-swatch"></span>';
       return '<span class="fx-dot"></span>';
     }
     function setupChoice(list, key, containerId, resolve) {
@@ -1667,7 +2741,7 @@
       const container = document.getElementById(containerId);
       container.innerHTML = list.map((item) => `
         <button type="button" class="choice" data-value="${item.id}" aria-pressed="false">
-          ${choicePreview(key)}<b>${item.name}</b>
+          ${choicePreview(key, item.id)}<b>${item.name}</b>
         </button>`).join("");
       const apply = (id, syncShortcut = false) => {
         const item = list.find((x) => x.id === id) || list[0];
@@ -1676,13 +2750,15 @@
         for (const btn of container.querySelectorAll(".choice")) {
           btn.setAttribute("aria-pressed", String(btn.dataset.value === item.id));
         }
+        const summary = document.querySelector('[data-setting-summary="' + key + '"]');
+        if (summary) summary.textContent = item.name;
         if (key === "skin") {
           const fav = document.getElementById("fav");
           if (fav) fav.href = "/__favicon?skin=" + encodeURIComponent(root.dataset.skin);
           document.getElementById("appearanceLabel").textContent = "外观 · " + item.name;
           if (syncShortcut) fetch("/__icon?skin=" + encodeURIComponent(root.dataset.skin)).catch(() => {});
         }
-        if (key === "fx") window.dispatchEvent(new Event("bm-fx"));
+        if (key === "fx" || key === "sky") window.dispatchEvent(new Event("bm-fx"));
       };
       apply(list.some((x) => x.id === cur) ? cur : list[0].id);
       container.addEventListener("click", (event) => {
@@ -2123,16 +3199,7 @@
     const rootStyle = document.documentElement.style;
     document.addEventListener("pointermove", (e) => {
       if (document.documentElement.dataset.fx === "off") return;
-      if (motionOk() && starTrail.length < 280 && Math.random() < 0.8) {
-        starTrail.push({
-          x: e.clientX, y: e.clientY,
-          vx: (Math.random() - 0.5) * 0.9,
-          vy: (Math.random() - 0.5) * 0.9 - 0.35,
-          r: 0.8 + Math.random() * 1.7,
-          life: 1
-        });
-        startSky();
-      }
+      if (motionOk() && spawnTrail(e.clientX, e.clientY)) startSky();
       const x = e.clientX + "px";
       const y = e.clientY + "px";
       if (moveRaf) return;
@@ -2181,6 +3248,8 @@
     setupChoice(ICONS, "icon", "iconChoices");
     setupChoice(LAYOUTS, "layout", "layoutChoices");
     setupChoice(MOTIONS, "motion", "motionChoices");
+    setupChoice(TRAILS, "trail", "trailChoices");
+    setupChoice(SKYS, "sky", "skyChoices");
     setupChoice(FX, "fx", "fxChoices");
     const colorSchemeMq = matchMedia("(prefers-color-scheme: light)");
     colorSchemeMq.addEventListener("change", () => {
@@ -2195,20 +3264,59 @@
       }
     });
     const appearanceBtn = document.getElementById("appearanceBtn");
+    const appearanceMenu = document.getElementById("appearanceMenu");
     const appearancePanel = document.getElementById("appearancePanel");
-    function setAppearanceOpen(open) {
-      appearancePanel.hidden = !open;
+    const appearanceCategories = document.getElementById("appearanceCategories");
+    const appearanceBack = document.getElementById("appearanceBack");
+    let appearanceSection = null;
+    function showAppearanceSection(key) {
+      const previous = appearanceSection;
+      const section = key ? appearancePanel.querySelector('[data-setting-panel="' + key + '"]') : null;
+      appearanceSection = section ? key : null;
+      for (const group of appearancePanel.querySelectorAll("[data-setting-panel]")) group.hidden = group !== section;
+      for (const category of appearanceCategories.querySelectorAll("[data-setting]")) {
+        category.setAttribute("aria-expanded", String(category.dataset.setting === appearanceSection));
+      }
+      appearancePanel.hidden = !section;
+      document.body.classList.toggle("appearance-section-open", !!section);
+      if (section) {
+        document.getElementById("appearanceTitle").textContent = section.dataset.title;
+        document.getElementById("appearanceDescription").textContent = section.dataset.description;
+        appearancePanel.querySelector(".appearance-body").scrollTop = 0;
+      }
+      if (!appearanceMenu.hidden) {
+        const target = section
+          ? section.querySelector('.choice[aria-pressed="true"]')
+          : appearanceCategories.querySelector('[data-setting="' + (previous || "skin") + '"]');
+        if (target) target.focus({ preventScroll: true });
+      }
+    }
+    function setAppearanceOpen(open, restoreFocus = true) {
+      appearanceMenu.hidden = !open;
       appearanceBtn.setAttribute("aria-expanded", String(open));
       document.body.classList.toggle("appearance-open", open);
+      showAppearanceSection(null);
+      if (open) appearanceCategories.querySelector("button").focus({ preventScroll: true });
+      else if (restoreFocus) appearanceBtn.focus({ preventScroll: true });
     }
-    appearanceBtn.addEventListener("click", () => setAppearanceOpen(appearancePanel.hidden));
+    appearanceBtn.addEventListener("click", () => setAppearanceOpen(appearanceMenu.hidden));
+    appearanceCategories.addEventListener("click", (event) => {
+      const category = event.target.closest("[data-setting]");
+      if (category) showAppearanceSection(category.dataset.setting);
+    });
+    appearanceBack.addEventListener("click", () => showAppearanceSection(null));
+    document.getElementById("appearanceClose").addEventListener("click", () => showAppearanceSection(null));
+    document.getElementById("appearanceMenuClose").addEventListener("click", () => setAppearanceOpen(false));
     document.addEventListener("click", (event) => {
-      if (!appearancePanel.hidden &&
-          !appearancePanel.contains(event.target) &&
-          !appearanceBtn.contains(event.target)) setAppearanceOpen(false);
+      if (!appearanceMenu.hidden && !appearanceMenu.contains(event.target) && !appearancePanel.contains(event.target) && !appearanceBtn.contains(event.target)) {
+        setAppearanceOpen(false, false);
+      }
     });
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") setAppearanceOpen(false);
+      if (event.key !== "Escape" || appearanceMenu.hidden) return;
+      event.preventDefault();
+      if (!appearancePanel.hidden) showAppearanceSection(null);
+      else setAppearanceOpen(false);
     });
     const searchInput = document.getElementById("q");
     const isMac = /Mac|iPhone|iPad/.test(navigator.platform || "");
@@ -2216,11 +3324,13 @@
     document.addEventListener("keydown", (event) => {
       if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "k") {
         event.preventDefault();
+        if (!appearanceMenu.hidden) setAppearanceOpen(false, false);
         searchInput.focus();
         searchInput.select();
       }
     });
     window.addEventListener("focus", () => {
+      if (!appearanceMenu.hidden) return;
       const ae = document.activeElement;
       if (!ae || ae === document.body || (ae.closest && ae.closest("#main, #nav"))) searchInput.focus();
     });
@@ -2247,10 +3357,20 @@
     let populatedType = null;
     let skyDrops = [];
     let starTrail = [];
+    let trailScale = 1;
+    try { trailScale = Math.min(2.5, Math.max(0.5, parseFloat(localStorage.getItem("bm-trail-size")) || 1)); } catch (e) {}
+    let skyScale = 1;
+    let skyCount = 1;
+    try { skyScale = Math.min(2.5, Math.max(0.5, parseFloat(localStorage.getItem("bm-sky-size")) || 1)); } catch (e) {}
+    try { skyCount = Math.min(2.5, Math.max(0.25, parseFloat(localStorage.getItem("bm-sky-count")) || 1)); } catch (e) {}
     let skyRunning = false;
+    let skyRaf = 0;
     let skyLast = 0;
     let currentWeatherCode = null;
     function skyClass(code) {
+      const mode = document.documentElement.dataset.sky || "auto";
+      if (mode === "none") return null;
+      if (mode !== "auto") return mode;
       if (code == null) return null;
       if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95) return "rain";
       if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "snow";
@@ -2265,19 +3385,80 @@
     }
     function skyPopulate() {
       skyDrops = [];
-      const n = skyType === "rain" ? 130 : skyType === "snow" ? 80 : skyType === "stars" ? 46 : 0;
+      const base = skyType === "rain" ? 130 : skyType === "snow" ? 80 : skyType === "stars" ? 46
+        : skyType === "meteor" ? 5 : skyType === "fireflies" ? 34 : skyType === "blossom" ? 26 : 0;
+      const n = Math.round(base * skyCount);
+      const S = skyScale;
       for (let i = 0; i < n; i++) {
         const d = { x: Math.random() * innerWidth, y: Math.random() * innerHeight, ph: Math.random() * 6.28 };
-        if (skyType === "rain") { d.v = 7 + Math.random() * 5; d.len = 10 + Math.random() * 12; }
-        else if (skyType === "snow") { d.v = 0.6 + Math.random() * 0.9; d.r = 1 + Math.random() * 2.1; }
-        else if (skyType === "stars") { d.v = 0.1 + Math.random() * 0.22; d.r = 0.7 + Math.random() * 1.5; }
+        if (skyType === "rain") { d.v = 7 + Math.random() * 5; d.len = (10 + Math.random() * 12) * S; }
+        else if (skyType === "snow") { d.v = 0.6 + Math.random() * 0.9; d.r = (1 + Math.random() * 2.1) * S; }
+        else if (skyType === "stars") { d.v = 0.1 + Math.random() * 0.22; d.r = (0.7 + Math.random() * 1.5) * S; }
+        else if (skyType === "meteor") {
+          d.x = Math.random() * innerWidth * 0.9;
+          d.y = -60 - Math.random() * innerHeight * 0.6;
+          d.v = 9 + Math.random() * 5;
+          d.len = (90 + Math.random() * 100) * S;
+          d.wait = Math.random() * 280;
+        }
+        else if (skyType === "fireflies") { d.ph2 = Math.random() * 6.28; d.r = (1.1 + Math.random() * 1.6) * S; }
+        else if (skyType === "blossom") { d.v = 0.4 + Math.random() * 0.6; d.r = (2.4 + Math.random() * 2.6) * S; d.rot = Math.random() * 6.28; d.spin = (Math.random() - 0.5) * 0.06; }
         skyDrops.push(d);
       }
     }
+    function spawnTrail(x, y) {
+      const kind = document.documentElement.dataset.trail || "stardust";
+      const R = Math.random;
+      const S = trailScale;
+      if (kind === "none") return false;
+      if (kind === "comet") {
+        if (starTrail.length > 380) return false;
+        starTrail.push({ kind, x, y, vx: 0, vy: 0, r: (2.4 + R() * 2.2) * S, life: 1, decay: 0.075 + R() * 0.03, hue: (Date.now() / 24) % 360 });
+        return true;
+      }
+      if (kind === "bubble") {
+        if (R() > 0.22 || starTrail.length > 110) return false;
+        starTrail.push({ kind, x, y, vy: -(0.5 + R() * 0.9) * S, r: (2 + R() * 3.6) * S, ph: R() * 6.28, life: 1, decay: 0.011 });
+        return true;
+      }
+      if (kind === "petal") {
+        if (R() > 0.3 || starTrail.length > 150) return false;
+        starTrail.push({ kind, x, y, vy: (0.55 + R() * 0.7) * S, r: (2.2 + R() * 2.4) * S, ph: R() * 6.28, rot: R() * 6.28, spin: (R() - 0.5) * 0.14, life: 1, decay: 0.008 + R() * 0.004 });
+        return true;
+      }
+      if (kind === "firefly") {
+        if (R() > 0.3 || starTrail.length > 110) return false;
+        starTrail.push({ kind, x, y, vx: (R() - 0.5) * 0.8 * S, vy: (R() - 0.5) * 0.8 * S, r: (1 + R() * 1.6) * S, ph: R() * 6.28, life: 1, decay: 0.006 + R() * 0.004 });
+        return true;
+      }
+      if (kind === "rainbow") {
+        if (starTrail.length > 260) return false;
+        starTrail.push({ kind, x, y, vx: (R() - 0.5) * 0.9, vy: (R() - 0.5) * 0.9 - 0.35, r: (0.9 + R() * 1.8) * S, life: 1, decay: 0.045, hue: (Date.now() / 6) % 360 });
+        return true;
+      }
+      if (kind === "sparkle") {
+        if (R() > 0.4 || starTrail.length > 150) return false;
+        starTrail.push({ kind, x, y, vx: (R() - 0.5) * 0.6 * S, vy: -(0.2 + R() * 0.5) * S, r: (3.2 + R() * 2.8) * S, rot: R() * 1.57, spin: (R() - 0.5) * 0.06, life: 1, decay: 0.025 + R() * 0.01 });
+        return true;
+      }
+      if (starTrail.length > 260) return false;
+      starTrail.push({ kind: "stardust", x, y, vx: (R() - 0.5) * 0.9, vy: (R() - 0.5) * 0.9 - 0.35, r: (0.8 + R() * 1.7) * S, life: 1, decay: 0.045 });
+      return true;
+    }
+    const LIGHT_SKINS = new Set(["paper", "snow", "sakura", "celadon", "shuimo", "daiqing", "zhusha"]);
     function fxInk() {
-      return document.documentElement.dataset.skin === "paper" ? "96, 76, 44" : "185, 216, 255";
+      const sk = document.documentElement.dataset.skin;
+      if (sk === "shuimo") return "72, 68, 60";
+      if (sk === "daiqing") return "72, 100, 106";
+      if (sk === "zhusha") return "178, 62, 46";
+      if (sk === "yemo") return "226, 220, 206";
+      if (sk === "snow") return "70, 100, 150";
+      if (sk === "sakura") return "190, 100, 140";
+      if (sk === "celadon") return "70, 140, 115";
+      return LIGHT_SKINS.has(sk) ? "96, 76, 44" : "185, 216, 255";
     }
     function skyFrame(ts) {
+      skyRaf = 0;
       if (!skyRunning) return;
       const dt = Math.min(ts - skyLast || 16.7, 50) / 16.7;
       skyLast = ts;
@@ -2285,7 +3466,7 @@
       const ink = fxInk();
       if (skyType === "rain") {
         fxCtx.strokeStyle = "rgba(" + ink + ", 0.3)";
-        fxCtx.lineWidth = 1;
+        fxCtx.lineWidth = Math.max(0.6, skyScale);
         fxCtx.beginPath();
         for (const d of skyDrops) {
           d.y += d.v * dt;
@@ -2313,26 +3494,158 @@
           fxCtx.arc(d.x, d.y, d.r, 0, 6.29);
           fxCtx.fill();
         }
+      } else if (skyType === "meteor") {
+        for (const d of skyDrops) {
+          if (d.wait > 0) { d.wait -= dt; continue; }
+          d.x += d.v * dt * 0.55;
+          d.y += d.v * dt;
+          const tx = d.x - d.len * 0.55, ty = d.y - d.len;
+          const g = fxCtx.createLinearGradient(d.x, d.y, tx, ty);
+          g.addColorStop(0, "rgba(" + ink + ", 0.9)");
+          g.addColorStop(1, "rgba(" + ink + ", 0)");
+          fxCtx.strokeStyle = g;
+          fxCtx.lineWidth = Math.max(0.8, 1.6 * skyScale);
+          fxCtx.beginPath();
+          fxCtx.moveTo(d.x, d.y);
+          fxCtx.lineTo(tx, ty);
+          fxCtx.stroke();
+          fxCtx.fillStyle = "rgba(255, 255, 255, 0.9)";
+          fxCtx.beginPath();
+          fxCtx.arc(d.x, d.y, Math.max(1, 1.5 * skyScale), 0, 6.29);
+          fxCtx.fill();
+          if (d.y > innerHeight + 60 || d.x > innerWidth + 60) {
+            d.x = Math.random() * innerWidth * 0.85;
+            d.y = -40 - Math.random() * 260;
+            d.v = 9 + Math.random() * 5;
+            d.len = (90 + Math.random() * 100) * skyScale;
+            d.wait = 60 + Math.random() * 320;
+          }
+        }
+      } else if (skyType === "fireflies") {
+        for (const d of skyDrops) {
+          d.ph += 0.02 * dt;
+          d.ph2 += 0.013 * dt;
+          d.x += Math.sin(d.ph) * 0.55 * dt;
+          d.y += Math.cos(d.ph2) * 0.42 * dt;
+          if (d.x < -8) d.x = innerWidth + 8; else if (d.x > innerWidth + 8) d.x = -8;
+          if (d.y < -8) d.y = innerHeight + 8; else if (d.y > innerHeight + 8) d.y = -8;
+          const glow = 0.25 + 0.55 * Math.abs(Math.sin(d.ph * 1.7));
+          fxCtx.fillStyle = "rgba(190, 242, 100, " + (glow * 0.16).toFixed(3) + ")";
+          fxCtx.beginPath();
+          fxCtx.arc(d.x, d.y, d.r * 3.4, 0, 6.29);
+          fxCtx.fill();
+          fxCtx.fillStyle = "rgba(232, 255, 170, " + glow.toFixed(3) + ")";
+          fxCtx.beginPath();
+          fxCtx.arc(d.x, d.y, d.r, 0, 6.29);
+          fxCtx.fill();
+        }
+      } else if (skyType === "blossom") {
+        for (const d of skyDrops) {
+          d.y += d.v * dt;
+          d.ph += 0.02 * dt;
+          d.rot += d.spin * dt;
+          d.x += Math.sin(d.ph) * 0.7 * dt;
+          if (d.y > innerHeight + 8) { d.y = -8; d.x = Math.random() * innerWidth; }
+          fxCtx.save();
+          fxCtx.translate(d.x, d.y);
+          fxCtx.rotate(d.rot);
+          fxCtx.fillStyle = "rgba(244, 114, 182, 0.55)";
+          fxCtx.beginPath();
+          fxCtx.ellipse(0, 0, d.r, d.r * 0.55, 0, 0, 6.29);
+          fxCtx.fill();
+          fxCtx.restore();
+        }
       }
       for (let i = starTrail.length - 1; i >= 0; i--) {
         const p = starTrail[i];
-        p.life -= 0.045 * dt;
+        p.life -= p.decay * dt;
         if (p.life <= 0) { starTrail.splice(i, 1); continue; }
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
-        fxCtx.fillStyle = "rgba(" + ink + ", " + (p.life * 0.5).toFixed(3) + ")";
-        fxCtx.beginPath();
-        fxCtx.arc(p.x, p.y, Math.max(p.r * p.life, 0.2), 0, 6.29);
-        fxCtx.fill();
+        if (p.kind === "comet") {
+          fxCtx.fillStyle = "hsla(" + p.hue.toFixed(0) + ", 90%, 76%, " + (p.life * 0.85).toFixed(3) + ")";
+          fxCtx.beginPath();
+          fxCtx.arc(p.x, p.y, Math.max(p.r * p.life, 0.3), 0, 6.29);
+          fxCtx.fill();
+        } else if (p.kind === "bubble") {
+          p.y += p.vy * dt;
+          p.ph += 0.07 * dt;
+          p.x += Math.sin(p.ph) * 0.4 * dt;
+          fxCtx.strokeStyle = "rgba(" + ink + ", " + (p.life * 0.65).toFixed(3) + ")";
+          fxCtx.lineWidth = 1;
+          fxCtx.beginPath();
+          fxCtx.arc(p.x, p.y, p.r, 0, 6.29);
+          fxCtx.stroke();
+          fxCtx.fillStyle = "rgba(255, 255, 255, " + (p.life * 0.5).toFixed(3) + ")";
+          fxCtx.beginPath();
+          fxCtx.arc(p.x - p.r * 0.35, p.y - p.r * 0.35, Math.max(p.r * 0.18, 0.4), 0, 6.29);
+          fxCtx.fill();
+        } else if (p.kind === "petal") {
+          p.y += p.vy * dt;
+          p.ph += 0.05 * dt;
+          p.x += Math.sin(p.ph) * 0.7 * dt;
+          p.rot += p.spin * dt;
+          fxCtx.save();
+          fxCtx.translate(p.x, p.y);
+          fxCtx.rotate(p.rot);
+          fxCtx.fillStyle = "hsla(338, 85%, 80%, " + (p.life * 0.8).toFixed(3) + ")";
+          fxCtx.beginPath();
+          fxCtx.ellipse(0, 0, p.r, p.r * 0.55, 0, 0, 6.29);
+          fxCtx.fill();
+          fxCtx.restore();
+        } else if (p.kind === "sparkle") {
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.rot += p.spin * dt;
+          const radius = p.r * (0.45 + 0.55 * Math.sin(p.life * Math.PI));
+          const gold = LIGHT_SKINS.has(document.documentElement.dataset.skin) ? "170, 105, 25" : "255, 219, 137";
+          fxCtx.save();
+          fxCtx.translate(p.x, p.y);
+          fxCtx.rotate(p.rot);
+          fxCtx.fillStyle = "rgba(" + gold + ", " + (p.life * 0.9).toFixed(3) + ")";
+          fxCtx.shadowColor = "rgba(251, 191, 36, 0.55)";
+          fxCtx.shadowBlur = radius;
+          fxCtx.beginPath();
+          for (let point = 0; point < 8; point++) {
+            const angle = point * Math.PI / 4 - Math.PI / 2;
+            const reach = point % 2 ? radius * 0.3 : radius;
+            const px = Math.cos(angle) * reach, py = Math.sin(angle) * reach;
+            if (point === 0) fxCtx.moveTo(px, py);
+            else fxCtx.lineTo(px, py);
+          }
+          fxCtx.closePath();
+          fxCtx.fill();
+          fxCtx.restore();
+        } else if (p.kind === "firefly") {
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.ph += 0.16 * dt;
+          const fa = p.life * (0.3 + 0.7 * Math.abs(Math.sin(p.ph)));
+          fxCtx.fillStyle = "rgba(214, 255, 140, " + (fa * 0.22).toFixed(3) + ")";
+          fxCtx.beginPath();
+          fxCtx.arc(p.x, p.y, p.r * 2.6, 0, 6.29);
+          fxCtx.fill();
+          fxCtx.fillStyle = "rgba(232, 255, 170, " + (fa * 0.9).toFixed(3) + ")";
+          fxCtx.beginPath();
+          fxCtx.arc(p.x, p.y, p.r, 0, 6.29);
+          fxCtx.fill();
+        } else {
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          fxCtx.fillStyle = p.kind === "rainbow"
+            ? "hsla(" + p.hue.toFixed(0) + ", 95%, 72%, " + (p.life * 0.6).toFixed(3) + ")"
+            : "rgba(" + ink + ", " + (p.life * 0.5).toFixed(3) + ")";
+          fxCtx.beginPath();
+          fxCtx.arc(p.x, p.y, Math.max(p.r * p.life, 0.2), 0, 6.29);
+          fxCtx.fill();
+        }
       }
-      if (skyType || starTrail.length) requestAnimationFrame(skyFrame);
+      if (skyType || starTrail.length) skyRaf = requestAnimationFrame(skyFrame);
       else skyRunning = false;
     }
     function startSky() {
       if (skyRunning) return;
       skyRunning = true;
       skyLast = 0;
-      requestAnimationFrame(skyFrame);
+      skyRaf = requestAnimationFrame(skyFrame);
     }
     function syncParticles() {
       const run = motionOk();
@@ -2345,6 +3658,8 @@
         startSky();
       } else if (skyRunning) {
         skyRunning = false;
+        cancelAnimationFrame(skyRaf);
+        skyRaf = 0;
         starTrail.length = 0;
         fxCtx.clearRect(0, 0, innerWidth, innerHeight);
       }
@@ -2355,6 +3670,50 @@
     window.addEventListener("bm-fx", syncParticles);
     reduceMotionMq.addEventListener("change", syncParticles);
 
+    const trailSizeInput = document.getElementById("trailSize");
+    const trailSizeVal = document.getElementById("trailSizeVal");
+    function setTrailSize(v, save) {
+      trailScale = Math.round(Math.min(2.5, Math.max(0.5, v)) * 10) / 10;
+      trailSizeInput.value = Math.round(trailScale * 100);
+      trailSizeVal.textContent = trailScale.toFixed(1) + "×";
+      if (save) {
+        try { localStorage.setItem("bm-trail-size", String(trailScale)); } catch (e) {}
+      }
+    }
+    setTrailSize(trailScale, false);
+    trailSizeInput.addEventListener("input", () => setTrailSize(parseInt(trailSizeInput.value, 10) / 100, true));
+    document.getElementById("trailSizeDown").addEventListener("click", () => setTrailSize(trailScale - 0.1, true));
+    document.getElementById("trailSizeUp").addEventListener("click", () => setTrailSize(trailScale + 0.1, true));
+    const skySizeInput = document.getElementById("skySize");
+    const skySizeVal = document.getElementById("skySizeVal");
+    const skyCountInput = document.getElementById("skyCount");
+    const skyCountVal = document.getElementById("skyCountVal");
+    function setSkySize(v, save) {
+      skyScale = Math.round(Math.min(2.5, Math.max(0.5, v)) * 10) / 10;
+      skySizeInput.value = Math.round(skyScale * 100);
+      skySizeVal.textContent = skyScale.toFixed(1) + "×";
+      if (save) {
+        try { localStorage.setItem("bm-sky-size", String(skyScale)); } catch (e) {}
+        skyPopulate();
+      }
+    }
+    function setSkyCount(v, save) {
+      skyCount = Math.round(Math.min(2.5, Math.max(0.25, v)) * 4) / 4;
+      skyCountInput.value = Math.round(skyCount * 100);
+      skyCountVal.textContent = skyCount.toFixed(2).replace(/0$/, "").replace(/\.$/, "") + "×";
+      if (save) {
+        try { localStorage.setItem("bm-sky-count", String(skyCount)); } catch (e) {}
+        skyPopulate();
+      }
+    }
+    setSkySize(skyScale, false);
+    setSkyCount(skyCount, false);
+    skySizeInput.addEventListener("input", () => setSkySize(parseInt(skySizeInput.value, 10) / 100, true));
+    skyCountInput.addEventListener("input", () => setSkyCount(parseInt(skyCountInput.value, 10) / 100, true));
+    document.getElementById("skySizeDown").addEventListener("click", () => setSkySize(skyScale - 0.1, true));
+    document.getElementById("skySizeUp").addEventListener("click", () => setSkySize(skyScale + 0.1, true));
+    document.getElementById("skyCountDown").addEventListener("click", () => setSkyCount(skyCount - 0.25, true));
+    document.getElementById("skyCountUp").addEventListener("click", () => setSkyCount(skyCount + 0.25, true));
     tick();
     setInterval(tick, 10000);
     loadWeather(true);

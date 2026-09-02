@@ -15,7 +15,10 @@ LNK = ROOT / ("\u4e66\u7b7e" + ".lnk")
 LAUNCH = WINDOWS_DIR / "start.bat"
 HIDDEN_LAUNCH = WINDOWS_DIR / "start.vbs"
 MANAGE = ROOT / "scripts" / "manage.py"
-SKINS = ("aurora", "cyber", "ember", "paper", "nebula", "prism", "obsidian", "abyss")
+SKINS = (
+    "aurora", "cyber", "ember", "paper", "nebula", "prism", "obsidian", "abyss",
+    "snow", "sakura", "celadon", "shuimo", "daiqing", "zhusha", "yemo",
+)
 
 
 def icon_path(skin: str = "aurora") -> Path:

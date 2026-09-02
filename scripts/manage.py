@@ -369,6 +369,9 @@ def sync_safari():
 
 
 class Handler(SimpleHTTPRequestHandler):
+    # Windows registry mappings can label SVGs as image/svg, which browsers reject.
+    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".svg": "image/svg+xml"}
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(WEB_ROOT), **kwargs)
 
