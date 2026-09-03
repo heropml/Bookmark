@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import hashlib
 import json
 import math
 import os
@@ -19,6 +20,13 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
+try:
+    import archive_update
+except ModuleNotFoundError as error:
+    if error.name != "archive_update":
+        raise
+    from scripts import archive_update
+
 ROOT = Path(__file__).resolve().parent.parent
 WEB_ROOT = ROOT / "web"
 DATA_DIR = ROOT / "data"
@@ -27,7 +35,7 @@ EXAMPLE_SRC = DATA_DIR / "bookmarks.example.html"
 DATA_JS = WEB_ROOT / "data.js"
 WINDOW_STATE = DATA_DIR / ".window-state.json"
 PORT = 8765
-APP_VERSION = "v1.0.4"
+APP_VERSION = "v1.0.5"
 HEALTH_RESPONSE = b"bookmark-weather-v3\n"
 HREF_RE = re.compile(r'<A HREF="([^"]+)"', re.I)
 UPDATE_SOURCES = (
@@ -37,6 +45,16 @@ UPDATE_SOURCES = (
 UPDATE_BRANCH = "main"
 GIT_TIMEOUT_SECONDS = 15
 UPDATE_LOCK = threading.RLock()
+BOOKMARK_SYNC_LOCK = threading.Lock()
+
+
+def installation_id() -> str:
+    """Identify this directory without exposing its path to the page."""
+    return hashlib.sha256(os.fsencode(os.path.normcase(str(ROOT.resolve())))).hexdigest()
+
+
+def supported_sync_browsers() -> list[str]:
+    return {"win32": ["chrome", "edge"], "darwin": ["chrome", "safari"]}.get(sys.platform, [])
 
 
 class UpdateError(RuntimeError):
@@ -91,6 +109,11 @@ def git_output(*args: str, network_url: str = "") -> str:
 def repository_update_status(progress=None) -> dict[str, object]:
     """Serialize checks with upgrades so concurrent pages cannot race Git writes."""
     with UPDATE_LOCK:
+        if not os.path.lexists(ROOT / ".git"):
+            try:
+                return archive_update.update_status(APP_VERSION, progress)
+            except archive_update.ArchiveUpdateError as error:
+                raise UpdateError(str(error), error.code) from error
         return _repository_update_status(progress)
 
 
@@ -145,6 +168,11 @@ def update_repository(progress=None) -> dict[str, object]:
     if progress:
         progress({"stage": "waiting", "message": "等待本地升级任务就绪"})
     with UPDATE_LOCK:
+        if not os.path.lexists(ROOT / ".git"):
+            try:
+                return archive_update.install(ROOT, APP_VERSION, progress)
+            except archive_update.ArchiveUpdateError as error:
+                raise UpdateError(str(error), error.code) from error
         status = repository_update_status(progress)
         if not status.get("can_update"):
             raise UpdateError(str(status.get("reason") or "当前无法升级"))
@@ -715,7 +743,13 @@ class Handler(SimpleHTTPRequestHandler):
                                      "error": getattr(error, "code", "update_failed")})
             return
         if parsed.path == "/__service":
-            self.send_json(200, {"version": APP_VERSION, "instance": self.server.instance})
+            self.send_json(200, {
+                "version": APP_VERSION, "instance": self.server.instance,
+                "installation": installation_id(),
+            })
+            return
+        if parsed.path == "/__bookmarks/sync":
+            self.send_json(200, {"browsers": supported_sync_browsers()})
             return
         if parsed.path == "/__weather":
             query = parse_qs(parsed.query)
@@ -818,6 +852,9 @@ class Handler(SimpleHTTPRequestHandler):
         from urllib.parse import urlparse
 
         path = urlparse(self.path).path
+        if path == "/__bookmarks/sync":
+            self.sync_bookmarks()
+            return
         if path == "/__update":
             if "application/x-ndjson" in self.headers.get("Accept", ""):
                 self.stream_update()
@@ -858,6 +895,47 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
 
 
+    def sync_bookmarks(self):
+        # Require a same-origin JSON request: a foreign page must not overwrite bookmarks.
+        port = self.server.server_port
+        hosts = (f"127.0.0.1:{port}", f"localhost:{port}")
+        host = self.headers.get("Host", "").lower()
+        if (host not in hosts or self.headers.get("Origin") != f"http://{host}"
+                or self.headers.get("X-Bookmark-Sync") != "1"
+                or self.headers.get_content_type() != "application/json"):
+            self.send_json(403, {"ok": False, "message": "请从本地书签主页确认同步。"})
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            if not 0 < length <= 256:
+                raise ValueError
+            data = json.loads(self.rfile.read(length))
+            if (not isinstance(data, dict) or data.get("confirmed") is not True
+                    or data.get("browser") not in supported_sync_browsers()):
+                raise ValueError
+        except (ValueError, TypeError, UnicodeDecodeError):
+            self.send_json(400, {"ok": False, "message": "请选择支持的浏览器，并确认同步。"})
+            return
+        if not BOOKMARK_SYNC_LOCK.acquire(blocking=False):
+            self.send_json(409, {"ok": False, "message": "已有书签同步正在进行，请稍后再试。"})
+            return
+        try:
+            if self.server.restarting:
+                self.send_json(409, {"ok": False, "message": "服务正在重启，请稍后再同步。"})
+                return
+            browser = data["browser"]
+            action = {"chrome": sync_chrome, "edge": sync_edge, "safari": sync_safari}[browser]
+            items = action()
+            self.send_json(200, {"ok": True, "count": len(items or []), "browser": browser})
+        except (SystemExit, OSError, ValueError, TypeError, KeyError):
+            self.send_json(422, {
+                "ok": False,
+                "message": "无法读取或保存书签。请确认所选浏览器已创建书签、当前账号可用，且程序目录可写；Safari 还需允许读取书签文件。",
+            })
+        finally:
+            BOOKMARK_SYNC_LOCK.release()
+
+
 def port_in_use(port: int) -> bool:
     import socket
 
@@ -876,16 +954,27 @@ def page_ok(port: int) -> bool:
             index_ok = resp.status == 200 and b"<html" in chunk
         with urlopen(f"http://127.0.0.1:{port}/__health", timeout=0.8) as resp:
             health = resp.read(64)
-        return index_ok and resp.status == 200 and health == HEALTH_RESPONSE
-    except (OSError, URLError):
+        if not index_ok or resp.status != 200 or health != HEALTH_RESPONSE:
+            return False
+        with urlopen(f"http://127.0.0.1:{port}/__service", timeout=0.8) as resp:
+            service = json.loads(resp.read(4096))
+        return isinstance(service, dict) and service.get("installation") == installation_id()
+    except (OSError, URLError, ValueError):
         return False
 
 
 def pick_port() -> int:
-    if page_ok(PORT) or not port_in_use(PORT):
-        return PORT
-    for port in range(PORT + 1, PORT + 20):
-        if not port_in_use(port):
+    from concurrent.futures import ThreadPoolExecutor
+
+    ports = list(range(PORT, PORT + 20))
+    # Look for our existing service before choosing a free port, even if a lower port freed up.
+    with ThreadPoolExecutor(max_workers=len(ports)) as probes:
+        occupied = list(probes.map(port_in_use, ports))
+    for port, in_use in zip(ports, occupied):
+        if in_use and page_ok(port):
+            return port
+    for port, in_use in zip(ports, occupied):
+        if not in_use:
             return port
     raise SystemExit("no free port")
 

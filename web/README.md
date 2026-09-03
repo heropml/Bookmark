@@ -10,6 +10,7 @@
 2. `weather.css`：天空、云雾、日夜天气场景。
 3. `shell.css`：页头、时钟、天气、搜索框、工具入口。
 4. `appearance.css`：外观菜单、功能弹框和选项预览。
+   随后加载 `bookmark-sync.css`：主页同步入口、浏览器选择和确认窗口。
 5. `bookmarks.css`：分类导航与书签卡片。
 6. `themes.css`：页面主题配色和表面样式。
 7. `icons.css`：网站图标及相关主题覆盖。
@@ -36,6 +37,7 @@ CSS 图片路径相对于 `css/`，例如 `../themes/shuimo.svg`。
 | `js/appearance.js` | 外观选项、弹框、设置保存和主题切换 |
 | `js/window-state.js` | 本地窗口尺寸记录 |
 | `js/interactions.js` | 鼠标光效、拖尾和卡片倾斜交互 |
+| `js/bookmark-sync.js` | 当前浏览器识别、来源选择、确认同步与结果处理 |
 | `js/effects.js` | 背景天气、粒子、画布与动画调度 |
 | `js/app.js` | 按顺序绑定事件、启动时钟天气并渲染书签 |
 
@@ -61,6 +63,7 @@ CSS 图片路径相对于 `css/`，例如 `../themes/shuimo.svg`。
 node --test tests/weather.test.cjs
 node --test tests/layouts.test.cjs
 node --test tests/clock.test.cjs
+node --test tests/bookmark-sync.test.cjs
 ```
 
 测试使用模拟网络、存储和页面元素，验证城市切换竞争、取消输入、零坐标、10 分钟刷新及失败状态，不访问私人书签或快捷方式接口。

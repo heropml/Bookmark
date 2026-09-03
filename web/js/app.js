@@ -6,6 +6,7 @@ initAppearance();
 initSearchShortcuts();
 initWeatherControls();
 initUpdate();
+initBookmarkSync();
 initEffects();
 initClock();
 initWeatherRefresh();

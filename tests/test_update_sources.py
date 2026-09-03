@@ -73,9 +73,28 @@ class UpdateSourceTests(TestCase):
                 self.assertFalse(any("merge" in call.args for call in git.call_args_list))
 
     def test_zip_installation_does_not_attempt_git(self):
-        with tempfile.TemporaryDirectory() as directory, patch.object(manage, "ROOT", Path(directory)), patch.object(manage, "git_output") as git:
+        status = {"available": True, "can_update": True, "mode": "archive"}
+        with tempfile.TemporaryDirectory() as directory, patch.object(manage, "ROOT", Path(directory)), patch.object(manage, "git_output") as git, patch.object(manage.archive_update, "update_status", return_value=status) as check:
+            self.assertEqual(manage.repository_update_status(), status)
+        check.assert_called_once_with(manage.APP_VERSION, None)
+        git.assert_not_called()
+
+    def test_git_marker_file_does_not_fall_back_to_archive_overwrite(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(manage, "ROOT", Path(directory)), patch.object(manage.archive_update, "update_status") as archive:
+            (Path(directory) / ".git").write_text("gitdir: /another/worktree", encoding="utf-8")
             with self.assertRaisesRegex(manage.UpdateError, "不支持在线升级"):
                 manage.repository_update_status()
+        archive.assert_not_called()
+
+    def test_zip_install_and_errors_use_existing_upgrade_response_contract(self):
+        result = {"ok": True, "updated": True, "mode": "archive"}
+        with tempfile.TemporaryDirectory() as directory, patch.object(manage, "ROOT", Path(directory)), patch.object(manage, "git_output") as git, patch.object(manage.archive_update, "install", return_value=result) as install:
+            self.assertEqual(manage.update_repository(), result)
+            install.assert_called_once_with(Path(directory), manage.APP_VERSION, None)
+            install.side_effect = manage.archive_update.ArchiveUpdateError("证书验证失败", "certificate_error")
+            with self.assertRaises(manage.UpdateError) as caught:
+                manage.update_repository()
+            self.assertEqual(caught.exception.code, "certificate_error")
         git.assert_not_called()
 
     def test_concurrent_checks_and_upgrade_share_one_lock(self):

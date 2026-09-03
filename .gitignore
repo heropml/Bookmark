@@ -4,6 +4,9 @@ __pycache__/
 !runtime/python/Lib/site-packages/PIL/*.pyd
 *.lnk
 data/.window-state.json
+data/.update-backups/
+data/.update-stage-*/
 data/bookmarks.html
 web/data.js
 .claude/
+installer/

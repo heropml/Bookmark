@@ -30,6 +30,7 @@ function fixture(routes, confirmed = true) {
   const calls = [];
   const timers = [];
   const intervals = [];
+  const confirmations = [];
   let reloads = 0;
   const elements = new Map([
     ['updateNotice', { hidden: true }],
@@ -60,7 +61,7 @@ function fixture(routes, confirmed = true) {
     TextDecoder,
     document: { getElementById: id => elements.get(id) },
     window: {
-      confirm: () => confirmed,
+      confirm: message => { confirmations.push(message); return confirmed; },
       setTimeout: (callback, ms) => { timers.push({ callback, ms }); },
       setInterval: (callback, ms) => { intervals.push({ callback, ms }); },
       location: { reload: () => { reloads++; } }
@@ -71,7 +72,7 @@ function fixture(routes, confirmed = true) {
   vm.runInContext(source, context, { filename: 'update.js' });
   vm.runInContext('initUpdate()', context);
   return {
-    calls, elements, timers, intervals,
+    calls, elements, timers, intervals, confirmations,
     async settled() { await new Promise(resolve => setImmediate(resolve)); await new Promise(resolve => setImmediate(resolve)); },
     async click() { await handlers.get('click')(); },
     async runTimer() {
@@ -406,4 +407,20 @@ test('取消确认不请求升级、不打开进度浮层', async () => {
   await app.click();
   assert.equal(app.calls.length, 1);
   assert.equal(app.elements.get('updateProgress').hidden, true);
+});
+
+test('ZIP 安装提示免 Git 更新及备份，Git 安装仍提示本地修改保护', async () => {
+  for (const mode of ['archive', 'git']) {
+    const app = fixture([response({ available: true, can_update: true, remote: 'v1.0.5', mode })], false);
+    await app.settled();
+    await app.click();
+    if (mode === 'archive') {
+      assert.match(app.confirmations[0], /无需安装 Git/);
+      assert.match(app.confirmations[0], /私人书签和外观设置会保留/);
+      assert.match(app.confirmations[0], /程序文件会被替换并备份/);
+    } else {
+      assert.match(app.confirmations[0], /存在未提交的本地代码修改时会取消升级/);
+    }
+    assert.equal(app.calls.length, 1);
+  }
 });

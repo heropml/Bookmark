@@ -6,6 +6,7 @@ const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 let updateChecking = false;
 let updateInstalling = false;
 let updateGeneration = 0;
+let updateMode = "git";
 
 function showUpdateProgress(stage, message, source = "") {
   const finished = stage === "done" || stage === "current" || stage === "error";
@@ -80,6 +81,7 @@ async function waitForRestart(instance) {
 }
 
 function showUpdateNotice(status) {
+  updateMode = status.mode || "git";
   updateBtn.disabled = false;
   updateBtn.dataset.state = "ready";
   updateBtn.dataset.action = "install";
@@ -135,7 +137,10 @@ async function checkForUpdate() {
 
 async function installUpdate() {
   if (updateInstalling) return;
-  if (!window.confirm("将更新 main 分支的完整代码库并重启本地服务：优先使用 Gitee，不可用时切换 GitHub。存在未提交的本地代码修改时会取消升级。是否继续？")) return;
+  const confirmation = updateMode === "archive"
+    ? "将下载并校验新版程序文件，备份后替换并重启本地服务。优先使用 Gitee，不可用时切换 GitHub，无需安装 Git。私人书签和外观设置会保留；自行修改的程序文件会被替换并备份。是否继续？"
+    : "将更新 main 分支的完整代码库并重启本地服务：优先使用 Gitee，不可用时切换 GitHub。存在未提交的本地代码修改时会取消升级。是否继续？";
+  if (!window.confirm(confirmation)) return;
   updateInstalling = true;
   updateGeneration++;
   updateBtn.disabled = true;

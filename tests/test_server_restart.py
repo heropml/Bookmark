@@ -115,7 +115,10 @@ class RestartHTTPTests(TestCase):
 
     def test_service_readiness_has_instance_without_changing_legacy_health_response(self):
         result = self.read_json("/__service")
-        self.assertEqual(result, {"version": manage.APP_VERSION, "instance": self.server.instance})
+        self.assertEqual(result, {
+            "version": manage.APP_VERSION, "instance": self.server.instance,
+            "installation": manage.installation_id(),
+        })
         with urlopen(self.base + "/__health", timeout=2) as response:
             self.assertEqual(response.read(), manage.HEALTH_RESPONSE)
         self.schedule.assert_not_called()
