@@ -29,12 +29,20 @@ function weatherSceneClass(code) {
   if (code >= 95 && code <= 99) return "storm";
   return "";
 }
+function weatherIntensity(code) {
+  if (code == null) return 1;
+  if (code >= 95) return 1.35;
+  if ([55, 57, 65, 67, 75, 77, 82, 86].includes(code)) return 1.16;
+  if ([53, 63, 73, 81].includes(code)) return 1.04;
+  return .88;
+}
 function skyClass(code) {
   const mode = document.documentElement.dataset.sky || "auto";
   if (mode === "none") return null;
   if (mode !== "auto") return mode;
   if (code == null) return null;
-  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95) return "rain";
+  if (code >= 95) return "storm";
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return "rain";
   if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "snow";
   if (code <= 2 && weatherPeriod() === "night") return "stars";
   return null;
@@ -47,14 +55,29 @@ function fxResize() {
 }
 function skyPopulate() {
   skyDrops = [];
-  const base = skyType === "rain" ? 130 : skyType === "snow" ? 80 : skyType === "stars" ? 46
+  const intensity = weatherIntensity(currentWeatherCode);
+  const base = skyType === "rain" ? 108 : skyType === "storm" ? 136 : skyType === "snow" ? 72 : skyType === "stars" ? 46
     : skyType === "meteor" ? 5 : skyType === "fireflies" ? 34 : skyType === "blossom" ? 26 : 0;
   const n = Math.round(base * skyCount);
   const S = skyScale;
   for (let i = 0; i < n; i++) {
     const d = { x: Math.random() * innerWidth, y: Math.random() * innerHeight, ph: Math.random() * 6.28 };
-    if (skyType === "rain") { d.v = 7 + Math.random() * 5; d.len = (10 + Math.random() * 12) * S; }
-    else if (skyType === "snow") { d.v = 0.6 + Math.random() * 0.9; d.r = (1 + Math.random() * 2.1) * S; }
+    if (skyType === "rain" || skyType === "storm") {
+      const depth = .56 + Math.random() * 1.04;
+      d.depth = depth;
+      d.v = (5.5 + Math.random() * 4.5) * intensity * depth;
+      d.len = (9 + Math.random() * 12) * S * depth;
+      d.wind = (skyType === "storm" ? .35 : .18) + Math.random() * (skyType === "storm" ? .2 : .13);
+      d.alpha = (.11 + Math.random() * .26) * Math.min(1.2, depth);
+    }
+    else if (skyType === "snow") {
+      const depth = .55 + Math.random() * .95;
+      d.depth = depth;
+      d.v = (0.45 + Math.random() * .85) * intensity * depth;
+      d.r = (1 + Math.random() * 2.1) * S * depth;
+      d.wind = .22 + Math.random() * .38;
+      d.alpha = .16 + Math.random() * .36;
+    }
     else if (skyType === "stars") { d.v = 0.1 + Math.random() * 0.22; d.r = (0.7 + Math.random() * 1.5) * S; }
     else if (skyType === "meteor") {
       d.x = Math.random() * innerWidth * 0.9;
@@ -127,25 +150,27 @@ function skyFrame(ts) {
   fxCtx.clearRect(0, 0, innerWidth, innerHeight);
   const ink = fxInk();
   const skyInk = weatherScene.hidden ? ink : "235, 246, 255";
-  if (skyType === "rain") {
-    // 自动天气用远、中、近三层雨幕；手动“细雨”保持原来的样式和速度。
+  if (skyType === "rain" || skyType === "storm") {
+    // 按景深和风向分层：远处是细密雨幕，近处才有清晰、较长的雨线。
     const weatherRain = !weatherScene.hidden;
     const layers = weatherRain ? 3 : 1;
     for (let layer = 0; layer < layers; layer++) {
-      const depth = weatherRain ? .6 + layer * .5 : 1;
-      const slant = weatherRain ? .18 : .12;
-      fxCtx.strokeStyle = "rgba(" + skyInk + ", " + (weatherRain ? [.18, .34, .56][layer] : .3) + ")";
-      fxCtx.lineWidth = Math.max(.6, skyScale * depth);
+      const depth = weatherRain ? .62 + layer * .46 : 1;
+      const slant = skyType === "storm" ? .38 : weatherRain ? .21 : .12;
+      const alpha = weatherRain ? [.12, .22, .38][layer] : .3;
+      fxCtx.strokeStyle = "rgba(" + skyInk + ", " + alpha + ")";
+      fxCtx.lineWidth = Math.max(.55, skyScale * (weatherRain ? .58 + layer * .42 : 1));
+      fxCtx.lineCap = "round";
       fxCtx.beginPath();
       for (let i = layer; i < skyDrops.length; i += layers) {
         const d = skyDrops[i];
-        d.y += d.v * dt * depth;
-        d.x += d.v * dt * depth * slant;
-        const len = d.len * depth;
+        d.y += d.v * dt;
+        d.x += d.v * dt * (d.wind || slant);
+        const len = d.len;
         const edge = weatherRain ? len : 24;
         if (d.y > innerHeight + edge) { d.y = -edge; d.x = Math.random() * innerWidth; }
         fxCtx.moveTo(d.x, d.y);
-        fxCtx.lineTo(d.x - len * slant, d.y - len);
+        fxCtx.lineTo(d.x - len * (d.wind || slant), d.y - len);
       }
       fxCtx.stroke();
     }
@@ -153,10 +178,10 @@ function skyFrame(ts) {
     for (const d of skyDrops) {
       if (skyType === "snow") {
         d.y += d.v * dt;
-        d.ph += 0.012 * dt;
-        d.x += Math.sin(d.ph) * 0.5 * dt;
+        d.ph += (0.009 + d.depth * .006) * dt;
+        d.x += (Math.sin(d.ph) * d.wind + d.wind * .34) * dt;
         if (d.y > innerHeight + 6) { d.y = -6; d.x = Math.random() * innerWidth; }
-        fxCtx.fillStyle = "rgba(" + skyInk + ", 0.5)";
+        fxCtx.fillStyle = "rgba(" + skyInk + ", " + d.alpha.toFixed(3) + ")";
       } else {
         d.y -= d.v * dt;
         d.ph += 0.02 * dt;
@@ -164,7 +189,8 @@ function skyFrame(ts) {
         fxCtx.fillStyle = "rgba(" + skyInk + ", " + (0.1 + 0.3 * Math.abs(Math.sin(d.ph))).toFixed(3) + ")";
       }
       fxCtx.beginPath();
-      fxCtx.arc(d.x, d.y, d.r, 0, 6.29);
+      if (skyType === "snow") fxCtx.ellipse(d.x, d.y, d.r, d.r * .72, Math.sin(d.ph) * .45, 0, 6.29);
+      else fxCtx.arc(d.x, d.y, d.r, 0, 6.29);
       fxCtx.fill();
     }
   } else if (skyType === "meteor") {

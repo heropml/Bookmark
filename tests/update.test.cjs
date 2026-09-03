@@ -14,7 +14,7 @@ function fixture(routes, confirmed = true) {
   let reloads = 0;
   const elements = new Map([
     ['updateNotice', { hidden: true }],
-    ['appVersion', { textContent: 'v1.0.0' }],
+    ['appVersion', { textContent: 'v1.0.1' }],
     ['updateBtn', {
       disabled: false, title: '', dataset: {}, attributes: {},
       setAttribute(name, value) { this.attributes[name] = value; },
@@ -44,11 +44,11 @@ function fixture(routes, confirmed = true) {
 }
 
 test('发现新版时在版本号后显示可点击的升级状态点', async () => {
-  const app = fixture([response({ available: true, can_update: true, remote: 'abc1234', version: 'v1.0.0' })]);
+  const app = fixture([response({ available: true, can_update: true, remote: 'abc1234', version: 'v1.0.1' })]);
   await app.settled();
   assert.equal(app.elements.get('updateNotice').hidden, false);
   assert.match(app.elements.get('updateBtn').title, /abc1234/);
-  assert.equal(app.elements.get('appVersion').textContent, 'v1.0.0');
+  assert.equal(app.elements.get('appVersion').textContent, 'v1.0.1');
 });
 
 test('确认升级后请求完整仓库更新并在服务重启后刷新页面', async () => {
