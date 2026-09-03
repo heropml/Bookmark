@@ -10,6 +10,36 @@ manage = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(manage)
 
 
+class GitOutputTests(TestCase):
+    def test_windows_git_commands_do_not_create_console_windows(self):
+        result = manage.subprocess.CompletedProcess([], 0, "main\n", "")
+        with patch.object(manage.sys, "platform", "win32"), patch.object(
+            manage.subprocess, "CREATE_NO_WINDOW", 0x08000000, create=True
+        ), patch.object(manage.subprocess, "run", return_value=result) as run:
+            self.assertEqual(manage.git_output("branch", "--show-current"), "main")
+        self.assertEqual(run.call_args.args[0], ["git", "branch", "--show-current"])
+        self.assertEqual(run.call_args.kwargs["creationflags"], 0x08000000)
+        self.assertEqual(run.call_args.kwargs["timeout"], manage.GIT_TIMEOUT_SECONDS)
+        self.assertEqual(run.call_args.kwargs["stdout"], manage.subprocess.PIPE)
+        self.assertEqual(run.call_args.kwargs["stderr"], manage.subprocess.PIPE)
+
+    def test_non_windows_git_commands_do_not_use_windows_flags(self):
+        for platform in ("darwin", "linux"):
+            with self.subTest(platform=platform), patch.object(manage.sys, "platform", platform), patch.object(
+                manage.subprocess, "run", return_value=manage.subprocess.CompletedProcess([], 0, "main\n", "")
+            ) as run:
+                self.assertEqual(manage.git_output("branch", "--show-current"), "main")
+                self.assertEqual(run.call_args.kwargs.get("creationflags", 0), 0)
+
+    def test_git_failures_and_timeouts_keep_existing_errors(self):
+        with patch.object(manage.subprocess, "run", return_value=manage.subprocess.CompletedProcess([], 1, "", "failed")):
+            with self.assertRaisesRegex(manage.UpdateError, "无法检查更新"):
+                manage.git_output("status")
+        with patch.object(manage.subprocess, "run", side_effect=manage.subprocess.TimeoutExpired("git", 15)):
+            with self.assertRaisesRegex(manage.UpdateError, "无法连接更新服务"):
+                manage.git_output("status")
+
+
 class UpdateStatusTests(TestCase):
     def test_reports_fast_forward_update(self):
         with patch.object(manage, "git_output", side_effect=[
@@ -21,7 +51,7 @@ class UpdateStatusTests(TestCase):
             "can_update": True,
             "current": "current",
             "remote": "remote1",
-            "version": "v1.0.1",
+            "version": "v1.0.2",
         })
 
     def test_declines_update_when_tracked_changes_exist(self):
@@ -30,7 +60,7 @@ class UpdateStatusTests(TestCase):
         self.assertFalse(status["available"])
         self.assertFalse(status["can_update"])
         self.assertEqual(status["reason"], "存在未提交的本地代码修改")
-        self.assertEqual(status["version"], "v1.0.1")
+        self.assertEqual(status["version"], "v1.0.2")
 
     def test_updates_with_fast_forward_only(self):
         with patch.object(manage, "repository_update_status", return_value={

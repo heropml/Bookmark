@@ -30,9 +30,9 @@
 }
 .app-version {
   color: var(--text);
-  font: 500 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 500 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
   letter-spacing: .04em;
-  opacity: .055;
+  opacity: .22;
   pointer-events: none;
   user-select: none;
 }
@@ -106,7 +106,9 @@ header {
 }
 .hello .time {
   flex: 0 0 auto;
-  width: 7.1ch;
+  width: max-content;
+  min-width: 7.1ch;
+  white-space: nowrap;
   height: var(--header-control-height);
   font-size: 40px;
   font-weight: 720;

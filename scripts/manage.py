@@ -26,7 +26,7 @@ EXAMPLE_SRC = DATA_DIR / "bookmarks.example.html"
 DATA_JS = WEB_ROOT / "data.js"
 WINDOW_STATE = DATA_DIR / ".window-state.json"
 PORT = 8765
-APP_VERSION = "v1.0.1"
+APP_VERSION = "v1.0.2"
 HEALTH_RESPONSE = b"bookmark-weather-v3\n"
 HREF_RE = re.compile(r'<A HREF="([^"]+)"', re.I)
 UPDATE_REMOTE = "origin"
@@ -40,10 +40,12 @@ class UpdateError(RuntimeError):
 
 def git_output(*args: str) -> str:
     """Run a bounded Git command inside this repository."""
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if sys.platform == "win32" else 0
     try:
         result = subprocess.run(
             ["git", *args],
             cwd=ROOT,
+            creationflags=flags,
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
