@@ -107,33 +107,46 @@ test('页面失焦或隐藏时，秒钟直接更新，不依赖数字动画结�
   assert.equal(app.time(), '03:06:00');
 });
 
-test('暂停的旧数字动画不能在恢复焦点时覆盖最新秒数', () => {
+test('页面长时间停留后，时分秒即时更新且不累积数字动画', () => {
   const app = fixture({ focused: true });
   app.run('initClock()');
-  app.setTime('2026-09-02T03:04:06');
-  app.intervals[0].callback();
-  assert.equal(app.animations.length, 1);
-  assert.equal(typeof app.animations[0].onfinish, 'function');
-  app.setFocus(false);
-  app.setTime('2026-09-02T03:04:08');
-  app.emit('blur');
-  assert.equal(app.time(), '03:04:08');
-  assert.equal(app.animations[0].cancelled, true);
-  assert.equal(app.animations[0].onfinish, null);
+  const start = new Date('2026-09-02T23:30:00').getTime();
+  for (let elapsed = 0; elapsed < 7200; elapsed++) {
+    const now = new Date(start + elapsed * 1000);
+    app.setTime(now);
+    app.intervals[0].callback();
+    const expected = [now.getHours(), now.getMinutes(), now.getSeconds()]
+      .map(value => String(value).padStart(2, '0')).join(':');
+    assert.equal(app.time(), expected, '更新时间不能等待动画结束');
+    assert.equal(app.animations.length, 0, '不能留下透明或位移的动画状态');
+  }
+  assert.equal(app.elements.get('greet').textContent, '2026年9月3日 星期四');
 });
 
-test('关闭动效时不创建秒钟动画；启用时只滚动变化的数字', () => {
-  const quiet = fixture({ focused: true, motion: false });
-  quiet.run('initClock()');
-  quiet.setTime('2026-09-02T03:04:06');
-  quiet.intervals[0].callback();
-  assert.equal(quiet.time(), '03:04:06');
-  assert.equal(quiet.animations.length, 0);
-  const active = fixture({ focused: true });
-  active.run('initClock()');
-  active.setTime('2026-09-02T03:04:06');
-  active.intervals[0].callback();
-  assert.equal(active.animations.length, 1);
-  active.animations[0].onfinish();
-  assert.equal(active.time(), '03:04:06');
+test('长时间后台停留后恢复焦点，显示实际时分秒而非累加旧时间', () => {
+  const app = fixture({ at: '2026-09-02T09:31:40', focused: true });
+  app.run('initClock()');
+  app.setFocus(false);
+  app.emit('blur');
+  app.document.hidden = true;
+  app.emit('visibilitychange');
+  app.setTime('2026-09-03T10:42:08');
+  app.document.hidden = false;
+  app.emit('visibilitychange');
+  app.setFocus(true);
+  app.emit('focus');
+  assert.equal(app.time(), '10:42:08');
+  assert.equal(app.elements.get('greet').textContent, '2026年9月3日 星期四');
+  assert.equal(app.animations.length, 0);
+});
+
+test('开启或关闭页面动效都不会让时间数字透明或延迟更新', () => {
+  for (const motion of [true, false]) {
+    const app = fixture({ at: '2026-09-02T09:59:59', focused: true, motion });
+    app.run('initClock()');
+    app.setTime('2026-09-02T10:00:00');
+    app.intervals[0].callback();
+    assert.equal(app.time(), '10:00:00');
+    assert.equal(app.animations.length, 0);
+  }
 });

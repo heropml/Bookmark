@@ -117,6 +117,10 @@ runtime\python\python.exe -X utf8 scripts/manage.py
 
 ## 注意事项
 
+- 可以同时打开多个书签窗口或标签页，同一地址共用一个后台服务。
+- 本地服务运行此版自动重启逻辑后，打开或刷新页面时发现磁盘上的后台版本已更新，会自动关闭旧监听并在原端口启动新服务；页面等新服务就绪后再刷新，无需手动结束进程。
+- 左下角版本号以当前网页文件为准，不会再被尚未重启的旧后台版本覆盖。页面内升级也会等待新服务实际启动完成。
+
 - `data/bookmarks.html` 和 `web/data.js` 包含私人书签，已被 Git 忽略，不能使用 `git add -f` 强制提交。
 - `web/data.js` 是本地生成文件，不建议手工编辑；公开示例位于 `data/bookmarks.example.html` 和 `web/data.example.js`。
 - 普通打开“书签”快捷方式或 `Bookmark.app` 不会同步浏览器；只有执行对应的手动同步脚本或命令时才会更新。

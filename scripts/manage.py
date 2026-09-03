@@ -12,6 +12,7 @@ import subprocess
 import sys
 import threading
 import time
+import uuid
 import webbrowser
 from collections import Counter
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -26,7 +27,7 @@ EXAMPLE_SRC = DATA_DIR / "bookmarks.example.html"
 DATA_JS = WEB_ROOT / "data.js"
 WINDOW_STATE = DATA_DIR / ".window-state.json"
 PORT = 8765
-APP_VERSION = "v1.0.2"
+APP_VERSION = "v1.0.3"
 HEALTH_RESPONSE = b"bookmark-weather-v3\n"
 HREF_RE = re.compile(r'<A HREF="([^"]+)"', re.I)
 UPDATE_REMOTE = "origin"
@@ -98,10 +99,52 @@ def update_repository() -> dict[str, object]:
     }
 
 
-def restart_after_update() -> None:
-    """Allow the HTTP response to finish before replacing this server process."""
+def installed_version() -> str:
+    """Read the installed backend version without executing the updated script."""
+    source = Path(__file__).read_text(encoding="utf-8")
+    match = re.search(r'^APP_VERSION\s*=\s*["\']([^"\']+)["\']', source, re.M)
+    if not match:
+        raise UpdateError("无法读取已安装版本")
+    return match.group(1)
+
+
+def restart_after_update(server: ThreadingHTTPServer) -> None:
+    """Finish the response, then ask the main loop to replace this server."""
     time.sleep(0.35)
-    os.execv(sys.executable, [sys.executable, *sys.argv])
+    server.shutdown()
+
+
+class BookmarkServer(ThreadingHTTPServer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.instance = uuid.uuid4().hex
+        self.restarting = False
+        self.restart_lock = threading.Lock()
+
+    def schedule_restart(self) -> None:
+        with self.restart_lock:
+            if self.restarting:
+                return
+            self.restarting = True
+            threading.Thread(target=restart_after_update, args=(self,), daemon=False).start()
+
+
+def serve(port: int) -> None:
+    server = BookmarkServer(("127.0.0.1", port), Handler)
+    try:
+        server.serve_forever()
+    finally:
+        server.server_close()
+    if server.restarting:
+        # Replace on the main thread before interpreter shutdown clears globals.
+        if sys.platform == "win32":
+            # Popen quotes paths containing spaces correctly on Windows.
+            start_hidden_server(port)
+        else:
+            os.execv(sys.executable, [
+                sys.executable, "-X", "utf8", str(Path(__file__).resolve()),
+                "--serve", str(port),
+            ])
 
 
 def weather_code(description: str) -> int:
@@ -596,9 +639,19 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if parsed.path == "/__update":
             try:
-                self.send_json(200, repository_update_status())
-            except UpdateError as error:
+                if self.server.restarting or installed_version() != APP_VERSION:
+                    self.send_json(200, {
+                        "available": False, "can_update": False, "restarting": True,
+                        "version": APP_VERSION, "instance": self.server.instance,
+                    })
+                    self.server.schedule_restart()
+                else:
+                    self.send_json(200, repository_update_status())
+            except (UpdateError, OSError) as error:
                 self.send_json(503, {"available": False, "can_update": False, "reason": str(error)})
+            return
+        if parsed.path == "/__service":
+            self.send_json(200, {"version": APP_VERSION, "instance": self.server.instance})
             return
         if parsed.path == "/__weather":
             query = parse_qs(parsed.query)
@@ -677,9 +730,9 @@ class Handler(SimpleHTTPRequestHandler):
             except UpdateError as error:
                 self.send_json(409, {"ok": False, "message": str(error)})
                 return
-            self.send_json(200, result)
+            self.send_json(200, {**result, "instance": self.server.instance})
             if result.get("updated"):
-                threading.Thread(target=restart_after_update, daemon=True).start()
+                self.server.schedule_restart()
             return
         if path != "/__window_state":
             self.send_error(404)
@@ -740,22 +793,22 @@ def pick_port() -> int:
     raise SystemExit("no free port")
 
 
-def serve_hidden(port: int) -> None:
-    import subprocess
-    import sys
-    import time
-
+def start_hidden_server(port: int) -> subprocess.Popen:
     py = Path(sys.executable)
     pyw = py.with_name("pythonw.exe")
     exe = str(pyw if pyw.is_file() else py)
     flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if sys.platform == "win32" else 0
-    subprocess.Popen(
+    return subprocess.Popen(
         [exe, "-X", "utf8", str(Path(__file__).resolve()), "--serve", str(port)],
         cwd=str(ROOT),
         creationflags=flags,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
+
+
+def serve_hidden(port: int) -> None:
+    start_hidden_server(port)
     for _ in range(40):
         if page_ok(port):
             return
@@ -769,7 +822,7 @@ def main():
     args = sys.argv[1:]
     if args and args[0] == "--serve":
         port = int(args[1]) if len(args) > 1 else PORT
-        ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()
+        serve(port)
         return
     if "--replace" in args:
         idx = args.index("--replace")

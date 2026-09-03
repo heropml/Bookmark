@@ -1,6 +1,21 @@
 const updateNotice = document.getElementById("updateNotice");
 const updateBtn = document.getElementById("updateBtn");
-const appVersion = document.getElementById("appVersion");
+
+async function waitForRestart(instance) {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    await new Promise(resolve => window.setTimeout(resolve, 500));
+    try {
+      const service = await fetchJson("/__service", 1000);
+      if (service.instance && service.instance !== instance) {
+        window.location.reload();
+        return;
+      }
+    } catch (error) {
+      // The old listener is closed while its replacement starts.
+    }
+  }
+  throw new Error("后台重启未完成，请稍后刷新页面");
+}
 
 function showUpdateNotice(status) {
   updateBtn.disabled = false;
@@ -15,7 +30,20 @@ async function checkForUpdate() {
     const response = await fetch("/__update", { cache: "no-store" });
     if (!response.ok) return;
     const status = await response.json();
-    if (status.version) appVersion.textContent = status.version;
+    if (status.restarting) {
+      updateNotice.hidden = false;
+      updateBtn.disabled = true;
+      updateBtn.dataset.state = "loading";
+      updateBtn.title = "后台已更新，正在自动重启…";
+      updateBtn.setAttribute("aria-label", updateBtn.title);
+      try {
+        await waitForRestart(status.instance);
+      } catch (error) {
+        updateBtn.title = error.message;
+        updateBtn.setAttribute("aria-label", error.message);
+      }
+      return;
+    }
     if (status.available && status.can_update) showUpdateNotice(status);
   } catch (error) {
     // 更新检查不可用时保持静默，不影响书签页面使用。
@@ -36,7 +64,7 @@ async function installUpdate() {
       return;
     }
     updateBtn.title = "升级完成，正在重启…";
-    window.setTimeout(() => window.location.reload(), 1200);
+    await waitForRestart(result.instance);
   } catch (error) {
     updateBtn.disabled = false;
     updateBtn.dataset.state = "error";

@@ -51,7 +51,7 @@ class UpdateStatusTests(TestCase):
             "can_update": True,
             "current": "current",
             "remote": "remote1",
-            "version": "v1.0.2",
+            "version": "v1.0.3",
         })
 
     def test_declines_update_when_tracked_changes_exist(self):
@@ -60,7 +60,7 @@ class UpdateStatusTests(TestCase):
         self.assertFalse(status["available"])
         self.assertFalse(status["can_update"])
         self.assertEqual(status["reason"], "存在未提交的本地代码修改")
-        self.assertEqual(status["version"], "v1.0.2")
+        self.assertEqual(status["version"], "v1.0.3")
 
     def test_updates_with_fast_forward_only(self):
         with patch.object(manage, "repository_update_status", return_value={
