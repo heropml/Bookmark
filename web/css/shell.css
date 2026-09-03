@@ -287,6 +287,43 @@ header {
 .update-action:disabled { cursor: wait; opacity: .65; }
 .update-action[data-state="error"] { background: #fb7185; box-shadow: 0 0 12px rgba(251, 113, 133, 0.8); }
 .update-action:focus-visible { outline: 2px solid rgba(125, 211, 252, 0.9); outline-offset: 3px; }
+.update-progress {
+  --update-accent: var(--skin-accent, #5eead4);
+  position: fixed;
+  left: 16px;
+  bottom: 42px;
+  z-index: 8;
+  width: min(352px, calc(100vw - 32px));
+  max-height: calc(100dvh - 64px);
+  overflow: auto;
+  padding: 18px;
+  color: var(--text);
+  background: var(--skin-panel, var(--bg));
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .22);
+}
+.update-progress[hidden], .update-progress button[hidden] { display: none; }
+.update-progress-head { display: flex; gap: 12px; align-items: center; }
+.update-progress-icon {
+  display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 38px;
+  border: 1px solid var(--stroke); border-radius: 50%; color: var(--update-accent); font-size: 27px;
+}
+.update-progress-head strong { display: block; font-size: 15px; font-weight: 650; }
+#updateProgressSource { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+.update-progress-head button {
+  margin-left: auto; padding: 3px 8px; border: 1px solid var(--stroke); border-radius: 8px;
+  color: var(--muted); background: transparent; font: inherit; cursor: pointer;
+}
+.update-progress-head button:focus-visible { outline: 2px solid var(--update-accent); outline-offset: 3px; }
+.update-progress-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; list-style: none; margin: 20px 0 14px; padding: 0; }
+.update-progress-steps li { padding-top: 9px; border-top: 3px solid var(--stroke); color: var(--muted); font-size: 11px; }
+.update-progress-steps li[data-state="done"], .update-progress-steps li[data-state="active"] { border-color: var(--update-accent); color: var(--text); }
+.update-progress-steps li[data-state="active"] { font-weight: 700; }
+#updateProgressMessage { margin: 0; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+#updateProgressHint { display: block; margin-top: 8px; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.update-progress[data-stage="error"] { --update-accent: #c54c68; }
+.update-progress[data-stage="error"] .update-progress-icon { color: var(--update-accent); }
 .switch {
   cursor: pointer;
   font: inherit;

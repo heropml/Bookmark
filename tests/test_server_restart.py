@@ -137,3 +137,15 @@ class RestartHTTPTests(TestCase):
                 self.read_json("/__update")
         self.assertEqual(caught.exception.code, 503)
         self.schedule.assert_not_called()
+
+    def test_certificate_error_is_exposed_without_restarting_service(self):
+        from urllib.error import HTTPError
+        with patch.object(manage, "repository_update_status", side_effect=manage.UpdateError("Gitee：证书验证失败", "certificate_error")):
+            with self.assertRaises(HTTPError) as caught:
+                self.read_json("/__update")
+        self.assertEqual(caught.exception.code, 503)
+        with caught.exception as response:
+            result = json.load(response)
+        self.assertEqual(result["error"], "certificate_error")
+        self.assertIn("证书验证失败", result["reason"])
+        self.schedule.assert_not_called()

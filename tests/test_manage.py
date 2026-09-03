@@ -22,6 +22,8 @@ class GitOutputTests(TestCase):
         self.assertEqual(run.call_args.kwargs["timeout"], manage.GIT_TIMEOUT_SECONDS)
         self.assertEqual(run.call_args.kwargs["stdout"], manage.subprocess.PIPE)
         self.assertEqual(run.call_args.kwargs["stderr"], manage.subprocess.PIPE)
+        self.assertEqual(run.call_args.kwargs["env"]["GIT_TERMINAL_PROMPT"], "0")
+        self.assertEqual(run.call_args.kwargs["env"]["GCM_INTERACTIVE"], "Never")
 
     def test_non_windows_git_commands_do_not_use_windows_flags(self):
         for platform in ("darwin", "linux"):
@@ -43,7 +45,7 @@ class GitOutputTests(TestCase):
 class UpdateStatusTests(TestCase):
     def test_reports_fast_forward_update(self):
         with patch.object(manage, "git_output", side_effect=[
-            "main", "", "", "current000", "remote111", "current000"
+            "main", "", "", "remote111", "current000", "current000"
         ]):
             status = manage.repository_update_status()
         self.assertEqual(status, {
@@ -51,7 +53,9 @@ class UpdateStatusTests(TestCase):
             "can_update": True,
             "current": "current",
             "remote": "remote1",
-            "version": "v1.0.3",
+            "target": "remote111",
+            "source": "Gitee",
+            "version": "v1.0.4",
         })
 
     def test_declines_update_when_tracked_changes_exist(self):
@@ -60,12 +64,13 @@ class UpdateStatusTests(TestCase):
         self.assertFalse(status["available"])
         self.assertFalse(status["can_update"])
         self.assertEqual(status["reason"], "存在未提交的本地代码修改")
-        self.assertEqual(status["version"], "v1.0.3")
+        self.assertEqual(status["version"], "v1.0.4")
 
     def test_updates_with_fast_forward_only(self):
         with patch.object(manage, "repository_update_status", return_value={
-            "available": True, "can_update": True, "current": "old1234", "remote": "new5678"
+            "available": True, "can_update": True, "current": "old1234", "remote": "new5678",
+            "target": "new5678full", "source": "Gitee"
         }), patch.object(manage, "git_output", side_effect=["", "new5678"] ) as git:
             result = manage.update_repository()
-        self.assertEqual(result, {"ok": True, "updated": True, "previous": "old1234", "current": "new5678"})
-        git.assert_any_call("merge", "--ff-only", "origin/main")
+        self.assertEqual(result, {"ok": True, "updated": True, "previous": "old1234", "current": "new5678", "source": "Gitee"})
+        git.assert_any_call("merge", "--ff-only", "new5678full")
