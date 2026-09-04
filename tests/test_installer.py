@@ -77,7 +77,7 @@ class InstallerTests(TestCase):
                     installer.package_files(root)
 
     def test_version_is_read_without_importing_application(self):
-        self.assertEqual(installer.app_version(ROOT), "1.0.7")
+        self.assertEqual(installer.app_version(ROOT), "1.0.8")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "scripts").mkdir()

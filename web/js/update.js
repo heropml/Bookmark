@@ -7,6 +7,7 @@ let updateChecking = false;
 let updateInstalling = false;
 let updateGeneration = 0;
 let updateMode = "git";
+let updateDownload = "";
 
 function showUpdateProgress(stage, message, source = "") {
   const finished = stage === "done" || stage === "current" || stage === "error";
@@ -82,12 +83,22 @@ async function waitForRestart(instance) {
 
 function showUpdateNotice(status) {
   updateMode = status.mode || "git";
+  updateDownload = status.download || "";
+  const packaged = updateMode === "dmg";
   updateBtn.disabled = false;
   updateBtn.dataset.state = "ready";
-  updateBtn.dataset.action = "install";
-  updateBtn.title = "发现新版本 " + status.remote + (status.source ? "（" + status.source + "）" : "") + "，点击升级";
+  updateBtn.dataset.action = packaged ? "download" : "install";
+  updateBtn.title = "发现新版本 " + status.remote + (status.source ? "（" + status.source + "）" : "")
+    + (packaged ? "，点击查看下载" : "，点击升级");
   updateBtn.setAttribute("aria-label", updateBtn.title);
   updateNotice.hidden = false;
+}
+
+function openDownloadPage() {
+  // The installed app never rewrites itself; the user replaces it with a new DMG.
+  if (!updateDownload) return;
+  if (!window.confirm("macOS 安装版不会自动改写已安装的应用。将打开发行版页面，请下载新版 DMG 后覆盖“应用程序”中的旧版本。私人书签和外观设置会保留。是否继续？")) return;
+  window.open(updateDownload, "_blank", "noopener");
 }
 
 async function checkForUpdate() {
@@ -126,7 +137,7 @@ async function checkForUpdate() {
       }
       return;
     }
-    if (status.available && status.can_update) showUpdateNotice(status);
+    if (status.available && (status.can_update || status.mode === "dmg")) showUpdateNotice(status);
     else updateNotice.hidden = true;
   } catch (error) {
     // 更新检查不可用时保持静默，不影响书签页面使用。
@@ -173,7 +184,11 @@ async function installUpdate() {
 
 function initUpdate() {
   document.getElementById("updateProgressClose").addEventListener("click", () => { updateProgress.hidden = true; });
-  updateBtn.addEventListener("click", () => updateBtn.dataset.action === "check" ? checkForUpdate() : installUpdate());
+  updateBtn.addEventListener("click", () => {
+    if (updateBtn.dataset.action === "check") return checkForUpdate();
+    if (updateBtn.dataset.action === "download") return openDownloadPage();
+    return installUpdate();
+  });
   checkForUpdate();
   window.setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL_MS);
 }

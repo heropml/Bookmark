@@ -8,7 +8,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(os.environ.get("BOOKMARK_ROOT", Path(__file__).resolve().parent.parent))
 ICON_DIR = ROOT / "assets" / "icons"
 WINDOWS_DIR = ROOT / "launchers" / "windows"
 LNK = ROOT / ("\u4e66\u7b7e" + ".lnk")

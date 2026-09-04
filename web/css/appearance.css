@@ -133,6 +133,14 @@
 .choice[data-value="holo"] .icon-swatch { background: linear-gradient(135deg, #67e8f9, #818cf8 45%, #f0abfc); clip-path: polygon(12% 0,88% 0,100% 25%,78% 100%,22% 100%,0 25%); }
 .choice[data-value="mono"] .icon-swatch { color: #dce7f7; background: transparent; border: 1px solid #8fa0c4; box-shadow: inset 0 0 0 3px rgba(143,160,196,.08); }
 .choice[data-value="pixel"] .icon-swatch { border-radius: 2px; background: #06120d; border: 2px solid #39ff8c; box-shadow: 4px 4px 0 rgba(255,46,182,.65); font-family: Consolas, monospace; }
+.choice[data-value="outline"] .icon-swatch { background: #0f172a; border: 1px dashed #7dd3fc; box-shadow: inset 0 0 0 3px rgba(125,211,252,.12); }
+.choice[data-value="halo"] .icon-swatch { border-radius: 50%; background: radial-gradient(circle at 50% 50%, #22d3ee, #312e81); box-shadow: 0 0 8px #a78bfa, inset 0 0 0 3px rgba(147,197,253,.35); }
+.choice[data-value="frame"] .icon-swatch { background: linear-gradient(145deg, rgba(56,189,248,.95), rgba(37,99,235,.65)); clip-path: inset(0 round 4px); }
+.choice[data-value="badge"] .icon-swatch { color: #fef3c7; background: radial-gradient(circle at 20% 20%, #fef08a, #f59e0b 45%, #0f172a 72%); box-shadow: 0 0 8px rgba(250,204,21,.5); }
+.choice[data-value="ink"] .icon-swatch { color: #ecfccb; background: linear-gradient(165deg, #14532d, #052e16); box-shadow: inset 0 0 0 2px rgba(132,204,22,.45); }
+.choice[data-value="grain"] .icon-swatch { background: repeating-linear-gradient(80deg, rgba(255,255,255,.35) 0 1px, rgba(15,23,42,.55) 1px 2px); }
+.choice[data-value="mirror"] .icon-swatch { border-radius: 50%; background: linear-gradient(160deg, rgba(255,255,255,.8), rgba(255,255,255,.2) 40%, rgba(15,23,42,.25)); box-shadow: inset 0 0 0 4px rgba(255,255,255,.12), inset 0 -3px 5px rgba(15,23,42,.35); }
+.choice[data-value="circuit"] .icon-swatch { background: linear-gradient(140deg, rgba(34,211,238,.7), rgba(56,189,248,.2)), repeating-linear-gradient(90deg, rgba(255,255,255,.24) 0 2px, rgba(15,23,42,.3) 2px 4px); box-shadow: inset 0 0 0 2px rgba(125,211,252,.35); }
 .layout-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .layout-art { display: block; width: 66px; height: 44px; margin: auto; color: #34d399; }
 .layout-art svg { width: 100%; height: 100%; }

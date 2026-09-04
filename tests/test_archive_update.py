@@ -27,7 +27,8 @@ class ArchiveTests(TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="bookmark ZIP test ")
         self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
+        # macOS reports /var for /private/var; install() resolves, so the test must too.
+        self.root = Path(self.temporary.name).resolve()
         self.old = {
             "scripts/manage.py": b'APP_VERSION = "v1.0.4"\n',
             "scripts/archive_update.py": b"# old updater\n",

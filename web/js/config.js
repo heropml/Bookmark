@@ -24,7 +24,15 @@ const ICONS = [
   { id: "gem", name: "晶体" },
   { id: "holo", name: "全息" },
   { id: "mono", name: "单色" },
-  { id: "pixel", name: "像素" }
+  { id: "pixel", name: "像素" },
+  { id: "outline", name: "描边" },
+  { id: "halo", name: "光晕" },
+  { id: "frame", name: "边框" },
+  { id: "badge", name: "徽章" },
+  { id: "ink", name: "墨迹" },
+  { id: "grain", name: "颗粒" },
+  { id: "mirror", name: "镜面" },
+  { id: "circuit", name: "电路" }
 ];
 const FX = [
   { id: "on", name: "开" },

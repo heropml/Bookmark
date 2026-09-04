@@ -32,6 +32,7 @@ function fixture(routes, confirmed = true) {
   const intervals = [];
   const confirmations = [];
   let reloads = 0;
+  const opened = [];
   const elements = new Map([
     ['updateNotice', { hidden: true }],
     ['appVersion', { textContent: 'v1.0.4' }],
@@ -64,7 +65,8 @@ function fixture(routes, confirmed = true) {
       confirm: message => { confirmations.push(message); return confirmed; },
       setTimeout: (callback, ms) => { timers.push({ callback, ms }); },
       setInterval: (callback, ms) => { intervals.push({ callback, ms }); },
-      location: { reload: () => { reloads++; } }
+      location: { reload: () => { reloads++; } },
+      open: (url, target, features) => { opened.push({ url, target, features }); }
     },
     fetch: fetchMock,
     fetchJson: async url => (await fetchMock(url)).json()
@@ -72,7 +74,7 @@ function fixture(routes, confirmed = true) {
   vm.runInContext(source, context, { filename: 'update.js' });
   vm.runInContext('initUpdate()', context);
   return {
-    calls, elements, timers, intervals, confirmations,
+    calls, elements, timers, intervals, confirmations, opened,
     async settled() { await new Promise(resolve => setImmediate(resolve)); await new Promise(resolve => setImmediate(resolve)); },
     async click() { await handlers.get('click')(); },
     async runTimer() {
@@ -423,4 +425,38 @@ test('ZIP 安装提示免 Git 更新及备份，Git 安装仍提示本地修改�
     }
     assert.equal(app.calls.length, 1);
   }
+});
+
+test('macOS 安装版提示新版 DMG，点击后打开发行版页面而不是就地升级', async () => {
+  const app = fixture([response({
+    available: true, can_update: false, mode: 'dmg', remote: 'v1.0.8', version: 'v1.0.8',
+    source: 'Gitee', download: 'https://gitee.com/heropml/Bookmark/releases'
+  })]);
+  await app.settled();
+  assert.equal(app.elements.get('updateNotice').hidden, false);
+  assert.equal(app.elements.get('updateBtn').dataset.action, 'download');
+  assert.match(app.elements.get('updateBtn').title, /v1\.0\.8/);
+  assert.match(app.elements.get('updateBtn').title, /点击查看下载/);
+  await app.click();
+  assert.equal(app.calls.length, 1, '安装版不能向本地服务发起升级请求');
+  assert.deepEqual(app.opened, [{
+    url: 'https://gitee.com/heropml/Bookmark/releases', target: '_blank', features: 'noopener'
+  }]);
+});
+
+test('拒绝确认时不打开下载页面', async () => {
+  const app = fixture([response({
+    available: true, can_update: false, mode: 'dmg', remote: 'v1.0.8',
+    source: 'Gitee', download: 'https://gitee.com/heropml/Bookmark/releases'
+  })], false);
+  await app.settled();
+  await app.click();
+  assert.equal(app.opened.length, 0);
+  assert.equal(app.confirmations.length, 1);
+});
+
+test('安装版已是最新时不显示提示', async () => {
+  const app = fixture([response({ available: false, can_update: false, mode: 'dmg', version: 'v1.0.8' })]);
+  await app.settled();
+  assert.equal(app.elements.get('updateNotice').hidden, true);
 });
