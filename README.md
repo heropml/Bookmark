@@ -22,7 +22,7 @@ Chrome / Edge / Safari 书签同步 · 多主题与六种布局 · 动态天气 
 
 ### Windows
 
-- 安装包用户：运行 `Bookmark_Setup_v1.0.6.exe`，按向导选择目录和桌面快捷方式，安装后从桌面或开始菜单打开；不需要另装 Python 或 Git。默认安装到 `%LOCALAPPDATA%\Programs\Bookmark`，建议使用当前用户有写权限的目录，以便在线升级。
+- 安装包用户：运行 `Bookmark_Setup_v1.0.7.exe`，按向导选择目录和桌面快捷方式，安装后从桌面或开始菜单打开；不需要另装 Python 或 Git。默认安装到 `%LOCALAPPDATA%\Programs\Bookmark`，建议使用当前用户有写权限的目录，以便在线升级。
 - 安装包只附带公开示例书签；在开始菜单中选择“同步 Chrome 书签”“同步 Edge 收藏夹”或“导入书签 HTML”导入自己的数据。覆盖安装不覆盖私人书签和生成数据；卸载只移除安装记录中的程序文件，保留私人数据和在线更新备份，浏览器外观设置也不会被清除。
 - 项目已包含 64 位便携 Python 3.13.13，不需要在电脑上另行安装 Python。
 - 首次使用或移动项目后，双击 `launchers/windows/shortcut.bat` 生成根目录和桌面的“书签”快捷方式。

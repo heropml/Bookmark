@@ -48,7 +48,7 @@ function treeNavHtml(tree, groupCounts, total) {
     <svg class="tree-folder-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v10H3Z"/></svg>
     <b>${escapeHtml(name)}</b><span>${count}</span></button>`;
   const branch = (node, depth) => {
-    const children = Object.values(node.kids).sort((a, b) => a.name.localeCompare(b.name, "zh"));
+    const children = Object.values(node.kids);
     const expanded = treeExpanded.has(node.path);
     const id = "tree-" + encodeURIComponent(node.path);
     return `<li>

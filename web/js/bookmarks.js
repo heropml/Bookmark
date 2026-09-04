@@ -1,21 +1,17 @@
-const PIN = ["常用", "公司", "AI", "工具", "平台", "技术", "社区", "资讯", "财经", "影音", "其他"];
 const ITEMS = (window.BOOKMARKS || []).map((it) => ({
   ...it,
   search: [it.title, it.href, it.path, it.group, it.host].join(" ").toLowerCase(),
   hue: hue(it.host || it.path)
 }));
+const folderNameTooltip = document.getElementById("folderNameTooltip");
 
 function hue(text) {
   let h = 0;
   for (const ch of String(text)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return h % 360;
 }
-function sortNames(names, counts) {
-  return [...names].sort((a, b) => {
-    const pa = PIN.indexOf(a), pb = PIN.indexOf(b);
-    if (pa !== -1 || pb !== -1) return (pa === -1 ? 99 : pa) - (pb === -1 ? 99 : pb);
-    return (counts.get(b) || 0) - (counts.get(a) || 0) || a.localeCompare(b, "zh");
-  });
+function sortNames(names) {
+  return [...names];
 }
 function inFolder(item) {
   if (!state.folder) return true;
@@ -99,13 +95,20 @@ function selectedInCol(colPath, itemPath) {
   return state.folder === itemPath || state.folder.startsWith(itemPath + "/");
 }
 
+function folderNameLength(name) {
+  return Array.from(name).length;
+}
+function folderNameWidth(items) {
+  return Math.min(4, Math.max(1, ...items.map((item) => folderNameLength(item.name))));
+}
 function updateFolderNameScroll() {
   for (const label of document.querySelectorAll("#nav .folder > b")) {
     const name = label.querySelector(".folder-name");
     if (!name) continue;
     const overflow = Math.ceil(name.scrollWidth - label.clientWidth);
-    label.classList.toggle("is-overflow", overflow > 1);
-    if (overflow > 1) label.style.setProperty("--folder-overflow", overflow + "px");
+    const shouldScroll = folderNameLength(name.textContent.trim()) > 4 && overflow > 1;
+    label.classList.toggle("is-overflow", shouldScroll);
+    if (shouldScroll) label.style.setProperty("--folder-overflow", overflow + "px");
   }
 }
 
@@ -169,16 +172,18 @@ function render() {
         })
       ];
     } else {
-      items = Object.keys(node.kids).sort((a, b) => a.localeCompare(b, "zh")).map((name) => {
+      items = Object.keys(node.kids).map((name) => {
         const child = node.kids[name];
         return { name: child.name, path: child.path, count: child.count, hasKids: Object.keys(child.kids).length > 0 };
       });
     }
+    const nameWidth = folderNameWidth(items);
     const buttons = items.map((it) => {
       const on = selectedInCol(colPath, it.path) || (it.path === "" && !state.folder);
-      return `<button class="folder ${it.hasKids ? "has-kids" : ""} ${on ? "on" : ""}" data-folder="${escapeHtml(it.path)}" style="--h:${hue(it.path || it.name)}"><em class="dot"></em><b><span class="folder-name">${escapeHtml(it.name)}</span></b><span>${it.count}</span></button>`;
+      const fullName = folderNameLength(it.name) > 4 ? ` data-full-name="${escapeHtml(it.name)}"` : "";
+      return `<button class="folder ${it.hasKids ? "has-kids" : ""} ${on ? "on" : ""}" data-folder="${escapeHtml(it.path)}"${fullName} style="--h:${hue(it.path || it.name)}"><em class="dot"></em><b><span class="folder-name">${escapeHtml(it.name)}</span></b><span>${it.count}</span></button>`;
     }).join("");
-    return `<div class="nav-col">${buttons}</div>`;
+    return `<div class="nav-col" style="--folder-name-width:${nameWidth}em">${buttons}</div>`;
   }).join("");
   updateFolderNameScroll();
 
@@ -195,9 +200,7 @@ function render() {
     if (!sections.has(key)) sections.set(key, []);
     sections.get(key).push(item);
   }
-  const order = state.folder
-    ? [...sections.keys()].sort((a, b) => a.localeCompare(b, "zh"))
-    : sortNames(sections.keys(), new Map([...sections].map(([k, v]) => [k, v.length])));
+  const order = [...sections.keys()];
   if (document.documentElement.dataset.layout === "board") {
     main.innerHTML = boardHtml(sections, order);
     applyFlips();
@@ -272,8 +275,38 @@ function pickFolder(e) {
   }
 }
 
+function showFolderNameTooltip(button) {
+  if (!folderNameTooltip || !button.dataset.fullName) return;
+  folderNameTooltip.textContent = button.dataset.fullName;
+  folderNameTooltip.hidden = false;
+  const buttonRect = button.getBoundingClientRect();
+  const tooltipRect = folderNameTooltip.getBoundingClientRect();
+  let left = buttonRect.right + 8;
+  if (left + tooltipRect.width > innerWidth - 12) left = Math.max(12, buttonRect.left - tooltipRect.width - 8);
+  const top = Math.min(Math.max(12, buttonRect.top + (buttonRect.height - tooltipRect.height) / 2), innerHeight - tooltipRect.height - 12);
+  folderNameTooltip.style.left = left + "px";
+  folderNameTooltip.style.top = top + "px";
+}
+function hideFolderNameTooltip() {
+  if (folderNameTooltip) folderNameTooltip.hidden = true;
+}
+
 function initBookmarks() {
-  document.getElementById("nav").addEventListener("click", pickFolder);
+  const nav = document.getElementById("nav");
+  nav.addEventListener("click", pickFolder);
+  nav.addEventListener("pointerover", (event) => {
+    const button = event.target.closest(".folder[data-full-name]");
+    if (button) showFolderNameTooltip(button);
+  });
+  nav.addEventListener("pointerout", (event) => {
+    const button = event.target.closest(".folder[data-full-name]");
+    if (button && !button.contains(event.relatedTarget)) hideFolderNameTooltip();
+  });
+  nav.addEventListener("focusin", (event) => {
+    const button = event.target.closest(".folder[data-full-name]");
+    if (button) showFolderNameTooltip(button);
+  });
+  nav.addEventListener("focusout", hideFolderNameTooltip);
   document.getElementById("main").addEventListener("click", pickFolder);
   let searchTimer = 0;
   document.getElementById("q").addEventListener("input", (e) => {

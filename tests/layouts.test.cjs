@@ -118,6 +118,70 @@ test('分类名称包在独立元素中，以便仅超长名称自动横向滚�
   assert.match(app.elements.get('nav').innerHTML, /<b><span class="folder-name">开发<\/span><\/b>/);
 });
 
+test('分类名称按本列最长名称对齐，超长名称默认省略、悬停或聚焦时才滚动', () => {
+  const app = fixture({ layout: 'classic', items: [
+    { title: '甲', href: 'https://example.com/a', host: 'example.com', path: '甲', group: '甲' },
+    { title: '四', href: 'https://example.com/b', host: 'example.com', path: '四字分类', group: '四字分类' },
+    { title: '五', href: 'https://example.com/c', host: 'example.com', path: '五字分类名', group: '五字分类名' }
+  ] });
+  assert.equal(app.run("folderNameWidth([{ name: '甲' }, { name: '四字分类' }, { name: '五字分类名' }])"), 4);
+  assert.match(app.elements.get('nav').innerHTML, /style="--folder-name-width:4em"/);
+  assert.match(app.elements.get('nav').innerHTML, /data-full-name="五字分类名"/);
+  assert.doesNotMatch(app.elements.get('nav').innerHTML, /title="五字分类名"/);
+
+  const makeLabel = text => {
+    const states = new Map();
+    const values = new Map();
+    return {
+      clientWidth: 40,
+      querySelector: () => ({ textContent: text, scrollWidth: 80 }),
+      classList: { toggle: (name, value) => states.set(name, value) },
+      style: { setProperty: (name, value) => values.set(name, value) },
+      states,
+      values
+    };
+  };
+  const fourChars = makeLabel('四字分类');
+  const fiveChars = makeLabel('五字分类名');
+  app.context.document.querySelectorAll = () => [fourChars, fiveChars];
+  app.run('updateFolderNameScroll()');
+  assert.equal(fourChars.states.get('is-overflow'), false);
+  assert.equal(fiveChars.states.get('is-overflow'), true);
+  assert.equal(fiveChars.values.get('--folder-overflow'), '40px');
+  const css = fs.readFileSync(path.join(__dirname, '../web/css/bookmarks.css'), 'utf8');
+  assert.match(css, /\.folder b\.is-overflow \.folder-name \{[\s\S]*text-overflow: ellipsis/);
+  assert.match(css, /\.folder:hover b\.is-overflow \.folder-name,[\s\S]*animation: folder-name-pan/);
+  assert.match(css, /\.folder-name-tooltip \{[\s\S]*linear-gradient/);
+  assert.match(fs.readFileSync(path.join(__dirname, '../web/index.html'), 'utf8'), /id="folderNameTooltip"/);
+  const themes = fs.readFileSync(path.join(__dirname, '../web/css/themes.css'), 'utf8');
+  for (const id of app.run('SKINS.map(skin => skin.id)').filter(id => id !== 'auto')) {
+    assert.match(themes, new RegExp(`html\\[data-skin="${id}"\\] \\{ --tooltip-start:`));
+  }
+  assert.doesNotMatch(fs.readFileSync(path.join(__dirname, '../web/js/bookmarks.js'), 'utf8'), /--tooltip-h/);
+});
+
+test('同步数据的根分类和子分类顺序在所有导航布局中保持不变', () => {
+  const items = [
+    { title: '第一个', href: 'https://example.com/1', host: 'example.com', path: '第二分类/后置', group: '第二分类' },
+    { title: '第二个', href: 'https://example.com/2', host: 'example.com', path: '第一分类/甲', group: '第一分类' },
+    { title: '第三个', href: 'https://example.com/3', host: 'example.com', path: '第二分类/前置', group: '第二分类' },
+    { title: '第四个', href: 'https://example.com/4', host: 'example.com', path: '第三分类/乙', group: '第三分类' }
+  ];
+  const app = fixture({ layout: 'classic', items });
+  const root = app.elements.get('nav').innerHTML;
+  const rootOrder = ['第二分类', '第一分类', '第三分类'].map(name => root.indexOf(`data-folder="${name}"`));
+  assert.ok(rootOrder[0] < rootOrder[1] && rootOrder[1] < rootOrder[2]);
+
+  app.choose('第二分类');
+  const child = app.elements.get('nav').innerHTML;
+  assert.ok(child.indexOf('data-folder="第二分类/后置"') < child.indexOf('data-folder="第二分类/前置"'));
+
+  app.run('document.documentElement.dataset.layout = "tree"; render()');
+  const tree = app.elements.get('nav').innerHTML;
+  const treeOrder = ['第二分类', '第一分类', '第三分类'].map(name => tree.indexOf(`data-tree-toggle="${name}"`));
+  assert.ok(treeOrder[0] < treeOrder[1] && treeOrder[1] < treeOrder[2]);
+});
+
 test('目录树展开当前分类祖先，点击箭头只改变展开状态、不切换分类或重绘卡片', () => {
   const app = fixture({ layout: 'tree', folder: '工具/开发/前端' });
   const nav = app.elements.get('nav').innerHTML;
