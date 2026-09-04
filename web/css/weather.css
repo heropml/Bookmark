@@ -183,5 +183,7 @@ html[data-weather-scene]:not([data-weather-scene=""]) .cursor-glow { opacity: .2
 }
 @keyframes weather-light { to { transform: rotate(35deg) scale(1.2); opacity: .45; } }
 @media (prefers-reduced-motion: reduce) {
-  .weather-scene *, .weather-scene *::before, .weather-scene *::after { animation: none !important; }
+  html[data-fx="off"] .weather-scene *,
+  html[data-fx="off"] .weather-scene *::before,
+  html[data-fx="off"] .weather-scene *::after { animation: none !important; }
 }

@@ -46,6 +46,14 @@ const MOTIONS = [
   { id: "bounce", name: "弹跳" },
   { id: "spin", name: "旋转" },
   { id: "ripple", name: "涟漪" },
+  { id: "flip", name: "翻转" },
+  { id: "shake", name: "震颤" },
+  { id: "zoom", name: "聚焦" },
+  { id: "slide", name: "滑行" },
+  { id: "twist", name: "扭转" },
+  { id: "blink", name: "闪现" },
+  { id: "drift", name: "漂移" },
+  { id: "heartbeat", name: "心跳" },
   { id: "still", name: "静止" }
 ];
 const TRAILS = [
@@ -56,6 +64,14 @@ const TRAILS = [
   { id: "firefly", name: "萤火" },
   { id: "rainbow", name: "彩虹" },
   { id: "sparkle", name: "星芒" },
+  { id: "sparks", name: "火花" },
+  { id: "ribbon", name: "丝带" },
+  { id: "notes", name: "音符" },
+  { id: "pixels", name: "像素" },
+  { id: "crystal", name: "冰晶" },
+  { id: "ink", name: "墨迹" },
+  { id: "hearts", name: "心愿" },
+  { id: "smoke", name: "云烟" },
   { id: "none", name: "关闭" }
 ];
 const SKYS = [
@@ -66,12 +82,19 @@ const SKYS = [
   { id: "meteor", name: "流星" },
   { id: "fireflies", name: "流萤" },
   { id: "blossom", name: "落樱" },
+  { id: "aurora", name: "极光" },
+  { id: "bubbles", name: "泡泡" },
+  { id: "fireworks", name: "烟火" },
+  { id: "matrix", name: "数字雨" },
+  { id: "nebula", name: "星云" },
+  { id: "ripples", name: "波纹" },
+  { id: "beams", name: "光束" },
+  { id: "confetti", name: "彩纸" },
   { id: "none", name: "关闭" }
 ];
 const PAGE = 36;
 let savedFolder = null;
 try { savedFolder = localStorage.getItem("bm-folder"); } catch (e) {}
 const state = { folder: savedFolder === null ? "常用" : savedFolder, q: "", shown: PAGE };
-const reduceMotionMq = matchMedia("(prefers-reduced-motion: reduce)");
-const motionOk = () => document.documentElement.dataset.fx !== "off" && !reduceMotionMq.matches;
+const motionOk = () => document.documentElement.dataset.fx !== "off";
 const autoSkin = () => (matchMedia("(prefers-color-scheme: light)").matches ? "snow" : "aurora");

@@ -370,7 +370,7 @@ html[data-skin="celadon"] .folder.on {
 }
 html[data-skin="snow"] .folder span,
 html[data-skin="sakura"] .folder span,
-html[data-skin="celadon"] .folder span,
+html[data-skin="celadon"] .folder span { color: var(--muted); }
 html[data-skin="snow"] .tag,
 html[data-skin="sakura"] .tag,
 html[data-skin="celadon"] .tag {
@@ -601,7 +601,7 @@ html[data-skin="zhusha"] .folder.on {
 }
 html[data-skin="shuimo"] .folder span,
 html[data-skin="daiqing"] .folder span,
-html[data-skin="zhusha"] .folder span,
+html[data-skin="zhusha"] .folder span { color: var(--muted); }
 html[data-skin="shuimo"] .tag,
 html[data-skin="daiqing"] .tag,
 html[data-skin="zhusha"] .tag {

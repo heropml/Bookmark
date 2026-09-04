@@ -41,6 +41,24 @@ const MOTION_ART = {
     <ellipse class="motion-anim motion-wave motion-wave-late" cx="32" cy="41" rx="16" ry="6" fill="none" stroke="#0ea5e9" stroke-opacity=".7" stroke-width="1.5"/>
     <path d="M32 5c-4 6-12 13-12 20a12 12 0 0 0 24 0C44 18 36 11 32 5Z" fill="url(#motionRipple)"/>
     <path d="M25 25c0 4 2 6 5 7" stroke="#ecfeff" stroke-width="2.5" stroke-linecap="round"/>`,
+  flip: `<defs><linearGradient id="motionFlip" x2="1"><stop stop-color="#22d3ee"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs>
+    <path d="M8 28c3-11 11-18 22-19m26 19c-3 11-11 18-22 19" stroke="#818cf8" stroke-width="2" stroke-dasharray="3 4" opacity=".65"/>
+    <g class="motion-anim motion-flip"><rect x="18" y="10" width="28" height="36" rx="8" fill="url(#motionFlip)"/><path d="m26 28 5 5 9-11" stroke="#eff6ff" stroke-width="3"/></g>`,
+  shake: `<defs><linearGradient id="motionShake" x2="1" y2="1"><stop stop-color="#fde68a"/><stop offset="1" stop-color="#f97316"/></linearGradient></defs>
+    <path d="M9 17 5 13m50 4 4-4M7 31H2m60 0h-5" stroke="#fb923c" stroke-width="2" opacity=".65"/>
+    <g class="motion-anim motion-jitter"><path d="M18 35c2-4 4-8 4-14a10 10 0 0 1 20 0c0 6 2 10 4 14Z" fill="url(#motionShake)"/><path d="M27 40h10a5 5 0 0 1-10 0Z" fill="#ea580c"/><circle cx="32" cy="12" r="2" fill="#fff7ed"/></g>`,
+  zoom: `<defs><radialGradient id="motionZoom"><stop stop-color="#f0abfc"/><stop offset="1" stop-color="#7c3aed"/></radialGradient></defs>
+    <circle cx="29" cy="25" r="19" fill="#a855f7" opacity=".1"/><g class="motion-anim motion-focus"><circle cx="29" cy="25" r="14" fill="url(#motionZoom)"/><circle cx="29" cy="25" r="7" fill="none" stroke="#faf5ff" stroke-width="2"/><path d="m39 35 12 12" stroke="#c4b5fd" stroke-width="5"/></g>`,
+  slide: `<defs><linearGradient id="motionSlide" x2="1"><stop stop-color="#34d399"/><stop offset="1" stop-color="#0ea5e9"/></linearGradient></defs>
+    <path d="M4 18h15M1 28h12M6 38h13" stroke="#2dd4bf" stroke-width="2" opacity=".55"/><g class="motion-anim motion-glide"><path d="m18 28 22-17 15 17-15 17Z" fill="url(#motionSlide)"/><path d="M18 28h25M35 19l8 9-8 9" stroke="#ecfeff" stroke-width="2.5"/></g>`,
+  twist: `<defs><linearGradient id="motionTwist" x2="1" y2="1"><stop stop-color="#fb7185"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
+    <circle cx="32" cy="28" r="22" stroke="#c084fc" stroke-width="1.5" stroke-dasharray="2 5" opacity=".55"/><g class="motion-anim motion-twist"><path d="M32 27C17 28 13 17 18 11c8 0 15 5 15 16 0-14 12-17 18-12 1 8-6 14-18 13 13 2 15 14 9 19-8-1-13-7-10-18-5 12-17 11-21 5 2-7 8-11 21-7Z" fill="url(#motionTwist)"/><circle cx="32" cy="28" r="4" fill="#fff"/></g>`,
+  blink: `<defs><linearGradient id="motionBlink" x2="1" y2="1"><stop stop-color="#fef08a"/><stop offset="1" stop-color="#f59e0b"/></linearGradient></defs>
+    <g class="motion-anim motion-flash"><path d="m32 4 4 16 16-4-11 12 12 10-17-2-3 16-4-16-17 3 12-11-13-10 18 2Z" fill="url(#motionBlink)"/><circle cx="32" cy="28" r="6" fill="#fff9c4"/></g>`,
+  drift: `<defs><linearGradient id="motionDrift" x2="1" y2="1"><stop stop-color="#bfdbfe"/><stop offset="1" stop-color="#60a5fa"/></linearGradient></defs>
+    <path d="M5 41c12 4 25 4 37 0m-30 7c9 2 18 1 25-1" stroke="#7dd3fc" stroke-width="2" opacity=".45"/><g class="motion-anim motion-drift"><path d="M18 36a10 10 0 0 1 5-19 13 13 0 0 1 25 4 8 8 0 1 1 0 16H20Z" fill="url(#motionDrift)"/><path d="M25 21c4-4 10-4 14-1" stroke="#eff6ff" stroke-width="2" opacity=".75"/></g>`,
+  heartbeat: `<defs><linearGradient id="motionHeart" x2="1" y2="1"><stop stop-color="#fb7185"/><stop offset="1" stop-color="#e11d48"/></linearGradient></defs>
+    <path d="M5 31h13l4-8 6 16 6-13 4 5h21" stroke="#fda4af" stroke-width="2" opacity=".55"/><g class="motion-anim motion-heart"><path d="M32 47 13 29C3 18 18 5 28 15l4 5 4-5c10-10 25 3 15 14Z" fill="url(#motionHeart)"/><path d="M20 18c-3 1-5 4-4 7" stroke="#ffe4e6" stroke-width="2.5" opacity=".8"/></g>`,
   still: `<defs><linearGradient id="motionStill" x2="1" y2="1"><stop stop-color="#94a3b8"/><stop offset="1" stop-color="#475569"/></linearGradient></defs>
     <rect x="9" y="6" width="46" height="44" rx="13" fill="#94a3b8" opacity=".13"/>
     <rect x="14" y="10" width="36" height="36" rx="10" fill="url(#motionStill)"/>

@@ -4,7 +4,7 @@ function initPointerEffects() {
   const rootStyle = document.documentElement.style;
   document.addEventListener("pointermove", (e) => {
     if (document.documentElement.dataset.fx === "off") return;
-    if (motionOk() && spawnTrail(e.clientX, e.clientY)) startSky();
+    if (spawnTrail(e.clientX, e.clientY)) startSky();
     const x = e.clientX + "px";
     const y = e.clientY + "px";
     if (moveRaf) return;

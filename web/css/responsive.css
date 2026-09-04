@@ -30,37 +30,30 @@
 }
 body.appearance-open header { z-index: 60; }
 @media (prefers-reduced-motion: reduce) {
-  .aurora::before,
-  .card,
-  .appearance-panel,
-  .ico,
-  .ico::before,
-  .motion-swatch .motion-anim,
-  .trail-swatch { animation: none !important; }
-  .card,
-  .card::before,
-  .ico,
-  .ico::after,
-  .ico img,
-  .choice { transition: none !important; }
-  html[data-icon="holo"] .card:is(:hover, :focus-visible) .ico::after { transform: translateX(-120%); }
-  .aurora::before,
-  .aurora::after {
+  html[data-fx="off"] .aurora::before,
+  html[data-fx="off"] .card,
+  html[data-fx="off"] .appearance-panel,
+  html[data-fx="off"] .ico,
+  html[data-fx="off"] .ico::before,
+  html[data-fx="off"] .motion-swatch .motion-anim,
+  html[data-fx="off"] .trail-swatch { animation: none !important; }
+  html[data-fx="off"] .card,
+  html[data-fx="off"] .card::before,
+  html[data-fx="off"] .ico,
+  html[data-fx="off"] .ico::after,
+  html[data-fx="off"] .ico img,
+  html[data-fx="off"] .choice { transition: none !important; }
+  html[data-fx="off"][data-icon="holo"] .card:is(:hover, :focus-visible) .ico::after { transform: translateX(-120%); }
+  html[data-fx="off"] .aurora::before,
+  html[data-fx="off"] .aurora::after {
     translate: none !important;
     transition: none !important;
   }
-  html[data-fx="on"] .card,
-  html[data-fx="on"] .card:is(:hover, :focus-visible) {
-    transform: none;
-  }
-  html[data-fx="on"] .card:hover {
-    transform: translateY(-6px);
-  }
-  .aurora,
-  #fx-canvas {
+  html[data-fx="off"] .aurora,
+  html[data-fx="off"] #fx-canvas {
     transition: none !important;
   }
-  .card-glow {
+  html[data-fx="off"] .card-glow {
     transition: none;
   }
 }
