@@ -15,6 +15,13 @@ SPEC.loader.exec_module(manage)
 
 
 class DirectoryServiceTests(TestCase):
+    def test_macos_sync_failure_explains_full_disk_access(self):
+        with patch.object(manage.sys, "platform", "darwin"):
+            message = manage.sync_failure_message("chrome")
+        self.assertIn("Chrome", message)
+        self.assertIn("完全磁盘访问权限", message)
+        self.assertIn("/Applications/Bookmark.app", message)
+
     def test_directory_identity_is_stable_distinct_and_not_a_plain_path(self):
         with tempfile.TemporaryDirectory() as folder:
             first = Path(folder) / "源码"

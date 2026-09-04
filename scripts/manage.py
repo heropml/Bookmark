@@ -27,7 +27,7 @@ except ModuleNotFoundError as error:
         raise
     from scripts import archive_update
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(os.environ.get("BOOKMARK_ROOT", Path(__file__).resolve().parent.parent))
 WEB_ROOT = ROOT / "web"
 DATA_DIR = ROOT / "data"
 SRC = DATA_DIR / "bookmarks.html"
@@ -35,7 +35,7 @@ EXAMPLE_SRC = DATA_DIR / "bookmarks.example.html"
 DATA_JS = WEB_ROOT / "data.js"
 WINDOW_STATE = DATA_DIR / ".window-state.json"
 PORT = 8765
-APP_VERSION = "v1.0.7"
+APP_VERSION = "v1.0.8"
 HEALTH_RESPONSE = b"bookmark-weather-v3\n"
 HREF_RE = re.compile(r'<A HREF="([^"]+)"', re.I)
 UPDATE_SOURCES = (
@@ -43,9 +43,15 @@ UPDATE_SOURCES = (
     ("GitHub", "https://github.com/heropml/Bookmark.git"),
 )
 UPDATE_BRANCH = "main"
+PACKAGED_RELEASES = {
+    "Gitee": "https://gitee.com/heropml/Bookmark/releases",
+    "GitHub": "https://github.com/heropml/Bookmark/releases",
+}
+PACKAGED_REASON = "macOS 安装版请下载新版 DMG 覆盖安装，不会自动改写已安装的应用"
 GIT_TIMEOUT_SECONDS = 15
 UPDATE_LOCK = threading.RLock()
 BOOKMARK_SYNC_LOCK = threading.Lock()
+PACKAGED_APP = os.environ.get("BOOKMARK_PACKAGED") == "1"
 
 
 def installation_id() -> str:
@@ -55,6 +61,16 @@ def installation_id() -> str:
 
 def supported_sync_browsers() -> list[str]:
     return {"win32": ["chrome", "edge"], "darwin": ["chrome", "safari"]}.get(sys.platform, [])
+
+
+def sync_failure_message(browser: str) -> str:
+    if sys.platform == "darwin":
+        name = {"chrome": "Chrome", "safari": "Safari"}.get(browser, "所选浏览器")
+        return (
+            f"macOS 未允许“书签”读取 {name} 数据。请打开“系统设置 → 隐私与安全性 → "
+            "完全磁盘访问权限”，添加并启用 /Applications/Bookmark.app，然后完全退出并重新打开应用后重试。"
+        )
+    return "无法读取或保存书签。请确认所选浏览器已创建书签、当前账号可用，且程序目录可写。"
 
 
 class UpdateError(RuntimeError):
@@ -106,8 +122,30 @@ def git_output(*args: str, network_url: str = "") -> str:
     return result.stdout.strip()
 
 
+def packaged_update_status(progress=None) -> dict[str, object]:
+    """Only report that a newer DMG exists: the installed app never rewrites itself."""
+    try:
+        status = archive_update.update_status(APP_VERSION, progress)
+    except archive_update.ArchiveUpdateError as error:
+        raise UpdateError(str(error), error.code) from error
+    source = str(status.get("source") or "Gitee")
+    return {
+        "available": bool(status.get("available")),
+        "can_update": False,
+        "mode": "dmg",
+        "version": APP_VERSION,
+        "current": APP_VERSION,
+        "remote": status.get("remote"),
+        "source": source,
+        "download": PACKAGED_RELEASES.get(source, PACKAGED_RELEASES["Gitee"]),
+        "reason": PACKAGED_REASON,
+    }
+
+
 def repository_update_status(progress=None) -> dict[str, object]:
     """Serialize checks with upgrades so concurrent pages cannot race Git writes."""
+    if PACKAGED_APP:
+        return packaged_update_status(progress)
     with UPDATE_LOCK:
         if not os.path.lexists(ROOT / ".git"):
             try:
@@ -165,6 +203,8 @@ def _repository_update_status(progress=None) -> dict[str, object]:
 
 def update_repository(progress=None) -> dict[str, object]:
     """Fast-forward the complete repository after the user confirms an update."""
+    if PACKAGED_APP:
+        raise UpdateError(PACKAGED_REASON)
     if progress:
         progress({"stage": "waiting", "message": "等待本地升级任务就绪"})
     with UPDATE_LOCK:
@@ -232,10 +272,7 @@ def serve(port: int) -> None:
             # Popen quotes paths containing spaces correctly on Windows.
             start_hidden_server(port)
         else:
-            os.execv(sys.executable, [
-                sys.executable, "-X", "utf8", str(Path(__file__).resolve()),
-                "--serve", str(port),
-            ])
+            os.execv(sys.executable, serve_command(sys.executable, port))
 
 
 def weather_code(description: str) -> int:
@@ -730,7 +767,9 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if parsed.path == "/__update":
             try:
-                if self.server.restarting or installed_version() != APP_VERSION:
+                if PACKAGED_APP:
+                    self.send_json(200, repository_update_status())
+                elif self.server.restarting or installed_version() != APP_VERSION:
                     self.send_json(200, {
                         "available": False, "can_update": False, "restarting": True,
                         "version": APP_VERSION, "instance": self.server.instance,
@@ -806,6 +845,11 @@ class Handler(SimpleHTTPRequestHandler):
                 self.send_error(404)
             return
         if parsed.path == "/__icon":
+            if sys.platform != "win32":
+                # Only Windows has a shortcut whose icon can follow the skin.
+                self.send_response(204)
+                self.end_headers()
+                return
             skin = (parse_qs(parsed.query).get("skin") or [""])[0]
             try:
                 from shortcut import set_icon
@@ -813,7 +857,8 @@ class Handler(SimpleHTTPRequestHandler):
                 set_icon(skin)
                 self.send_response(204)
                 self.end_headers()
-            except Exception:
+            except (Exception, SystemExit):
+                # A missing icon file exits with SystemExit, which is not an Exception.
                 self.send_error(400)
             return
         return super().do_GET()
@@ -916,6 +961,7 @@ class Handler(SimpleHTTPRequestHandler):
         except (ValueError, TypeError, UnicodeDecodeError):
             self.send_json(400, {"ok": False, "message": "请选择支持的浏览器，并确认同步。"})
             return
+        browser = data["browser"]
         if not BOOKMARK_SYNC_LOCK.acquire(blocking=False):
             self.send_json(409, {"ok": False, "message": "已有书签同步正在进行，请稍后再试。"})
             return
@@ -923,14 +969,13 @@ class Handler(SimpleHTTPRequestHandler):
             if self.server.restarting:
                 self.send_json(409, {"ok": False, "message": "服务正在重启，请稍后再同步。"})
                 return
-            browser = data["browser"]
             action = {"chrome": sync_chrome, "edge": sync_edge, "safari": sync_safari}[browser]
             items = action()
             self.send_json(200, {"ok": True, "count": len(items or []), "browser": browser})
         except (SystemExit, OSError, ValueError, TypeError, KeyError):
             self.send_json(422, {
                 "ok": False,
-                "message": "无法读取或保存书签。请确认所选浏览器已创建书签、当前账号可用，且程序目录可写；Safari 还需允许读取书签文件。",
+                "message": sync_failure_message(browser),
             })
         finally:
             BOOKMARK_SYNC_LOCK.release()
@@ -979,13 +1024,20 @@ def pick_port() -> int:
     raise SystemExit("no free port")
 
 
+def serve_command(executable: str, port: int) -> list[str]:
+    """The packaged app is its own launcher; a source checkout runs this script."""
+    if PACKAGED_APP:
+        return [executable, "--serve", str(port)]
+    return [executable, "-X", "utf8", str(Path(__file__).resolve()), "--serve", str(port)]
+
+
 def start_hidden_server(port: int) -> subprocess.Popen:
     py = Path(sys.executable)
     pyw = py.with_name("pythonw.exe")
     exe = str(pyw if pyw.is_file() else py)
     flags = getattr(subprocess, "CREATE_NO_WINDOW", 0) if sys.platform == "win32" else 0
     return subprocess.Popen(
-        [exe, "-X", "utf8", str(Path(__file__).resolve()), "--serve", str(port)],
+        serve_command(exe, port),
         cwd=str(ROOT),
         creationflags=flags,
         stdout=subprocess.DEVNULL,

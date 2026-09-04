@@ -81,6 +81,115 @@ html[data-icon="pixel"] .ico img { width: 26px; height: 26px; image-rendering: p
 html[data-icon="pixel"] .ico span { font-family: Consolas, monospace; color: #d9ffe8; }
 html[data-icon="pixel"] .card:hover .ico { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 hsla(calc(var(--h) + 110),85%,58%,0.65); }
 
+html[data-icon="outline"] .ico {
+  border: 1.5px dashed hsla(var(--h), 90%, 78%, 0.95);
+  border-radius: 11px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.16);
+}
+html[data-icon="outline"] .ico img { filter: grayscale(0.12) contrast(1.06); }
+
+html[data-icon="halo"] .ico {
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 44%, hsla(var(--h), 90%, 80%, 0.92), hsla(var(--h), 90%, 26%, 0.84));
+  box-shadow: 0 0 16px hsla(var(--h), 90%, 70%, 0.45), inset 0 0 0 1px rgba(255,255,255,0.24);
+}
+html[data-icon="halo"] .ico::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 50%;
+  pointer-events: none;
+}
+html[data-icon="halo"] .ico img { filter: drop-shadow(0 0 4px hsla(var(--h), 90%, 75%, 0.7)); }
+
+html[data-icon="frame"] .ico {
+  border: 2px solid hsl(var(--h), 90%, 78%);
+  border-radius: 7px;
+  background:
+    linear-gradient(130deg, hsla(var(--h), 90%, 85%, 0.36), rgba(255,255,255,0.06) 40%, hsla(var(--h), 65%, 26%, 0.24)),
+    linear-gradient(225deg, rgba(0,0,0,0.15), rgba(255,255,255,0.12));
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2), 0 0 16px hsla(var(--h), 90%, 74%, 0.2);
+}
+html[data-icon="frame"] .ico img {
+  width: 20px;
+  height: 20px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));
+}
+
+html[data-icon="badge"] .ico {
+  border-radius: 4px;
+  border: 1px solid hsla(var(--h), 80%, 78%, 0.88);
+  background: linear-gradient(165deg, hsla(var(--h), 75%, 28%, 0.26), hsla(var(--h), 70%, 16%, 0.24));
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.08), 0 0 0 3px hsla(var(--h), 75%, 58%, 0.16);
+}
+html[data-icon="badge"] .ico img { filter: saturate(1.15) drop-shadow(0 2px 3px rgba(0,0,0,0.32)); }
+
+html[data-icon="ink"] .ico {
+  border-radius: 6px;
+  background: linear-gradient(155deg, rgba(255,255,255,0.08), hsla(var(--h), 18%, 22%, 0.22) 45%, rgba(255,255,255,0.06) 78%);
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.36);
+}
+html[data-icon="ink"] .ico img { filter: saturate(0.7) contrast(1.18) brightness(1.06); }
+html[data-icon="ink"] .ico span { color: #f8fafc; text-shadow: 0 1px 0 rgba(0,0,0,0.35); }
+
+html[data-icon="grain"] .ico {
+  border-radius: 10px;
+  background:
+    linear-gradient(120deg, rgba(255,255,255,0.1), rgba(255,255,255,0.04) 44%, rgba(255,255,255,0.07)),
+    repeating-linear-gradient(75deg, rgba(255,255,255,0.09) 0 1px, rgba(0,0,0,0.18) 1px 3px),
+    linear-gradient(15deg, rgba(0,0,0,0.18), rgba(255,255,255,0.1));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+}
+html[data-icon="grain"] .ico img { filter: contrast(1.22) brightness(1.1); }
+
+html[data-icon="mirror"] .ico {
+  border-radius: 50%;
+  background: linear-gradient(160deg, rgba(255,255,255,0.55), rgba(255,255,255,0.12) 48%, rgba(0,0,0,0.22) 76%);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.16), 0 0 16px hsla(var(--h), 90%, 78%, 0.34);
+}
+html[data-icon="mirror"] .ico::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,0.38));
+  opacity: 0.35;
+}
+html[data-icon="mirror"] .ico::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 28% 16%, rgba(255,255,255,0.72), transparent 46%);
+  filter: blur(0.7px);
+  pointer-events: none;
+}
+html[data-icon="mirror"] .ico img { width: 21px; height: 21px; transform: scaleX(-1); }
+
+html[data-icon="circuit"] .ico {
+  border-radius: 12px;
+  background: linear-gradient(140deg, rgba(255,255,255,0.17), rgba(255,255,255,0.05));
+  box-shadow:
+    inset 2px 2px 0 rgba(255,255,255,0.35),
+    inset -2px -2px 0 rgba(0,0,0,0.2),
+    0 0 0 1px hsla(var(--h), 70%, 70%, 0.24);
+}
+html[data-icon="circuit"] .ico::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 8px;
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,0) 0 5px, rgba(255,255,255,0.2) 5px 6px),
+    repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 7px, rgba(0,0,0,0.16) 7px 8px),
+    radial-gradient(circle at 25% 40%, rgba(255,255,255,0.28) 0 1.5px, transparent 2px),
+    radial-gradient(circle at 72% 62%, rgba(255,255,255,0.22) 0 1px, transparent 1.4px);
+  opacity: 0.32;
+  pointer-events: none;
+}
+html[data-icon="circuit"] .ico img { filter: saturate(1.26) drop-shadow(0 1px 2px rgba(0,0,0,0.35)); }
+
 html[data-skin="paper"] .section h2,
 html[data-skin="paper"] .appearance-head strong {
   font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", "SimSun", serif;

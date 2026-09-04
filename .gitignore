@@ -10,3 +10,6 @@ data/bookmarks.html
 web/data.js
 .claude/
 installer/
+build_macos/
+dist/
+.DS_Store

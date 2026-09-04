@@ -59,7 +59,7 @@ def package_files(root: Path) -> list[str]:
         for part in (source, *source.parents):
             if part == root:
                 break
-            if part.is_symlink() or part.is_junction():
+            if part.is_symlink() or getattr(part, "is_junction", lambda: False)():
                 raise ValueError(f"Package file uses a link: {name}")
     return names
 

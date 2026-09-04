@@ -12,7 +12,7 @@ Chrome / Edge / Safari 书签同步 · 多主题与六种布局 · 动态天气 
 
 - 15 套页面主题：极光、赛博、余烬、深海、星海、幻彩、墨金、宣纸、雪、樱、瓷、水墨、黛青、朱砂、夜墨，另支持跟随系统深浅色的“自动”模式。
 - 6 种页面布局：标准、紧凑、列表、宫格、分组看板、目录树。
-- 8 种网站图标风格，以及包含悬浮、翻转、聚焦、漂移和心跳在内的 16 项图标动效。
+- 16 种网站图标风格，以及包含悬浮、翻转、聚焦、漂移和心跳在内的 16 项图标动效。
 - 鼠标拖尾与背景特效各提供 16 项选择，并支持单独关闭、大小和数量调节。
 - 所有选择都会保存在浏览器本地；关闭“动态效果”后会同时停用背景和图标动画。
 
@@ -22,7 +22,7 @@ Chrome / Edge / Safari 书签同步 · 多主题与六种布局 · 动态天气 
 
 ### Windows
 
-- 安装包用户：运行 `Bookmark_Setup_v1.0.7.exe`，按向导选择目录和桌面快捷方式，安装后从桌面或开始菜单打开；不需要另装 Python 或 Git。默认安装到 `%LOCALAPPDATA%\Programs\Bookmark`，建议使用当前用户有写权限的目录，以便在线升级。
+- 安装包用户：运行 `Bookmark_Setup_v1.0.8.exe`，按向导选择目录和桌面快捷方式，安装后从桌面或开始菜单打开；不需要另装 Python 或 Git。默认安装到 `%LOCALAPPDATA%\Programs\Bookmark`，建议使用当前用户有写权限的目录，以便在线升级。
 - 安装包只附带公开示例书签；在开始菜单中选择“同步 Chrome 书签”“同步 Edge 收藏夹”或“导入书签 HTML”导入自己的数据。覆盖安装不覆盖私人书签和生成数据；卸载只移除安装记录中的程序文件，保留私人数据和在线更新备份，浏览器外观设置也不会被清除。
 - 项目已包含 64 位便携 Python 3.13.13，不需要在电脑上另行安装 Python。
 - 首次使用或移动项目后，双击 `launchers/windows/shortcut.bat` 生成根目录和桌面的“书签”快捷方式。
@@ -60,9 +60,16 @@ Chrome / Edge / Safari 书签同步 · 多主题与六种布局 · 动态天气 
 
 安装器回归验证：`runtime\python\python.exe -B -X utf8 tests/installer_smoke.py`。此测试使用独立产品标识、测试开始菜单和 `installer/verify-*/` 目录，验证真实安装、后台运行时覆盖安装、私人数据保留与卸载；会创建后删除测试卸载注册项，保留验证日志，不打开浏览器或操作日常 8765 服务。
 
+### 构建 macOS 安装包（维护者）
+
+在 Apple Silicon Mac 上执行 `bash scripts/build_macos.sh --dmg`。脚本使用 Python 3.11 创建隔离构建环境，以 PyInstaller 生成 arm64 的 `dist/Bookmark.app`，再输出 `dist/Bookmark_v<版本>_macos_arm64.dmg`、对应 SHA-256 文件。构建会做 ad-hoc 签名和应用、DMG 完整性校验；正式无 Gatekeeper 提示的发布还需要 Apple Developer 签名与公证。
+
 ### macOS
 
-- 双击 `launchers/macos/open.command` 或 `launchers/macos/Bookmark.app` 打开页面。
+- 安装包用户：下载 `Bookmark_v<版本>_macos_arm64.dmg`，打开后将“书签”拖入“应用程序”，再从“应用程序”启动。安装版适用于 Apple Silicon（M 系列）Mac，不需要另装 Python 或保留源码目录；主页会在 macOS 当前设置的默认浏览器中打开。个人书签保存在 `~/Library/Application Support/Bookmark`。
+- 首次从 Chrome 或 Safari 同步前，在“系统设置 → 隐私与安全性 → 完全磁盘访问权限”中添加并启用 `/Applications/Bookmark.app`，然后完全退出并重新打开应用。macOS 会阻止未获授权的应用读取浏览器书签文件。
+- macOS 安装包使用本地 ad-hoc 签名，首次打开可能需要在系统设置的“隐私与安全性”中确认打开。安装版发现新版本时只在左下角提示并可打开发行版页面，不会改写自身文件；更新请下载新版 DMG 后覆盖“应用程序”里的旧版本，个人书签与外观设置会保留。
+- 源码用户：双击 `launchers/macos/open.command` 或 `launchers/macos/Bookmark.app` 打开页面。
 - 双击 `launchers/macos/sync-chrome.command`：手动把当前 Google Chrome 账号的书签同步到页面。
 - 双击 `launchers/macos/sync-safari.command`：手动把 Safari 书签同步到页面。
 - `launchers/macos/replace.command` 用于导入书签 HTML。
