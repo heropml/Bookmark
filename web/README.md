@@ -14,7 +14,7 @@
 5. `bookmarks.css`：分类导航与书签卡片。
 6. `themes.css`：页面主题配色和表面样式。
 7. `icons.css`：网站图标及相关主题覆盖。
-8. `layouts.css`：紧凑、列表、宫格、分组看板、目录树等布局。
+8. `layouts.css`：紧凑、列表、宫格、分组看板、目录树、顶部标签、居中起始页、分类折叠等布局。
 9. `motion.css`：图标动效、焦点、动态效果开关。
 10. `responsive.css`：小屏和减少动态效果设置。
 
@@ -31,7 +31,7 @@ CSS 图片路径相对于 `css/`，例如 `../themes/shuimo.svg`。
 | `js/config.js` | 设置选项、默认值和共享状态 |
 | `js/utils.js` | 本地存储、请求等共用小工具 |
 | `js/bookmarks.js` | 书签数据整理、分类、搜索、渲染和快捷键 |
-| `js/bookmark-layouts.js` | 分组看板的独立分页、目录树导航与展开状态 |
+| `js/bookmark-layouts.js` | 分组看板的独立分页、目录树导航与展开状态、横向分类和面包屑、分类面板折叠 |
 | `js/weather.js` | 城市、天气 API、图标与刷新机制 |
 | `js/clock.js` | 时钟、日期、问候语和焦点切换后的校时 |
 | `js/appearance.js` | 外观选项、弹框、设置保存和主题切换 |

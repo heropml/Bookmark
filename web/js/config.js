@@ -44,7 +44,10 @@ const LAYOUTS = [
   { id: "list", name: "列表" },
   { id: "icons", name: "宫格" },
   { id: "board", name: "分组看板" },
-  { id: "tree", name: "目录树" }
+  { id: "tree", name: "目录树" },
+  { id: "tabs", name: "顶部标签" },
+  { id: "start", name: "居中起始页" },
+  { id: "accordion", name: "分类折叠" }
 ];
 const MOTIONS = [
   { id: "float", name: "悬浮" },

@@ -159,6 +159,8 @@ function render() {
 
   document.getElementById("nav").innerHTML = document.documentElement.dataset.layout === "tree"
     ? treeNavHtml(tree, groupCounts, searched.length)
+    : ["tabs", "start", "accordion"].includes(document.documentElement.dataset.layout)
+    ? horizontalNavHtml(tree, searched.length)
     : cols.map((colPath) => {
     const node = nodeAt(tree, colPath);
     let items = [];
@@ -201,6 +203,11 @@ function render() {
     sections.get(key).push(item);
   }
   const order = [...sections.keys()];
+  if (document.documentElement.dataset.layout === "accordion") {
+    main.innerHTML = accordionHtml(sections, order);
+    applyFlips();
+    return;
+  }
   if (document.documentElement.dataset.layout === "board") {
     main.innerHTML = boardHtml(sections, order);
     applyFlips();

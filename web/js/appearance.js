@@ -71,6 +71,9 @@ function choicePreview(key, id) {
   if (key === "icon") return '<span class="icon-swatch"><i>A</i></span>';
   if (key === "layout" && id === "board") return '<span class="layout-art" aria-hidden="true"><svg viewBox="0 0 72 48" fill="none"><g stroke="currentColor" stroke-width="1.4"><rect x="2" y="3" width="20" height="42" rx="4"/><rect x="26" y="3" width="20" height="42" rx="4"/><rect x="50" y="3" width="20" height="42" rx="4"/></g><path d="M7 10h10m14 0h10m14 0h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><g fill="currentColor" opacity=".3"><rect x="6" y="16" width="12" height="10" rx="2"/><rect x="6" y="29" width="12" height="10" rx="2"/><rect x="30" y="16" width="12" height="10" rx="2"/><rect x="54" y="16" width="12" height="10" rx="2"/><rect x="54" y="29" width="12" height="10" rx="2"/></g></svg></span>';
   if (key === "layout" && id === "tree") return '<span class="layout-art" aria-hidden="true"><svg viewBox="0 0 72 48" fill="none"><path d="M9 13v23h12M9 23h12" stroke="currentColor" stroke-width="1.5"/><g fill="currentColor" fill-opacity=".25" stroke="currentColor" stroke-width="1.4"><path d="M3 5h7l3 3h10v9H3Z"/><path d="M21 21h5l2 2h9v8H21ZM21 34h5l2 2h9v8H21Z"/><rect x="45" y="4" width="25" height="40" rx="4"/></g><path d="M51 12h13m-13 8h13m-13 8h13m-13 8h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>';
+  if (key === "layout" && id === "tabs") return '<span class="layout-art" aria-hidden="true"><svg viewBox="0 0 72 48" fill="none"><path d="M4 8h16m7 0h16m7 0h16" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><rect x="3" y="18" width="66" height="27" rx="4" stroke="currentColor" stroke-width="1.5"/><path d="M12 27h18m12 0h18M12 36h18m12 0h18" stroke="currentColor" stroke-width="4" opacity=".3"/></svg></span>';
+  if (key === "layout" && id === "start") return '<span class="layout-art" aria-hidden="true"><svg viewBox="0 0 72 48" fill="none"><path d="M26 7h20" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><rect x="12" y="17" width="48" height="8" rx="4" stroke="currentColor" stroke-width="1.5"/><g fill="currentColor" opacity=".4"><circle cx="16" cy="37" r="5"/><circle cx="36" cy="37" r="5"/><circle cx="56" cy="37" r="5"/></g></svg></span>';
+  if (key === "layout" && id === "accordion") return '<span class="layout-art" aria-hidden="true"><svg viewBox="0 0 72 48" fill="none"><g stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="66" height="26" rx="4"/><rect x="3" y="34" width="66" height="11" rx="4"/><path d="m9 9 3 3 3-3m-5 28 3 3-3 3M22 10h36M22 40h36"/></g><path d="M12 21h12m6 0h12m6 0h12" stroke="currentColor" stroke-width="6" opacity=".3"/></svg></span>';
   if (key === "layout") return '<span class="layout-swatch"><i></i><i></i><i></i><i></i><i></i><i></i></span>';
   if (key === "motion") return '<span class="motion-swatch" aria-hidden="true"><svg viewBox="0 0 64 56" fill="none" stroke-linecap="round" stroke-linejoin="round">' + MOTION_ART[id] + '</svg></span>';
   if (key === "trail") return '<span class="trail-swatch"><i></i></span>';
@@ -113,7 +116,7 @@ function setupChoice(list, key, containerId, resolve) {
     const previous = root.dataset[key];
     apply(btn.dataset.value, key === "skin");
     if (key === "layout" && previous !== root.dataset.layout &&
-        [previous, root.dataset.layout].some(id => id === "board" || id === "tree")) render();
+        [previous, root.dataset.layout].some(id => ["board", "tree", "tabs", "start", "accordion"].includes(id))) render();
   });
 }
 
@@ -200,4 +203,57 @@ function initAppearance() {
     if (!appearancePanel.hidden) showAppearanceSection(null);
     else setAppearanceOpen(false);
   });
+}
+
+function initLayoutDensity() {
+  const root = document.documentElement;
+  const out = document.getElementById("layoutDensityOut");
+  const reset = document.getElementById("layoutDensityReset");
+  const increase = document.getElementById("layoutDensityIn");
+  const label = document.getElementById("layoutDensityLabel");
+  const sizes = {
+    60: { name: "极紧凑", card: "104px", compact: "96px", icon: "64px", start: "76px", gap: "6px", columns: "4", cardGap: "7px", padding: "8px", height: "60px", cardIcon: "34px", image: "20px", title: "11px", host: "10px", metaMargin: "4px", metaGap: "4px", tag: "9px", tagPadding: "5px" },
+    70: { name: "很紧凑", card: "148px", compact: "126px", icon: "72px", start: "85px", gap: "7px", columns: "3", cardGap: "8px", padding: "9px", height: "66px", cardIcon: "34px", image: "20px", title: "12px", host: "10px", metaMargin: "5px", metaGap: "5px", tag: "10px", tagPadding: "6px" },
+    80: { name: "紧凑", card: "168px", compact: "142px", icon: "80px", start: "94px", gap: "8px", columns: "3", cardGap: "10px", padding: "10px", height: "72px", cardIcon: "36px", image: "21px", title: "12px", host: "11px", metaMargin: "6px", metaGap: "5px", tag: "10px", tagPadding: "6px" },
+    90: { name: "偏紧凑", card: "190px", compact: "156px", icon: "88px", start: "104px", gap: "10px", columns: "3", cardGap: "11px", padding: "12px", height: "80px", cardIcon: "38px", image: "22px", title: "13px", host: "11px", metaMargin: "7px", metaGap: "6px", tag: "11px", tagPadding: "7px" },
+    100: { name: "标准", card: "210px", compact: "170px", icon: "96px", start: "112px", gap: "12px", columns: "2", cardGap: "12px", padding: "14px", height: "88px", cardIcon: "40px", image: "24px", title: "14px", host: "12px", metaMargin: "8px", metaGap: "6px", tag: "11px", tagPadding: "7px" },
+    110: { name: "偏舒展", card: "232px", compact: "184px", icon: "106px", start: "122px", gap: "14px", columns: "2", cardGap: "13px", padding: "15px", height: "94px", cardIcon: "42px", image: "25px", title: "15px", host: "13px", metaMargin: "9px", metaGap: "7px", tag: "12px", tagPadding: "8px" },
+    120: { name: "舒展", card: "254px", compact: "198px", icon: "116px", start: "132px", gap: "16px", columns: "2", cardGap: "14px", padding: "16px", height: "100px", cardIcon: "44px", image: "26px", title: "16px", host: "13px", metaMargin: "10px", metaGap: "7px", tag: "12px", tagPadding: "8px" }
+  };
+  let stored = 100;
+  try { stored = Number(localStorage.getItem("bm-card-density")) || 100; } catch (e) {}
+  let value = sizes[stored] ? stored : 100;
+  const apply = (next) => {
+    value = Math.max(60, Math.min(120, next));
+    const size = sizes[value];
+    root.dataset.cardDensity = String(value);
+    root.style.setProperty("--bookmark-card-min", size.card);
+    root.style.setProperty("--bookmark-compact-min", size.compact);
+    root.style.setProperty("--bookmark-icon-min", size.icon);
+    root.style.setProperty("--bookmark-start-min", size.start);
+    root.style.setProperty("--bookmark-grid-gap", size.gap);
+    root.style.setProperty("--bookmark-compact-gap", size.gap);
+    root.style.setProperty("--bookmark-list-columns", size.columns);
+    root.style.setProperty("--bookmark-card-gap", size.cardGap);
+    root.style.setProperty("--bookmark-card-padding", size.padding);
+    root.style.setProperty("--bookmark-card-height", size.height);
+    root.style.setProperty("--bookmark-card-icon", size.cardIcon);
+    root.style.setProperty("--bookmark-card-icon-image", size.image);
+    root.style.setProperty("--bookmark-card-title", size.title);
+    root.style.setProperty("--bookmark-card-host", size.host);
+    root.style.setProperty("--bookmark-card-meta-margin", size.metaMargin);
+    root.style.setProperty("--bookmark-card-meta-gap", size.metaGap);
+    root.style.setProperty("--bookmark-card-tag", size.tag);
+    root.style.setProperty("--bookmark-card-tag-padding", size.tagPadding);
+    reset.textContent = value + "%";
+    reset.setAttribute("aria-label", value === 100 ? "当前密度 100%，恢复标准" : "当前密度 " + value + "% ，点击恢复标准");
+    label.textContent = size.name;
+    out.disabled = value === 60;
+    increase.disabled = value === 120;
+    try { localStorage.setItem("bm-card-density", String(value)); } catch (e) {}
+  };
+  apply(value);
+  out.addEventListener("click", () => apply(value - 10));
+  increase.addEventListener("click", () => apply(value + 10));
+  reset.addEventListener("click", () => apply(100));
 }

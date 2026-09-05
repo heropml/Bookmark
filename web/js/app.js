@@ -3,6 +3,7 @@ initBookmarks();
 initWindowState();
 initPointerEffects();
 initAppearance();
+initLayoutDensity();
 initSearchShortcuts();
 initWeatherControls();
 initUpdate();

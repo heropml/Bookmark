@@ -137,16 +137,17 @@ main { min-width: 0; padding-top: 0; }
 .section h2 span { color: var(--muted); font-size: 13px; font-weight: 500; }
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(var(--bookmark-card-min, 210px), 1fr));
+  gap: var(--bookmark-grid-gap, 12px);
 }
 .card {
   position: relative;
   display: flex;
-  gap: 12px;
+  min-width: 0;
+  gap: var(--bookmark-card-gap, 12px);
   align-items: flex-start;
-  min-height: 88px;
-  padding: 14px;
+  min-height: var(--bookmark-card-height, 88px);
+  padding: var(--bookmark-card-padding, 14px);
   text-decoration: none;
   color: inherit;
   border: 1px solid var(--stroke);
@@ -239,9 +240,9 @@ button.card {
 }
 .ico {
   position: relative;
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
+  width: var(--bookmark-card-icon, 40px);
+  height: var(--bookmark-card-icon, 40px);
+  flex: 0 0 var(--bookmark-card-icon, 40px);
   border-radius: var(--radius-sm);
   overflow: hidden;
   background: linear-gradient(160deg, hsl(var(--h), 72%, 46%), hsl(var(--h), 58%, 20%));
@@ -258,8 +259,8 @@ button.card {
 .ico img {
   position: absolute;
   inset: 0;
-  width: 24px;
-  height: 24px;
+  width: var(--bookmark-card-icon-image, 24px);
+  height: var(--bookmark-card-icon-image, 24px);
   margin: auto;
   object-fit: contain;
   padding: 0;
@@ -277,20 +278,35 @@ html[data-icon="logo"] .card:hover .ico img {
 }
 .card h3 {
   margin: 0 0 4px;
-  font-size: 14px;
+  font-size: var(--bookmark-card-title, 14px);
   font-weight: 650;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
-.card p { margin: 0; color: var(--muted); font-size: 12px; word-break: break-all; }
-.meta { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+.card p { margin: 0; color: var(--muted); font-size: var(--bookmark-card-host, 12px); word-break: break-all; }
+.meta { margin-top: var(--bookmark-card-meta-margin, 8px); display: flex; gap: var(--bookmark-card-meta-gap, 6px); flex-wrap: wrap; }
 .tag {
-  font-size: 11px;
+  font-size: var(--bookmark-card-tag, 11px);
   color: var(--muted);
   border: 1px solid var(--stroke);
   border-radius: 999px;
-  padding: 1px 7px;
+  padding: 1px var(--bookmark-card-tag-padding, 7px);
 }
 .empty { color: var(--muted); padding: 60px 12px; text-align: center; }
+
+/* The smallest density becomes a true speed-dial grid, so short cards do not
+   carry a large unused text column beside the icon. */
+html[data-card-density="60"]:is([data-layout="classic"], [data-layout="compact"], [data-layout="tabs"], [data-layout="tree"], [data-layout="accordion"]) .card {
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  min-height: 94px;
+  padding: 10px 6px;
+  text-align: center;
+}
+html[data-card-density="60"]:is([data-layout="classic"], [data-layout="compact"], [data-layout="tabs"], [data-layout="tree"], [data-layout="accordion"]) .card > div:last-child { width: 100%; }
+html[data-card-density="60"]:is([data-layout="classic"], [data-layout="compact"], [data-layout="tabs"], [data-layout="tree"], [data-layout="accordion"]) .card h3 { margin: 0; font-size: var(--bookmark-card-title, 11px); }
+html[data-card-density="60"]:is([data-layout="classic"], [data-layout="compact"], [data-layout="tabs"], [data-layout="tree"], [data-layout="accordion"]) .card p,
+html[data-card-density="60"]:is([data-layout="classic"], [data-layout="compact"], [data-layout="tabs"], [data-layout="tree"], [data-layout="accordion"]) .card .meta { display: none; }

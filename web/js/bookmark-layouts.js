@@ -2,12 +2,16 @@
 const BOARD_PAGE = 8;
 const boardLimits = new Map();
 const treeExpanded = new Set();
+const accordionCollapsed = new Set();
 let layoutFolder = null;
 let layoutQuery = null;
 
 function prepareLayoutState(tree) {
   const query = state.q.trim().toLowerCase();
-  if (layoutFolder !== state.folder || layoutQuery !== query) boardLimits.clear();
+  if (layoutFolder !== state.folder || layoutQuery !== query) {
+    boardLimits.clear();
+    accordionCollapsed.clear();
+  }
   if (layoutFolder !== state.folder) {
     const parts = state.folder.split("/");
     for (let i = 1; i <= parts.length; i++) treeExpanded.add(parts.slice(0, i).join("/"));
@@ -66,7 +70,50 @@ function treeNavHtml(tree, groupCounts, total) {
   </nav>`;
 }
 
+function horizontalNavHtml(tree, total) {
+  const button = (name, path, count, current) => `<button type="button" class="folder ${current ? "on" : ""}" data-folder="${escapeHtml(path)}" style="--h:${hue(path || name)}"${current ? ' aria-current="page"' : ""}><b>${escapeHtml(name)}</b>${count === undefined ? "" : `<span>${count}</span>`}</button>`;
+  const roots = Object.values(tree.kids);
+  const tabs = button("全部", "", total, !state.folder) + roots.map(node =>
+    button(node.name, node.path, node.count, selectedInCol("", node.path))).join("");
+  const parts = state.folder ? state.folder.split("/") : [];
+  const crumbs = parts.length ? `<nav class="layout-breadcrumbs" aria-label="当前位置">${button("全部", "", undefined, false)}${parts.map((part, i) =>
+    `<span aria-hidden="true">/</span>${button(part, parts.slice(0, i + 1).join("/"), undefined, i === parts.length - 1)}`).join("")}</nav>` : "";
+  const node = state.folder ? nodeAt(tree, state.folder) : null;
+  const children = node ? Object.values(node.kids) : [];
+  const subnav = children.length ? `<nav class="horizontal-children" aria-label="下级分类">${children.map(child => button(child.name, child.path, child.count, false)).join("")}</nav>` : "";
+  return `<nav class="nav-col horizontal-tabs" aria-label="书签分类">${tabs}</nav>${crumbs}${subnav}`;
+}
+
+function accordionHtml(sections, order) {
+  return order.map(name => {
+    const items = sections.get(name);
+    const shown = items.slice(0, boardLimits.get(name) || BOARD_PAGE);
+    const remaining = items.length - shown.length;
+    const expanded = !accordionCollapsed.has(name);
+    const id = "accordion-" + encodeURIComponent(name);
+    return `<section class="accordion-group nav-col" data-board="${escapeHtml(name)}" style="--h:${hue(name)}">
+      <h2><button type="button" class="accordion-toggle" data-accordion-toggle="${escapeHtml(name)}" aria-expanded="${expanded}" aria-controls="${id}">
+        <span class="accordion-arrow" aria-hidden="true">›</span><span class="accordion-name">${escapeHtml(name)}</span><span class="accordion-count">${items.length} 个书签</span>
+      </button></h2>
+      <div class="accordion-body" id="${id}"${expanded ? "" : " hidden"}>
+        <div class="grid">${shown.map(cardHtml).join("")}</div>
+        ${remaining ? `<button type="button" class="board-more" data-board-more="${escapeHtml(name)}">再显示 ${Math.min(BOARD_PAGE, remaining)} 个 <span>· 还有 ${remaining} 个</span></button>` : ""}
+      </div>
+    </section>`;
+  }).join("");
+}
+
 function handleLayoutClick(event) {
+  const accordion = event.target.closest("[data-accordion-toggle]");
+  if (accordion) {
+    const name = accordion.dataset.accordionToggle;
+    const expanded = accordion.getAttribute("aria-expanded") !== "true";
+    if (expanded) accordionCollapsed.delete(name);
+    else accordionCollapsed.add(name);
+    accordion.setAttribute("aria-expanded", String(expanded));
+    document.getElementById(accordion.getAttribute("aria-controls")).hidden = !expanded;
+    return true;
+  }
   const toggle = event.target.closest("[data-tree-toggle]");
   if (toggle) {
     const path = toggle.dataset.treeToggle;

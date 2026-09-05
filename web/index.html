@@ -28,7 +28,7 @@
   <canvas id="fx-canvas" aria-hidden="true"></canvas>
   <div id="folderNameTooltip" class="folder-name-tooltip" role="tooltip" hidden></div>
   <div class="app-meta">
-    <div id="appVersion" class="app-version" aria-label="当前版本">v1.0.8</div>
+    <div id="appVersion" class="app-version" aria-label="当前版本">v1.0.9</div>
     <div id="updateNotice" class="update-notice" hidden>
       <button type="button" id="updateBtn" class="update-action" aria-label="发现新版本，点击升级" title="发现新版本，点击升级"></button>
     </div>
@@ -141,6 +141,15 @@
         </section>
         <section class="appearance-group" data-setting-panel="layout" data-title="页面布局" data-description="选择书签卡片的排列方式和信息密度。" hidden>
           <div id="layoutChoices" class="choice-grid layout-grid"></div>
+          <div class="layout-density">
+            <div class="layout-density-head"><strong>书签密度</strong><span id="layoutDensityLabel">标准</span></div>
+            <div class="layout-density-controls" aria-label="书签密度调整">
+              <button type="button" id="layoutDensityOut" aria-label="缩小书签卡片" title="缩小书签卡片">−</button>
+              <button type="button" id="layoutDensityReset" class="layout-density-value" title="恢复标准密度">100%</button>
+              <button type="button" id="layoutDensityIn" aria-label="放大书签卡片" title="放大书签卡片">+</button>
+            </div>
+            <p>缩小卡片后，每行可以显示更多书签。</p>
+          </div>
         </section>
         <section class="appearance-group" data-setting-panel="motion" data-title="图标动效" data-description="选择鼠标悬停在书签卡片上时的图标动画。" hidden>
           <div id="motionChoices" class="choice-grid motion-grid"></div>

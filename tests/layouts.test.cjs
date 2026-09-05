@@ -44,9 +44,9 @@ function fixture({ layout = 'board', folder = '', items } = {}) {
 }
 const cardCount = html => (html.match(/<a class="card"/g) || []).length;
 
-test('六种布局选项保留原四种并追加看板和目录树', () => {
+test('九种布局选项保留已有布局并追加分类折叠', () => {
   const app = fixture();
-  assert.equal(app.run('LAYOUTS.map(x => x.id).join(",")'), 'classic,compact,list,icons,board,tree');
+  assert.equal(app.run('LAYOUTS.map(x => x.id).join(",")'), 'classic,compact,list,icons,board,tree,tabs,start,accordion');
 });
 
 test('看板在全部分类中展示实际书签，每组独立限制，不受全局 36 条截断', () => {
@@ -221,4 +221,54 @@ test('新布局中的分类名称、标题和控件属性均转义', () => {
   app.run('document.documentElement.dataset.layout = "tree"; render()');
   assert.doesNotMatch(app.elements.get('nav').innerHTML, /<测试>/);
   assert.match(app.elements.get('nav').innerHTML, /aria-controls="tree-/);
+});
+
+for (const layout of ['tabs', 'start']) {
+  test(layout + ' 横向导航支持深层分类、面包屑返回、搜索和分页', () => {
+    const app = fixture({ layout });
+    assert.match(app.elements.get('nav').innerHTML, /horizontal-tabs/);
+    app.choose('工具/开发/前端');
+    assert.match(app.elements.get('nav').innerHTML, /aria-label="当前位置"/);
+    assert.match(app.elements.get('nav').innerHTML, /data-folder="工具\/开发"/);
+    assert.equal(cardCount(app.html()), 36);
+    app.context.event = { target: { closest: selector => selector === '#moreBtn' ? {} : null } };
+    app.run('pickFolder(event)');
+    assert.equal(cardCount(app.html()), 45);
+    app.choose('工具');
+    assert.match(app.elements.get('nav').innerHTML, /aria-label="下级分类"/);
+    app.search('工具 4');
+    assert.equal(cardCount(app.html()), 6);
+    app.search('无匹配');
+    assert.match(app.html(), /没有找到匹配的书签/);
+    assert.match(app.elements.get('nav').innerHTML, /data-folder=""/);
+    app.choose('');
+    app.search('');
+    assert.equal((app.html().match(/data-key="folder:/g) || []).length, 2);
+  });
+}
+
+
+test('分类折叠独立收起，加载更多保持状态，搜索重新展开', () => {
+  const app = fixture({ layout: 'accordion' });
+  assert.equal(cardCount(app.html()), 16);
+  const attributes = { 'aria-expanded': 'true', 'aria-controls': 'accordion-test' };
+  app.context.event = { target: { closest: selector => selector === '[data-accordion-toggle]' ? {
+    dataset: { accordionToggle: '公司' }, getAttribute: key => attributes[key],
+    setAttribute: (key, value) => { attributes[key] = value; }
+  } : null } };
+  app.run('pickFolder(event)');
+  assert.equal(attributes['aria-expanded'], 'false');
+  assert.equal(app.elements.get('accordion-test').hidden, true);
+  assert.equal(app.run('state.folder'), '');
+  app.more('工具');
+  assert.equal(cardCount(app.html()), 24);
+  assert.match(app.html(), /data-accordion-toggle="公司" aria-expanded="false"/);
+  assert.match(app.html(), /data-accordion-toggle="工具" aria-expanded="true"/);
+  app.search('办公');
+  assert.equal(cardCount(app.html()), 8);
+  assert.match(app.html(), /data-accordion-toggle="公司" aria-expanded="true"/);
+  app.choose('公司/办公');
+  assert.equal(cardCount(app.html()), 8);
+  app.search('无匹配');
+  assert.match(app.html(), /没有找到匹配的书签/);
 });

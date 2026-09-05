@@ -57,3 +57,8 @@ body.appearance-open header { z-index: 60; }
     transition: none;
   }
 }
+
+@media (max-width: 600px) {
+  .appearance-detail #layoutChoices { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .appearance-detail #layoutChoices .choice { min-width: 0; padding-inline: 4px; }
+}
