@@ -15,6 +15,34 @@ SPEC.loader.exec_module(manage)
 
 
 class DirectoryServiceTests(TestCase):
+    def test_windows_discovers_common_chromium_browsers_with_bookmarks(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            local, roaming = root / "local", root / "roaming"
+            chrome = local / "Google/Chrome/User Data/Default"
+            brave = local / "BraveSoftware/Brave-Browser/User Data/Default"
+            qq = local / "Tencent/QQBrowser/User Data/Default"
+            quark = local / "Quark/Quark/User Data/Default"
+            opera = roaming / "Opera Software/Opera Stable"
+            sogou = roaming / "SogouExplorer/Webkit"
+            for profile in (chrome, brave, qq, quark):
+                profile.mkdir(parents=True)
+                (profile / "Bookmarks").write_text('{"roots": {}}', encoding="utf-8")
+                (profile.parent / "Local State").write_text(
+                    '{"profile": {"last_used": "Default"}}', encoding="utf-8"
+                )
+            opera.mkdir(parents=True)
+            (opera / "Bookmarks").write_text('{"roots": {}}', encoding="utf-8")
+            sogou.mkdir(parents=True)
+            (sogou / "Bookmarks").write_text('{"roots": {}}', encoding="utf-8")
+            with patch.object(manage.sys, "platform", "win32"), patch.dict(
+                manage.os.environ, {"LOCALAPPDATA": str(local), "APPDATA": str(roaming)}
+            ):
+                self.assertEqual(
+                    manage.supported_sync_browsers(),
+                    ["chrome", "brave", "opera", "qq", "sogou", "quark", "html"],
+                )
+
     def test_macos_sync_failure_explains_full_disk_access(self):
         with patch.object(manage.sys, "platform", "darwin"):
             message = manage.sync_failure_message("chrome")
@@ -69,6 +97,10 @@ class BookmarkSyncHTTPTests(TestCase):
         self.base = f"http://127.0.0.1:{self.server.server_port}"
         self.platform = patch.object(manage.sys, "platform", "win32")
         self.platform.start()
+        self.supported_patch = patch.object(
+            manage, "supported_sync_browsers", return_value=["chrome", "edge", "brave", "qq", "html"]
+        )
+        self.supported_patch.start()
         self.sync_patch = patch.object(manage, "sync_chrome", return_value=[{}, {}])
         self.sync = self.sync_patch.start()
 
@@ -77,6 +109,7 @@ class BookmarkSyncHTTPTests(TestCase):
         self.server.server_close()
         self.worker.join(timeout=2)
         self.sync_patch.stop()
+        self.supported_patch.stop()
         self.platform.stop()
 
     def post(self, data=None, headers=None):
@@ -93,7 +126,7 @@ class BookmarkSyncHTTPTests(TestCase):
 
     def test_opening_dialog_only_reads_supported_browsers(self):
         with urlopen(self.base + "/__bookmarks/sync", timeout=3) as response:
-            self.assertEqual(json.load(response), {"browsers": ["chrome", "edge"]})
+            self.assertEqual(json.load(response), {"browsers": ["chrome", "edge", "brave", "qq", "html"]})
             self.assertEqual(response.headers["Cache-Control"], "no-store")
         self.sync.assert_not_called()
 
@@ -105,6 +138,15 @@ class BookmarkSyncHTTPTests(TestCase):
         with patch.object(manage, "sync_edge", return_value=[{}]) as edge:
             self.assertEqual(self.post({"browser": "edge", "confirmed": True})[0], 200)
             edge.assert_called_once_with()
+        with patch.object(manage, "sync_html", return_value=[{}]) as sync_html:
+            self.assertEqual(self.post({"browser": "html", "confirmed": True})[0], 200)
+            sync_html.assert_called_once_with()
+        with patch.object(manage, "sync_chromium", return_value=[{}]) as sync_chromium:
+            self.assertEqual(self.post({"browser": "brave", "confirmed": True})[0], 200)
+            sync_chromium.assert_called_once_with("brave")
+        with patch.object(manage, "sync_chromium", return_value=[{}]) as sync_chromium:
+            self.assertEqual(self.post({"browser": "qq", "confirmed": True})[0], 200)
+            sync_chromium.assert_called_once_with("qq")
 
     def test_confirmation_and_supported_browser_are_required(self):
         for data in ({}, [], {"browser": "chrome"}, {"browser": "chrome", "confirmed": "true"}, {"browser": "firefox", "confirmed": True}, {"browser": "../../private", "confirmed": True}, {"browser": "safari", "confirmed": True}):
@@ -168,7 +210,17 @@ class BookmarkSyncHTTPTests(TestCase):
             self.assertEqual(browser_file.read_text(encoding="utf-8"), source)
 
     def test_macos_offers_existing_chrome_and_safari_implementation(self):
-        with patch.object(manage.sys, "platform", "darwin"), patch.object(manage, "sync_safari", return_value=[{}]) as safari:
-            self.assertEqual(manage.supported_sync_browsers(), ["chrome", "safari"])
+        with patch.object(manage.sys, "platform", "darwin"), patch.object(manage, "supported_sync_browsers", return_value=["chrome", "safari", "html"]), patch.object(manage, "sync_safari", return_value=[{}]) as safari:
+            self.assertEqual(manage.supported_sync_browsers(), ["chrome", "safari", "html"])
             self.assertEqual(self.post({"browser": "safari", "confirmed": True})[0], 200)
             safari.assert_called_once_with()
+
+    def test_html_sync_replaces_bookmarks_from_the_file_selected_in_the_dialog(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = root / "export.html"
+            source.write_text('<DT><A HREF="https://example.com">导入测试</A>', encoding="utf-8")
+            with patch.object(manage, "pick_html", return_value=source), patch.object(manage, "SRC", root / "bookmarks.html"), patch.object(manage, "DATA_JS", root / "data.js"):
+                items = manage.sync_html()
+            self.assertEqual(len(items), 1)
+            self.assertIn("导入测试", (root / "data.js").read_text(encoding="utf-8"))

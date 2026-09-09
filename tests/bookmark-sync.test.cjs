@@ -19,7 +19,7 @@ function fixture({ navigator = { userAgent: 'Chrome/140.0 Safari/537.36' }, loca
     });
     return elements.get(id);
   }
-  const radios = ['chrome', 'edge', 'safari'].map(value => ({
+  const radios = ['chrome', 'edge', 'safari', 'html', 'brave', 'vivaldi', 'opera', 'opera-gx', 'qq', '360', '360-x', 'sogou', 'quark', 'uc'].map(value => ({
     value, checked: false, disabled: false, label: { hidden: false },
     closest() { return this.label; }
   }));
@@ -57,11 +57,13 @@ test('打开同步窗口只查询支持情况，自动选择 Chrome，不读取�
   assert.equal(app.elements.get('bookmarkSyncConfirm').disabled, false);
 });
 
-test('识别 Edge 优先于 Chrome，并支持 Safari；不把 Firefox、Opera 当作 Chrome', () => {
+test('识别 Edge、Safari 和常见 Chromium 浏览器，不把 Firefox 当作 Chrome', () => {
   const samples = [
     ['Chrome/140.0 Safari/537.36 Edg/140.0', 'edge'],
     ['Version/18.0 Safari/605.1', 'safari'],
-    ['Firefox/140', ''], ['Chrome/140 OPR/90', ''],
+    ['Firefox/140', ''], ['Chrome/140 OPR/90', 'opera'], ['Vivaldi/7.5 Chrome/140', 'vivaldi'],
+    ['QQBrowser/14.0 Chrome/140', 'qq'], ['360SE', '360'], ['MetaSr 1.0', 'sogou'],
+    ['Quark/6.0 Chrome/140', 'quark'], ['UCBrowser/16.0 Chrome/140', 'uc'],
     ['CriOS/123 Mobile/15 Safari/604.1', ''],
   ];
   for (const [userAgent, expected] of samples) {
@@ -70,6 +72,16 @@ test('识别 Edge 优先于 Chrome，并支持 Safari；不把 Firefox、Opera �
   }
   const app = fixture({ navigator: { userAgent: 'Chromium', userAgentData: { brands: [{ brand: 'Microsoft Edge' }] } } });
   assert.equal(vm.runInContext('currentBookmarkBrowser()', app.context), 'edge');
+  const brave = fixture({ navigator: { userAgent: 'Chrome/140', brave: {} } });
+  assert.equal(vm.runInContext('currentBookmarkBrowser()', brave.context), 'brave');
+});
+
+test('只显示后台检测到的本机浏览器，并保留 HTML 导入', async () => {
+  const app = fixture({ navigator: { userAgent: 'Chrome/140', brave: {} }, route: (_, options) => response(options.method === 'POST' ? { ok: true, count: 3 } : { browsers: ['brave', 'html'] }) });
+  await app.open();
+  assert.equal(app.radios.find(r => r.value === 'brave').checked, true);
+  assert.equal(app.radios.find(r => r.value === 'chrome').label.hidden, true);
+  assert.equal(app.radios.find(r => r.value === 'html').label.hidden, false);
 });
 
 test('未知浏览器不会擅自选来源，手动选择后才能确认', async () => {
@@ -104,6 +116,14 @@ test('确认后只同步选定浏览器，携带确认字段，成功刷新一�
   assert.equal(app.reloads, 1);
   assert.equal(app.storage.get('bm-folder'), '');
   assert.equal(app.storage.get('bm-skin'), 'celadon');
+});
+
+test('其他浏览器可选择导出的 HTML 书签文件导入', async () => {
+  const app = fixture({ route: (_, options) => response(options.method === 'POST' ? { ok: true, count: 3 } : { browsers: ['chrome', 'edge', 'html'] }) });
+  await app.open();
+  app.select('html');
+  await app.submit();
+  assert.deepEqual(JSON.parse(app.requests[1].options.body), { browser: 'html', confirmed: true });
 });
 
 test('同步中禁用重复确认和关闭，避免重入', async () => {

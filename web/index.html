@@ -28,7 +28,7 @@
   <canvas id="fx-canvas" aria-hidden="true"></canvas>
   <div id="folderNameTooltip" class="folder-name-tooltip" role="tooltip" hidden></div>
   <div class="app-meta">
-    <div id="appVersion" class="app-version" aria-label="当前版本">v1.0.9</div>
+    <div id="appVersion" class="app-version" aria-label="当前版本">v1.1.0</div>
     <div id="updateNotice" class="update-notice" hidden>
       <button type="button" id="updateBtn" class="update-action" aria-label="发现新版本，点击升级" title="发现新版本，点击升级"></button>
     </div>
@@ -212,6 +212,61 @@
           <input type="radio" name="syncBrowser" value="safari" required />
           <svg class="sync-browser-icon" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="#2099f3"/><circle cx="16" cy="16" r="11" fill="none" stroke="#fff" stroke-dasharray="1 3"/><path d="m23 8-4 11-6-6Z" fill="#f87171"/><path d="m9 24 4-11 6 6Z" fill="#fff"/></svg>
           <span><b>Safari</b><small>Apple 浏览器</small></span><i aria-hidden="true">✓</i>
+        </label>
+        <label class="sync-browser" data-browser="html">
+          <input type="radio" name="syncBrowser" value="html" required />
+          <svg class="sync-browser-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h12l6 6v20H7z"/><path d="M19 3v7h6M11 16h10M11 21h7"/></svg>
+          <span><b>其他浏览器</b><small>导入导出的 HTML 书签</small></span><i aria-hidden="true">✓</i>
+        </label>
+        <label class="sync-browser" data-browser="brave">
+          <input type="radio" name="syncBrowser" value="brave" required />
+          <svg class="sync-browser-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 3 25 7v8c0 7-4 11-9 14-5-3-9-7-9-14V7z"/><path d="M12 13h8m-8 5h8"/></svg>
+          <span><b>Brave</b><small>检测到本机书签后显示</small></span><i aria-hidden="true">✓</i>
+        </label>
+        <label class="sync-browser" data-browser="vivaldi">
+          <input type="radio" name="syncBrowser" value="vivaldi" required />
+          <svg class="sync-browser-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="16" cy="16" r="13"/><path d="m10 10 6 12 6-12"/></svg>
+          <span><b>Vivaldi</b><small>检测到本机书签后显示</small></span><i aria-hidden="true">✓</i>
+        </label>
+        <label class="sync-browser" data-browser="opera">
+          <input type="radio" name="syncBrowser" value="opera" required />
+          <svg class="sync-browser-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="16" cy="16" r="11"/></svg>
+          <span><b>Opera</b><small>检测到本机书签后显示</small></span><i aria-hidden="true">✓</i>
+        </label>
+        <label class="sync-browser" data-browser="opera-gx">
+          <input type="radio" name="syncBrowser" value="opera-gx" required />
+          <svg class="sync-browser-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="16" cy="16" r="11"/><path d="M16 5v6m0 10v6"/></svg>
+          <span><b>Opera GX</b><small>检测到本机书签后显示</small></span><i aria-hidden="true">✓</i>
+        </label>
+        <label class="sync-browser" data-browser="qq">
+          <input type="radio" name="syncBrowser" value="qq" required />
+          <svg class="sync-browser-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 9h20v14H6z"/><path d="M10 14h12M10 19h8"/></svg>
+          <span><b>QQ浏览器</b><small>检测到本机书签后显示</small></span><i aria-hidden="true">✓</i>
+        </label>
+        <label class="sync-browser" data-browser="360">
+          <input type="radio" name="syncBrowser" value="360" required />
+          <svg class="sync-browser-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="16" cy="16" r="11"/><path d="M9 16h14M16 9v14"/></svg>
+          <span><b>360极速浏览器</b><small>检测到本机书签后显示</small></span><i aria-hidden="true">✓</i>
+        </label>
+        <label class="sync-browser" data-browser="360-x">
+          <input type="radio" name="syncBrowser" value="360-x" required />
+          <svg class="sync-browser-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="16" cy="16" r="11"/><path d="M10 10l12 12m0-12L10 22"/></svg>
+          <span><b>360极速浏览器X</b><small>检测到本机书签后显示</small></span><i aria-hidden="true">✓</i>
+        </label>
+        <label class="sync-browser" data-browser="sogou">
+          <input type="radio" name="syncBrowser" value="sogou" required />
+          <svg class="sync-browser-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 26 25 7M10 8h14v14"/><circle cx="9" cy="23" r="3"/></svg>
+          <span><b>搜狗高速浏览器</b><small>检测到本机书签后显示</small></span><i aria-hidden="true">✓</i>
+        </label>
+        <label class="sync-browser" data-browser="quark">
+          <input type="radio" name="syncBrowser" value="quark" required />
+          <svg class="sync-browser-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M24 8a10 10 0 1 0 1 15"/><path d="m18 15 7-7m-6 8h6v6"/></svg>
+          <span><b>夸克浏览器</b><small>检测到本机书签后显示</small></span><i aria-hidden="true">✓</i>
+        </label>
+        <label class="sync-browser" data-browser="uc">
+          <input type="radio" name="syncBrowser" value="uc" required />
+          <svg class="sync-browser-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 7v12a9 9 0 0 0 18 0V7"/><path d="M12 7v11a4 4 0 0 0 8 0V7"/></svg>
+          <span><b>UC浏览器</b><small>检测到本机书签后显示</small></span><i aria-hidden="true">✓</i>
         </label>
       </fieldset>
       <p id="bookmarkSyncDetected" class="sync-detected">正在识别当前浏览器…</p>

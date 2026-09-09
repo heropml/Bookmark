@@ -35,7 +35,7 @@ EXAMPLE_SRC = DATA_DIR / "bookmarks.example.html"
 DATA_JS = WEB_ROOT / "data.js"
 WINDOW_STATE = DATA_DIR / ".window-state.json"
 PORT = 8765
-APP_VERSION = "v1.0.9"
+APP_VERSION = "v1.1.0"
 HEALTH_RESPONSE = b"bookmark-weather-v3\n"
 HREF_RE = re.compile(r'<A HREF="([^"]+)"', re.I)
 UPDATE_SOURCES = (
@@ -52,6 +52,18 @@ GIT_TIMEOUT_SECONDS = 15
 UPDATE_LOCK = threading.RLock()
 BOOKMARK_SYNC_LOCK = threading.Lock()
 PACKAGED_APP = os.environ.get("BOOKMARK_PACKAGED") == "1"
+WINDOWS_CHROMIUM_BROWSERS = {
+    "brave": ("Brave", "LOCALAPPDATA", (("BraveSoftware", "Brave-Browser", "User Data"),)),
+    "vivaldi": ("Vivaldi", "LOCALAPPDATA", (("Vivaldi", "User Data"),)),
+    "opera": ("Opera", "APPDATA", (("Opera Software", "Opera Stable"),)),
+    "opera-gx": ("Opera GX", "APPDATA", (("Opera Software", "Opera GX Stable"),)),
+    "qq": ("QQ浏览器", "LOCALAPPDATA", (("Tencent", "QQBrowser", "User Data"),)),
+    "360": ("360极速浏览器", "LOCALAPPDATA", (("360Chrome", "Chrome", "User Data"),)),
+    "360-x": ("360极速浏览器X", "LOCALAPPDATA", (("360ChromeX", "Chrome", "User Data"),)),
+    "sogou": ("搜狗高速浏览器", "APPDATA", (("SogouExplorer", "Webkit"),)),
+    "quark": ("夸克浏览器", "LOCALAPPDATA", (("Quark", "User Data"), ("Quark", "Quark", "User Data"))),
+    "uc": ("UC浏览器", "LOCALAPPDATA", (("UCBrowser", "User Data"),)),
+}
 
 
 def installation_id() -> str:
@@ -60,17 +72,37 @@ def installation_id() -> str:
 
 
 def supported_sync_browsers() -> list[str]:
-    return {"win32": ["chrome", "edge"], "darwin": ["chrome", "safari"]}.get(sys.platform, [])
+    if sys.platform == "win32":
+        readers = {
+            "chrome": chrome_bookmarks_file,
+            "edge": edge_bookmarks_file,
+            **{browser: lambda browser=browser: chromium_bookmarks_file(browser)
+               for browser in WINDOWS_CHROMIUM_BROWSERS},
+        }
+        available = []
+        for browser, reader in readers.items():
+            try:
+                reader()
+            except (SystemExit, OSError, ValueError, TypeError, json.JSONDecodeError):
+                continue
+            available.append(browser)
+        return [*available, "html"]
+    return {"darwin": ["chrome", "safari", "html"]}.get(sys.platform, [])
 
 
 def sync_failure_message(browser: str) -> str:
+    if browser == "html":
+        return "未选择有效的书签 HTML 文件，请重新导出后再试。"
     if sys.platform == "darwin":
         name = {"chrome": "Chrome", "safari": "Safari"}.get(browser, "所选浏览器")
         return (
             f"macOS 未允许“书签”读取 {name} 数据。请打开“系统设置 → 隐私与安全性 → "
             "完全磁盘访问权限”，添加并启用 /Applications/Bookmark.app，然后完全退出并重新打开应用后重试。"
         )
-    return "无法读取或保存书签。请确认所选浏览器已创建书签、当前账号可用，且程序目录可写。"
+    name = {"chrome": "Chrome", "edge": "Edge", **{
+        key: value[0] for key, value in WINDOWS_CHROMIUM_BROWSERS.items()
+    }}.get(browser, "所选浏览器")
+    return f"无法读取或保存 {name} 书签。请确认浏览器已创建书签，且程序目录可写。"
 
 
 class UpdateError(RuntimeError):
@@ -478,6 +510,33 @@ def edge_bookmarks_file(profile: str | None = None) -> tuple[str, Path]:
     raise SystemExit(f"Edge bookmarks were not found in {profile_dir}")
 
 
+def chromium_bookmarks_file(browser: str) -> tuple[str, Path]:
+    name, variable, locations = WINDOWS_CHROMIUM_BROWSERS[browser]
+    base = os.environ.get(variable)
+    if not base:
+        raise SystemExit(f"{variable} is not set")
+    for parts in locations:
+        user_data = Path(base).joinpath(*parts)
+        profiles = []
+        local_state = user_data / "Local State"
+        if local_state.is_file():
+            try:
+                profile = json.loads(local_state.read_text(encoding="utf-8")).get("profile", {}).get("last_used")
+            except (OSError, json.JSONDecodeError) as exc:
+                raise SystemExit(f"unable to read {name} profile") from exc
+            if profile:
+                profiles.append(profile)
+        profiles.append("Default")
+        profile_dirs = [(profile, user_data / profile) for profile in dict.fromkeys(profiles)]
+        profile_dirs.append(("Default", user_data))
+        for profile, profile_dir in profile_dirs:
+            for filename in ("AccountBookmarks", "Bookmarks"):
+                path = profile_dir / filename
+                if path.is_file():
+                    return profile, path
+    raise SystemExit(f"{name} bookmarks were not found")
+
+
 def parse_chrome(path: Path) -> list[dict]:
     document = json.loads(path.read_text(encoding="utf-8"))
     roots = document.get("roots")
@@ -721,6 +780,23 @@ def sync_safari():
     path = safari_bookmarks_file()
     print(f"Safari bookmarks: {path}")
     write_bookmarks_html(parse_safari(path))
+    return build()
+
+
+def sync_chromium(browser: str):
+    profile, path = chromium_bookmarks_file(browser)
+    print(f"{WINDOWS_CHROMIUM_BROWSERS[browser][0]} profile: {profile} ({path.name})")
+    write_bookmarks_html(parse_chrome(path))
+    return build()
+
+
+def sync_html():
+    path = pick_html()
+    if path is None:
+        raise SystemExit("bookmark HTML was not selected")
+    if not path.is_file():
+        raise SystemExit("bookmark HTML was not found")
+    replace_src(path)
     return build()
 
 
@@ -969,7 +1045,10 @@ class Handler(SimpleHTTPRequestHandler):
             if self.server.restarting:
                 self.send_json(409, {"ok": False, "message": "服务正在重启，请稍后再同步。"})
                 return
-            action = {"chrome": sync_chrome, "edge": sync_edge, "safari": sync_safari}[browser]
+            action = {
+                "chrome": sync_chrome, "edge": sync_edge, "safari": sync_safari, "html": sync_html,
+                **{key: lambda key=key: sync_chromium(key) for key in WINDOWS_CHROMIUM_BROWSERS},
+            }[browser]
             items = action()
             self.send_json(200, {"ok": True, "count": len(items or []), "browser": browser})
         except (SystemExit, OSError, ValueError, TypeError, KeyError):

@@ -2,7 +2,15 @@ function currentBookmarkBrowser(nav = navigator) {
   const brands = (nav.userAgentData?.brands || []).map(item => item.brand).join(' ');
   const ua = nav.userAgent || '';
   if (/Microsoft Edge/i.test(brands) || /Edg\//.test(ua)) return 'edge';
-  if (/OPR\/|Opera|Vivaldi|SamsungBrowser|Firefox|FxiOS|CriOS|EdgiOS|EdgA\//i.test(ua) || nav.brave) return '';
+  if (/QQBrowser/i.test(ua)) return 'qq';
+  if (/360EE|360SE|QihooBrowser/i.test(ua)) return '360';
+  if (/MetaSr/i.test(ua)) return 'sogou';
+  if (/Quark/i.test(ua)) return 'quark';
+  if (/UCBrowser/i.test(ua)) return 'uc';
+  if (nav.brave) return 'brave';
+  if (/Vivaldi/i.test(ua)) return 'vivaldi';
+  if (/OPR\/|Opera/i.test(ua)) return 'opera';
+  if (/SamsungBrowser|Firefox|FxiOS|CriOS|EdgiOS|EdgA\//i.test(ua)) return '';
   if (/Google Chrome/i.test(brands) || /Chrome\//.test(ua)) return 'chrome';
   if (/Safari\//.test(ua) && /Version\//.test(ua) && !/Mobile\//.test(ua)) return 'safari';
   return '';
@@ -19,7 +27,7 @@ function initBookmarkSync() {
   const confirm = document.getElementById('bookmarkSyncConfirm');
   const cancel = document.getElementById('bookmarkSyncCancel');
   const close = document.getElementById('bookmarkSyncClose');
-  const names = { chrome: 'Chrome', edge: 'Edge', safari: 'Safari' };
+  const names = { chrome: 'Chrome', edge: 'Edge', safari: 'Safari', html: '其他浏览器 HTML 文件', brave: 'Brave', vivaldi: 'Vivaldi', opera: 'Opera', 'opera-gx': 'Opera GX', qq: 'QQ浏览器', '360': '360极速浏览器', '360-x': '360极速浏览器X', sogou: '搜狗高速浏览器', quark: '夸克浏览器', uc: 'UC浏览器' };
   let busy = false;
   let generation = 0;
   let supported = [];
@@ -63,7 +71,7 @@ function initBookmarkSync() {
       confirm.disabled = !supported.includes(selected());
       detected.textContent = supported.includes(browser)
         ? `已识别当前浏览器：${names[browser]}，也可手动选择。`
-        : '未识别到支持的当前浏览器，请手动选择来源。';
+        : '未识别到支持的当前浏览器，请手动选择来源；其他浏览器请先导出 HTML 书签文件。';
       if (!supported.length) message('此系统暂不支持从主页同步，请使用 HTML 导入入口。', 'error');
     } catch (error) {
       if (dialog.open && current === generation) {
@@ -80,7 +88,7 @@ function initBookmarkSync() {
     busy = true;
     choices.disabled = confirm.disabled = cancel.disabled = close.disabled = true;
     confirm.textContent = '正在同步…';
-    message(`正在读取 ${names[browser]} 书签，请稍候…`);
+    message(browser === 'html' ? '请选择浏览器导出的 HTML 书签文件…' : `正在读取 ${names[browser]} 书签，请稍候…`);
     try {
       const response = await fetch('/__bookmarks/sync', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Bookmark-Sync': '1' },
