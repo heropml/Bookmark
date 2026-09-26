@@ -18,7 +18,6 @@
 
 1. 确认正式版本号，并同步 `scripts/manage.py` 与 `web/index.html`；测试和 Windows/macOS 构建都会读取并核对这两处，不需要另改测试。免 Git 更新仅识别更高版本，同号重新打包不会提示已安装用户升级。
 2. 完成回归、安装覆盖与卸载验证，再构建安装包及 SHA-256 校验文件。macOS 在 Apple Silicon 主机运行 `bash scripts/build_macos.sh --dmg`，验证 `.app` 和 `.dmg` 后上传 DMG 与校验文件。
-   Windows 可运行 GitHub Actions 的 `windows-installer` 工作流；推送版本标签也会触发构建。安装、覆盖安装和卸载验证通过后，从构建附件下载 EXE、SHA-256 和逐文件清单。
 3. 用户确认提交推送后，将同一提交推送到 Gitee、GitHub。
 4. 将上述简介和标签填写到 Gitee 仓库设置；两端创建对应发行版并上传相同 EXE 与校验文件。
 5. 发行说明注明 Windows 10/11 x64、macOS Apple Silicon、安装包使用 ad-hoc 签名、仅含示例书签及首次导入方法；不要上传私人数据、测试安装器或验证目录。
