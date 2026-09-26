@@ -77,7 +77,8 @@ class InstallerTests(TestCase):
                     installer.package_files(root)
 
     def test_version_is_read_without_importing_application(self):
-        self.assertEqual(installer.app_version(ROOT), "1.1.0")
+        # Raises unless the page and backend versions agree, so releases need no test edit.
+        self.assertRegex(installer.app_version(ROOT), r"^\d+\.\d+\.\d+$")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "scripts").mkdir()

@@ -67,7 +67,7 @@ html[data-skin="ember"] .cursor-glow {
 
 html[data-skin="paper"] {
   --text: #2c261d;
-  --muted: #7a6f60;
+  --muted: #6c6254;
   --glass: rgba(255, 248, 232, 0.72);
   --stroke: rgba(90, 70, 40, 0.14);
   --glow: rgba(180, 120, 50, 0.2);
@@ -191,7 +191,7 @@ html[data-skin="prism"] .cursor-glow { background: radial-gradient(520px 380px a
 /* ---- 浅色皮肤：雪 / 樱 / 瓷 ---- */
 html[data-skin="snow"] {
   --text: #2b3646;
-  --muted: #7c8ba1;
+  --muted: #606e82;
   --glass: rgba(252, 253, 255, 0.7);
   --stroke: rgba(72, 92, 120, 0.16);
   --glow: rgba(96, 136, 196, 0.26);
@@ -201,7 +201,7 @@ html[data-skin="snow"] {
 }
 html[data-skin="sakura"] {
   --text: #463440;
-  --muted: #a17f92;
+  --muted: #7e6273;
   --glass: rgba(255, 250, 252, 0.7);
   --stroke: rgba(170, 95, 130, 0.16);
   --glow: rgba(226, 120, 165, 0.26);
@@ -211,7 +211,7 @@ html[data-skin="sakura"] {
 }
 html[data-skin="celadon"] {
   --text: #2e4038;
-  --muted: #7f948a;
+  --muted: #5f7269;
   --glass: rgba(250, 253, 251, 0.7);
   --stroke: rgba(70, 125, 100, 0.16);
   --glow: rgba(70, 175, 140, 0.24);
@@ -423,7 +423,7 @@ html[data-skin="shuimo"] {
 }
 html[data-skin="daiqing"] {
   --text: #163f40;
-  --muted: #4e706a;
+  --muted: #466964;
   --glass: rgba(238, 250, 243, .92);
   --stroke: rgba(29, 104, 93, .25);
   --glow: rgba(35, 142, 121, .22);

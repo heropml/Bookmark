@@ -9,7 +9,8 @@ function fixture({ layout = 'board', folder = '', items } = {}) {
     ...Array.from({ length: 45 }, (_, i) => ({ title: '工具 ' + i, href: 'https://example.com/tool/' + i, host: 'example.com', path: '工具/开发/前端', group: '工具' })),
     ...Array.from({ length: 10 }, (_, i) => ({ title: '办公 ' + i, href: 'https://example.org/office/' + i, host: 'example.org', path: '公司/办公', group: '公司' }))
   ];
-  const storage = new Map([['bm-folder', folder]]);
+  // folder: null means nothing was saved yet, so the page starts from its default category.
+  const storage = new Map(folder === null ? [] : [['bm-folder', folder]]);
   const handlers = new Map();
   const elements = new Map();
   const element = id => {
@@ -271,4 +272,155 @@ test('分类折叠独立收起，加载更多保持状态，搜索重新展开',
   assert.equal(cardCount(app.html()), 8);
   app.search('无匹配');
   assert.match(app.html(), /没有找到匹配的书签/);
+});
+
+const work = (title, href, host, extra = {}) => ({ title, href, host, path: '工作', group: '工作', ...extra });
+
+test('首次打开没有“常用”分类时显示全部书签，而不是空页面', () => {
+  const app = fixture({ layout: 'classic', folder: null, items: [work('A', 'https://a.example/', 'a.example')] });
+  assert.equal(app.run('state.folder'), '');
+  assert.equal(app.elements.get('stats').textContent, '1 / 1');
+  assert.doesNotMatch(app.html(), /没有找到匹配的书签/);
+  const example = fixture({ layout: 'classic', folder: null, items: [{ ...work('G', 'https://g.example/', 'g.example'), path: '常用', group: '常用' }] });
+  assert.equal(example.run('state.folder'), '常用', '示例数据仍默认打开“常用”');
+});
+
+test('同步后已不存在的旧分类回到全部，仍存在的分类保持不变', () => {
+  const items = [work('A', 'https://a.example/', 'a.example')];
+  const stale = fixture({ layout: 'classic', folder: '已删除', items });
+  assert.equal(stale.run('state.folder'), '');
+  assert.equal(stale.storage.get('bm-folder'), '');
+  assert.equal(stale.elements.get('stats').textContent, '1 / 1');
+  const kept = fixture({ layout: 'classic', folder: '工作', items });
+  assert.equal(kept.run('state.folder'), '工作');
+  assert.equal(kept.storage.get('bm-folder'), '工作');
+});
+
+test('书签地址转义后才写入页面，脚本地址保持不可点击', () => {
+  const app = fixture({ layout: 'classic', folder: '工作', items: [
+    work('Quote', 'https://x.example/?q="a" onmouseover="alert(1)', 'x.example'),
+    work('Script', ' java\tscript:alert(1)', ''),
+    work('Data', 'DATA:text/html,<script>alert(1)</script>', ''),
+    work('Tool', 'obsidian://open?vault=notes', '')
+  ] });
+  const html = app.html();
+  assert.doesNotMatch(html, /onmouseover="/, "引号不能提前结束 href 并注入事件属性");
+  assert.match(html, /href="https:\/\/x\.example\/\?q=&quot;a&quot; onmouseover=&quot;alert\(1\)"/);
+  assert.doesNotMatch(html, /href="[^"]*(java\s*script|data):/i);
+  assert.equal((html.match(/aria-disabled="true"/g) || []).length, 2);
+  assert.match(html, /href="obsidian:\/\/open\?vault=notes"/, '其他应用的链接保留可点击');
+});
+
+test('网站图标不含内联脚本和账号密码，失败时先换备用源再保留首字母', () => {
+  const app = fixture({ layout: 'classic', folder: '工作', items: [
+    work('Router', 'http://admin:secret@192.168.1.1/', "admin:secret@192.168.1.1"),
+    work('Quote', "https://q.example/", "x'-alert(1)-'.example")
+  ] });
+  const html = app.html();
+  assert.doesNotMatch(html, /onerror=/);
+  assert.doesNotMatch(html, /<img[^>]*secret/);
+  assert.match(html, /<p>192\.168\.1\.1<\/p>/);
+  assert.match(html, /data-fallback="https:\/\/icons\.duckduckgo\.com\/ip3\/192\.168\.1\.1\.ico"/);
+  let removed = false;
+  const img = { tagName: 'IMG', src: 'primary', dataset: { fallback: 'backup' }, remove() { removed = true; } };
+  app.handlers.get('main:error')({ target: img });
+  assert.equal(img.src, 'backup');
+  assert.equal(removed, false);
+  app.handlers.get('main:error')({ target: img });
+  assert.equal(removed, true);
+});
+
+test('区块标题用面包屑，卡片标签只显示区块以下的路径', () => {
+  const items = [
+    { title: 'React', href: 'https://react.dev/', host: 'react.dev', path: '开发/前端/框架', group: '开发' },
+    { title: 'MDN', href: 'https://developer.mozilla.org/', host: 'developer.mozilla.org', path: '开发/前端', group: '开发' }
+  ];
+  const app = fixture({ layout: 'classic', folder: '开发', items });
+  const html = app.html();
+  assert.match(html, /<span class="section-parent">开发 ›<\/span>前端/);
+  assert.doesNotMatch(html, /开发\/前端</, '标题不再显示原始斜杠路径');
+  const tags = [...html.matchAll(/<span class="tag">([^<]*)<\/span>/g)].map(match => match[1]);
+  assert.deepEqual(tags, ['框架'], '只显示比区块更深的一级，与标题重复的部分不再出现');
+  const all = fixture({ layout: 'classic', folder: '', items });
+  all.search('mdn');
+  assert.match(all.html(), /<span class="tag">前端<\/span>/, '搜索时区块是一级分类，标签显示其下的路径');
+  all.search('react');
+  assert.match(all.html(), /<span class="tag">前端\/框架<\/span>/);
+});
+
+test('总览分类卡带前几个网站的图标，完整名称放在悬停提示中', () => {
+  const items = ['a', 'b', 'c', 'd', 'e'].map(name => ({ title: name, href: `https://${name}.example/`, host: `${name}.example`, path: '很长的分类名称用于测试', group: '很长的分类名称用于测试' }));
+  items.push({ title: 'script', href: 'javascript:void 0', host: '', path: '很长的分类名称用于测试', group: '很长的分类名称用于测试' });
+  const app = fixture({ layout: 'classic', folder: '', items });
+  const html = app.html();
+  assert.match(html, /<button type="button" class="card"[^>]*title="很长的分类名称用于测试"/);
+  const peek = html.match(/<span class="card-peek" aria-hidden="true">([\s\S]*?)<\/span>/);
+  assert.ok(peek, '分类卡应有网站图标预览');
+  assert.equal((peek[1].match(/<img /g) || []).length, 4, '最多四个，且跳过没有域名的书签');
+});
+
+test('没有域名的书签保留首字母，不发起注定失败的图标请求；普通卡片有完整标题提示', () => {
+  const app = fixture({ layout: 'classic', folder: '工作', items: [
+    { title: '本地文件', href: 'file:///C:/notes.txt', host: '', path: '工作', group: '工作' },
+    { title: '一个很长很长的网站标题', href: 'https://long.example/', host: 'long.example', path: '工作', group: '工作' }
+  ] });
+  const cards = app.html().split('<a class="card"').slice(1);
+  assert.doesNotMatch(cards[0], /<img/);
+  assert.match(cards[0], /<span>本<\/span>/);
+  assert.match(cards[1], /title="一个很长很长的网站标题"/);
+});
+
+test('目录树标题栏显示当前分类，可收起展开，选择分类后自动收起', () => {
+  const app = fixture({ layout: 'tree', folder: '工具/开发' });
+  const nav = () => app.elements.get('nav').innerHTML;
+  assert.match(nav(), /<div class="tree-caption tree-caption-static">书签目录<span>工具 › 开发<\/span><\/div>/);
+  assert.match(nav(), /<button type="button" class="tree-caption tree-caption-toggle" data-tree-menu aria-expanded="false">书签目录<span>工具 › 开发<\/span><\/button>/);
+  assert.match(nav(), /<nav class="nav-col tree-nav" /, '默认收起');
+  const toggled = { expanded: null, open: null };
+  const menu = { setAttribute: (name, value) => { toggled.expanded = value; }, closest: () => ({ classList: { toggle: (name, on) => { toggled.open = on; } } }) };
+  app.context.event = { target: { closest: selector => selector === '[data-tree-menu]' ? menu : null } };
+  app.run('pickFolder(event)');
+  assert.deepEqual(toggled, { expanded: 'true', open: true });
+  app.run('render()');
+  assert.match(nav(), /tree-nav is-open/, '展开状态在重新渲染后保留');
+  app.choose('公司');
+  assert.match(nav(), /<nav class="nav-col tree-nav" /, '选择分类后收起，把书签留在首屏');
+  assert.match(nav(), /<span>公司<\/span><\/button>/);
+});
+
+test('目录树选择分类后，手机聚焦可见标题按钮，桌面仍聚焦所选分类；调整宽度后使用当前布局', () => {
+  const app = fixture({ layout: 'tree', folder: '工具/开发' });
+  const focused = [];
+  const tree = { scrollTop: 48 };
+  const menu = { focus: () => focused.push('menu'), closest: () => tree };
+  const labels = ['工具', '公司'].map(folder => ({
+    dataset: { folder }, focus: () => focused.push(folder), closest: () => tree
+  }));
+  let mobile = true;
+  app.context.matchMedia = query => ({ matches: mobile && query === '(max-width: 600px)' });
+  app.context.document.querySelector = selector => selector === '[data-tree-menu]' ? menu : null;
+  app.context.document.querySelectorAll = selector => selector === '.tree-label' ? labels : [];
+  app.elements.get('nav').firstElementChild = tree;
+
+  app.run('treeMenuOpen = true');
+  app.choose('公司');
+  assert.deepEqual(focused, ['menu'], '收起目录后不能把焦点放在隐藏的分类按钮上');
+  assert.equal(app.run('treeMenuOpen'), false);
+  assert.equal(tree.scrollTop, 48);
+
+  mobile = false;
+  app.choose('工具');
+  assert.deepEqual(focused, ['menu', '工具'], '切回桌面后聚焦仍可见的分类');
+  assert.equal(tree.scrollTop, 48);
+
+  mobile = true;
+  app.choose('公司');
+  assert.deepEqual(focused, ['menu', '工具', 'menu']);
+});
+
+test('看板只有嵌套分类才显示路径行，一级分类不重复名称', () => {
+  const app = fixture({ layout: 'board', folder: '' });
+  assert.doesNotMatch(app.html(), /class="board-path"/);
+  app.choose('工具');
+  assert.match(app.html(), /<p class="board-path" title="工具\/开发">工具\/开发<\/p>/);
 });

@@ -28,7 +28,7 @@
   <canvas id="fx-canvas" aria-hidden="true"></canvas>
   <div id="folderNameTooltip" class="folder-name-tooltip" role="tooltip" hidden></div>
   <div class="app-meta">
-    <div id="appVersion" class="app-version" aria-label="当前版本">v1.1.0</div>
+    <div id="appVersion" class="app-version" aria-label="当前版本">v1.1.1</div>
     <div id="updateNotice" class="update-notice" hidden>
       <button type="button" id="updateBtn" class="update-action" aria-label="发现新版本，点击升级" title="发现新版本，点击升级"></button>
     </div>
@@ -71,8 +71,8 @@
       <input id="q" type="search" placeholder="搜索书签、网站或分类" autofocus />
       <kbd class="search-kbd" id="searchKbd" aria-hidden="true">Ctrl K</kbd>
     </div>
-    <div class="tools">
-      <button type="button" id="bookmarkSyncBtn" class="stat sync-trigger" title="同步浏览器书签" aria-label="同步浏览器书签" aria-haspopup="dialog" aria-controls="bookmarkSyncDialog">
+      <div class="tools">
+        <button type="button" id="bookmarkSyncBtn" class="stat sync-trigger" title="同步浏览器书签" aria-label="同步浏览器书签" aria-haspopup="dialog" aria-controls="bookmarkSyncDialog">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11V4h12v7M9 4v5l3-2 3 2V4M4 15a8 8 0 0 0 14 4l2-3M20 16v5m0-5h-5M4 15v-5m0 5h5"/></svg>
         <span>同步书签</span>
       </button>
@@ -86,7 +86,15 @@
       </button>
     </div>
     <div id="appearanceMenu" class="appearance-panel appearance-menu" hidden aria-label="外观设置">
-      <div class="appearance-head"><div><strong>外观实验室</strong><small>即时预览 · 自动记忆</small></div><button type="button" id="appearanceMenuClose" class="appearance-close" aria-label="关闭外观菜单">×</button></div>
+      <div class="appearance-head">
+        <div class="appearance-heading-copy"><strong>外观实验室</strong><small>即时预览 · 自动记忆</small></div>
+        <div class="appearance-head-actions">
+          <button type="button" id="serviceRestartBtn" class="appearance-service-action" title="重启书签" aria-label="重启书签" aria-haspopup="dialog" aria-controls="serviceRestartDialog" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2 5"/></svg>
+          </button>
+          <button type="button" id="appearanceMenuClose" class="appearance-close" aria-label="关闭外观菜单">×</button>
+        </div>
+      </div>
       <div id="appearanceCategories" class="appearance-categories">
         <button type="button" class="appearance-category" data-setting="skin" aria-expanded="false" aria-controls="appearancePanel">
           <span class="appearance-art" aria-hidden="true"><svg viewBox="0 0 52 48" fill="none"><defs><linearGradient id="menuPrism" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#38bdf8"/><stop offset=".5" stop-color="#a78bfa"/><stop offset="1" stop-color="#fb7185"/></linearGradient></defs><circle cx="26" cy="24" r="14" fill="url(#menuPrism)" opacity=".22"/><circle cx="26" cy="24" r="9" fill="url(#menuPrism)"/><g class="art-orbit"><ellipse cx="26" cy="24" rx="23" ry="10" fill="none" stroke="url(#menuPrism)" stroke-width="2" transform="rotate(-32 26 24)"/><circle cx="44" cy="12" r="3" fill="#38bdf8"/><circle cx="9" cy="35" r="2.5" fill="#fb7185"/></g><path d="m27 17 2 4-4-1" fill="#fff" opacity=".8"/></svg></span>
@@ -272,8 +280,27 @@
       <p id="bookmarkSyncDetected" class="sync-detected">正在识别当前浏览器…</p>
       <div class="sync-notice"><strong>同步前请确认</strong><p>将替换本主页现有书签和分类，不会修改浏览器里的收藏夹。</p><small>多账号浏览器按最近使用的配置读取，网页无法确定当前标签页所属账号。</small></div>
       <p id="bookmarkSyncStatus" class="sync-status" role="status" aria-live="polite"></p>
+      <div id="bookmarkSyncHelp" class="sync-help" hidden>
+        <details><summary>查看解决步骤</summary><ol id="bookmarkSyncSteps"></ol></details>
+        <div class="sync-help-actions">
+          <button id="bookmarkSyncSettings" type="button" hidden>打开系统设置</button>
+          <button id="bookmarkSyncRestart" type="button" aria-haspopup="dialog" aria-controls="serviceRestartDialog" hidden>重启书签</button>
+        </div>
+      </div>
       <div class="sync-actions"><button id="bookmarkSyncCancel" type="button">取消</button><button id="bookmarkSyncConfirm" class="sync-confirm" type="submit" disabled>确认同步</button></div>
     </form>
+  </dialog>
+  <p id="serviceRestartStatus" class="service-restart-status" role="status" hidden></p>
+  <dialog id="serviceRestartDialog" class="sync-dialog restart-dialog" aria-labelledby="serviceRestartTitle" aria-describedby="serviceRestartDescription">
+    <div class="sync-head">
+      <span class="sync-heading-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2 5"/></svg></span>
+      <h2 id="serviceRestartTitle">重启书签？</h2>
+    </div>
+    <p id="serviceRestartDescription" class="sync-description">将重启后台服务并自动刷新页面。书签、当前分类和外观设置会保留。</p>
+    <div class="sync-actions">
+      <button id="serviceRestartCancel" type="button" autofocus>取消</button>
+      <button id="serviceRestartConfirm" class="sync-confirm" type="button">确认重启</button>
+    </div>
   </dialog>
   <div class="layout">
     <div id="nav" class="nav-cols"></div>

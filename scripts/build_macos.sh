@@ -4,15 +4,18 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 APP_NAME="Bookmark"
+# Same check as the Windows installer: the page and backend versions must agree.
 VERSION="$(python3.11 - <<'PY'
-import re
+import sys
 from pathlib import Path
 
-source = Path("scripts/manage.py").read_text(encoding="utf-8")
-match = re.search(r'^APP_VERSION\s*=\s*"v([^"]+)"', source, re.M)
-if not match:
-    raise SystemExit("Could not read APP_VERSION from scripts/manage.py")
-print(match.group(1))
+sys.path.insert(0, "scripts")
+from build_installer import app_version
+
+try:
+    print(app_version(Path(".")))
+except ValueError as error:
+    raise SystemExit(error)
 PY
 )"
 BUILD_DIR="build_macos"

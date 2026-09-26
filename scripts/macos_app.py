@@ -97,15 +97,7 @@ def prepare_runtime() -> Path:
 
 def open_page(manage) -> None:
     manage.build()
-    port = manage.pick_port()
-    if not manage.page_ok(port):
-        manage.serve_hidden(port)
-    version = "%s-%s" % (
-        manage.WEB_ROOT.joinpath("index.html").stat().st_mtime_ns,
-        manage.DATA_JS.stat().st_mtime_ns,
-    )
-    url = f"http://127.0.0.1:{port}/index.html?v={version}"
-    webbrowser.open(url)
+    webbrowser.open(manage.local_url())
 
 
 def main() -> None:

@@ -26,6 +26,8 @@ try {
   if (t) document.documentElement.dataset.trail = t;
   if (k) document.documentElement.dataset.sky = k;
   if (f === "on" || f === "off") document.documentElement.dataset.fx = f;
+  // Until the user picks an option, follow the system's reduce-motion setting.
+  else if (matchMedia("(prefers-reduced-motion: reduce)").matches) document.documentElement.dataset.fx = "off";
   const fav = document.createElement("link");
   fav.rel = "icon";
   fav.id = "fav";

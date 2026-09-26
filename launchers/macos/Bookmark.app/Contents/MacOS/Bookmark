@@ -1,43 +1,14 @@
 #!/bin/bash
 ROOT="$(cd "$(dirname "$0")/../../../../.." && pwd)"
-PORT=8765
 
 if [ ! -f "$ROOT/web/data.js" ] || [ "$ROOT/data/bookmarks.html" -nt "$ROOT/web/data.js" ]; then
   python3 -X utf8 "$ROOT/scripts/manage.py" --build >/dev/null 2>&1 || exit 1
 fi
 
-page_ok() {
-python3 - "$1" << 'PY'
-from urllib.request import urlopen
-import sys
-
-port = int(sys.argv[1])
-try:
-    with urlopen("http://127.0.0.1:%s/index.html" % port, timeout=0.5) as response:
-        page = response.read(4096)
-    with urlopen("http://127.0.0.1:%s/__health" % port, timeout=0.5) as response:
-        health = response.read(32)
-    sys.exit(0 if b"<title>\xe4\xb9\xa6\xe7\xad\xbe</title>" in page and health == b"bookmark-weather-v3\n" else 1)
-except OSError:
-    sys.exit(1)
-PY
-}
-
-while ! page_ok "$PORT"; do
-  if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
-    PORT=$((PORT + 1))
-    continue
-  fi
-  python3 -X utf8 "$ROOT/scripts/manage.py" --serve "$PORT" >/dev/null 2>&1 &
-  for _ in {1..20}; do
-    page_ok "$PORT" && break
-    sleep 0.1
-  done
-  break
-done
-
-BASE_URL="http://127.0.0.1:${PORT}/index.html"
-URL="${BASE_URL}?v=$(date +%s)-$$"
+# manage.py reuses only a service started from this directory, otherwise it starts one on a free port.
+URL="$(python3 -X utf8 "$ROOT/scripts/manage.py" --url 2>/dev/null)" || exit 1
+# A unique address per launch lets the window script below find the window it opened.
+URL="${URL}-$(date +%s)-$$"
 
 if [ -d "/Applications/Google Chrome.app" ]; then
   WINDOW_ARGS=("--start-maximized")

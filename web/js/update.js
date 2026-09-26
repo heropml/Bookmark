@@ -64,13 +64,13 @@ async function readUpdateResult(response) {
   return result;
 }
 
-async function waitForRestart(instance) {
+async function waitForRestart(instance, onReady = () => showUpdateProgress("done", "新服务已就绪，正在刷新页面")) {
   for (let attempt = 0; attempt < 20; attempt++) {
     await new Promise(resolve => window.setTimeout(resolve, 500));
     try {
       const service = await fetchJson("/__service", 1000);
       if (service.instance && service.instance !== instance) {
-        showUpdateProgress("done", "新服务已就绪，正在刷新页面");
+        onReady();
         window.location.reload();
         return;
       }
@@ -101,12 +101,13 @@ function openDownloadPage() {
   window.open(updateDownload, "_blank", "noopener");
 }
 
-async function checkForUpdate() {
+async function checkForUpdate(refresh = false) {
   if (updateChecking || updateInstalling) return;
   updateChecking = true;
   const generation = updateGeneration;
   try {
-    const response = await fetch("/__update", { cache: "no-store" });
+    // The service shares one recent result between pages; "check again" asks for a new one.
+    const response = await fetch(refresh ? "/__update?refresh=1" : "/__update", { cache: "no-store" });
     const status = await response.json();
     // A check started before an installation must not overwrite its UI later.
     if (generation !== updateGeneration) return;
@@ -185,10 +186,10 @@ async function installUpdate() {
 function initUpdate() {
   document.getElementById("updateProgressClose").addEventListener("click", () => { updateProgress.hidden = true; });
   updateBtn.addEventListener("click", () => {
-    if (updateBtn.dataset.action === "check") return checkForUpdate();
+    if (updateBtn.dataset.action === "check") return checkForUpdate(true);
     if (updateBtn.dataset.action === "download") return openDownloadPage();
     return installUpdate();
   });
   checkForUpdate();
-  window.setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL_MS);
+  window.setInterval(() => checkForUpdate(), UPDATE_CHECK_INTERVAL_MS);
 }

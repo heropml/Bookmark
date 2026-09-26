@@ -23,6 +23,19 @@ function fixture({ savedCity = city, route } = {}) {
   const requests = [];
   const intervals = [];
   const retryDelays = [];
+  const documentHandlers = new Map();
+  const document = {
+    hidden: false,
+    addEventListener: (type, callback) => documentHandlers.set(type, callback),
+    getElementById: id => {
+      if (!elements.has(id)) elements.set(id, {
+        textContent: '', innerHTML: '', disabled: false, title: '', attributes: {},
+        setAttribute(name, value) { this.attributes[name] = value; },
+        addEventListener(name, callback) { handlers.set(id + ':' + name, callback); }
+      });
+      return elements.get(id);
+    }
+  };
   const context = vm.createContext({
     AbortController, Date, URL, URLSearchParams,
     setTimeout: (callback, ms, ...args) => {
@@ -40,14 +53,7 @@ function fixture({ savedCity = city, route } = {}) {
       removeItem: key => storage.delete(key)
     },
     window: { prompt: () => prompts.shift() ?? null },
-    document: { getElementById: id => {
-      if (!elements.has(id)) elements.set(id, {
-        textContent: '', innerHTML: '', disabled: false, title: '', attributes: {},
-        setAttribute(name, value) { this.attributes[name] = value; },
-        addEventListener(name, callback) { handlers.set(id + ':' + name, callback); }
-      });
-      return elements.get(id);
-    } },
+    document,
     currentWeatherCode: null,
     syncParticles() {},
     fetch: async (url, options = {}) => {
@@ -67,7 +73,7 @@ function fixture({ savedCity = city, route } = {}) {
   }
   vm.runInContext('initWeatherControls()', context);
   return {
-    context, requests, storage, elements, intervals, retryDelays,
+    context, requests, storage, elements, intervals, retryDelays, document, documentHandlers,
     run: code => vm.runInContext(code, context),
     async click(name) { prompts.push(name); await handlers.get('weather:click')(); },
     async settled() {
@@ -140,18 +146,67 @@ test('自动定位较晚返回时，不覆盖用户手动选择的城市', async
   assert.match(app.elements.get('weatherTxt').textContent, /宁波$/);
 });
 
-test('打开、手动刷新和 10 分钟周期仍绕过新鲜缓存', async () => {
+test('打开和手动刷新仍绕过新鲜缓存', async () => {
   const app = fixture();
   app.storage.set('bm-weather', JSON.stringify({ text: '旧缓存', code: 0, at: Date.now() }));
   app.run('initWeatherRefresh()');
   await app.settled();
-  assert.equal(app.intervals.length, 1);
-  assert.equal(app.intervals[0].ms, 600000);
   await app.run('loadWeather(false, true)');
-  await app.intervals[0].callback();
-  assert.equal(app.requests.filter(r => r.url.startsWith('https://api.open-meteo.com/')).length, 3);
-  assert.equal(app.requests.filter(r => r.url.startsWith('/__weather?')).length, 3);
+  assert.equal(app.requests.filter(r => r.url.startsWith('https://api.open-meteo.com/')).length, 2);
+  assert.equal(app.requests.filter(r => r.url.startsWith('/__weather?')).length, 2);
   assert.match(app.elements.get('weatherTxt').textContent, /22° · 杭州/);
+});
+
+const weatherCache = (text, age) => JSON.stringify({ text, code: 0, at: Date.now() - age });
+
+test('每分钟检查一次，复用其他标签页刚写入的缓存，满 10 分钟才重新请求', async () => {
+  const app = fixture();
+  app.run('initWeatherRefresh()');
+  await app.settled();
+  assert.equal(app.intervals.length, 1);
+  assert.equal(app.intervals[0].ms, 60000);
+  const opened = app.requests.length;
+  app.storage.set('bm-weather', weatherCache('晴 18° · 杭州', 60000));
+  app.intervals[0].callback();
+  await app.settled();
+  assert.equal(app.requests.length, opened, '其他标签页刚刷新过，不应重复请求');
+  assert.equal(app.elements.get('weatherTxt').textContent, '晴 18° · 杭州');
+  app.storage.set('bm-weather', weatherCache('晴 18° · 杭州', 600000));
+  app.intervals[0].callback();
+  await app.settled();
+  assert.ok(app.requests.length > opened);
+  assert.match(app.elements.get('weatherTxt').textContent, /22° · 杭州/);
+});
+
+test('后台页面不定时请求，切回页面时补上过期天气', async () => {
+  const app = fixture();
+  app.run('initWeatherRefresh()');
+  await app.settled();
+  const opened = app.requests.length;
+  app.storage.set('bm-weather', weatherCache('晴 18° · 杭州', 600000));
+  app.document.hidden = true;
+  app.intervals[0].callback();
+  app.documentHandlers.get('visibilitychange')();
+  await app.settled();
+  assert.equal(app.requests.length, opened);
+  app.document.hidden = false;
+  app.documentHandlers.get('visibilitychange')();
+  await app.settled();
+  assert.ok(app.requests.length > opened);
+  assert.match(app.elements.get('weatherTxt').textContent, /22° · 杭州/);
+});
+
+test('定时检查不会中断正在进行的手动刷新', async () => {
+  const slow = deferred();
+  const app = fixture({ route: url => url.startsWith('https://api.open-meteo.com/') ? slow.promise : undefined });
+  const manual = app.run('loadWeather(false, true)');
+  await new Promise(resolve => setImmediate(resolve));
+  const pending = app.requests.length;
+  app.run('refreshStaleWeather()');
+  assert.equal(app.requests.length, pending);
+  slow.resolve(response({ current: { weather_code: 0, temperature_2m: 21 } }));
+  await manual;
+  assert.match(app.elements.get('weatherTxt').textContent, /21° · 杭州/);
 });
 
 test('天气刷新失败保留原数据并恢复按钮', async () => {

@@ -84,6 +84,7 @@ function setupChoice(list, key, containerId, resolve) {
   const root = document.documentElement;
   let stored = null;
   try { stored = localStorage.getItem("bm-" + key); } catch (e) {}
+  let followsSystem = key === "fx" && stored === null;
   const cur = stored && list.some((x) => x.id === stored)
     ? stored
     : root.dataset[key] || list[0].id;
@@ -92,10 +93,12 @@ function setupChoice(list, key, containerId, resolve) {
     <button type="button" class="choice" data-value="${item.id}" aria-pressed="false">
       ${choicePreview(key, item.id)}<b>${item.name}</b>
     </button>`).join("");
-  const apply = (id, syncShortcut = false) => {
+  const apply = (id, syncShortcut = false, persist = true) => {
     const item = list.find((x) => x.id === id) || list[0];
     root.dataset[key] = resolve ? resolve(item.id) : item.id;
-    try { localStorage.setItem("bm-" + key, item.id); } catch (e) {}
+    if (persist) {
+      try { localStorage.setItem("bm-" + key, item.id); } catch (e) {}
+    }
     for (const btn of container.querySelectorAll(".choice")) {
       btn.setAttribute("aria-pressed", String(btn.dataset.value === item.id));
     }
@@ -105,14 +108,21 @@ function setupChoice(list, key, containerId, resolve) {
       const fav = document.getElementById("fav");
       if (fav) fav.href = "/__favicon?skin=" + encodeURIComponent(root.dataset.skin);
       document.getElementById("appearanceLabel").textContent = "外观 · " + item.name;
-      if (syncShortcut) fetch("/__icon?skin=" + encodeURIComponent(root.dataset.skin)).catch(() => {});
+      if (syncShortcut) fetch("/__icon?skin=" + encodeURIComponent(root.dataset.skin), { method: "POST" }).catch(() => {});
     }
     if (key === "fx" || key === "sky") window.dispatchEvent(new Event("bm-fx"));
   };
-  apply(list.some((x) => x.id === cur) ? cur : list[0].id);
+  // Loading rewrites only a stored choice; defaults such as the reduced-motion one stay unset.
+  apply(list.some((x) => x.id === cur) ? cur : list[0].id, false, stored !== null);
+  if (key === "fx") {
+    matchMedia("(prefers-reduced-motion: reduce)").addEventListener("change", (event) => {
+      if (followsSystem) apply(event.matches ? "off" : "on", false, false);
+    });
+  }
   container.addEventListener("click", (event) => {
     const btn = event.target.closest(".choice");
     if (!btn) return;
+    if (key === "fx") followsSystem = false;
     const previous = root.dataset[key];
     apply(btn.dataset.value, key === "skin");
     if (key === "layout" && previous !== root.dataset.layout &&
@@ -174,7 +184,7 @@ function initAppearance() {
       document.documentElement.dataset.skin = resolved;
       const fav = document.getElementById("fav");
       if (fav) fav.href = "/__favicon?skin=" + encodeURIComponent(resolved);
-      fetch("/__icon?skin=" + encodeURIComponent(resolved)).catch(() => {});
+      fetch("/__icon?skin=" + encodeURIComponent(resolved), { method: "POST" }).catch(() => {});
     }
   });
 

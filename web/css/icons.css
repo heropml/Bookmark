@@ -1,5 +1,6 @@
 html[data-icon="letter"] .ico img { display: none !important; }
 html[data-icon="letter"] .ico span { font-size: 18px; }
+html:is([data-skin="paper"], [data-skin="snow"], [data-skin="sakura"], [data-skin="celadon"], [data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"])[data-icon="logo"] .ico span { color: var(--text); }
 
 html[data-icon="glass"] .ico {
   border: 1px solid rgba(255,255,255,0.34);

@@ -77,8 +77,22 @@ class ProgressHTTPTests(TestCase):
         self.worker.join(timeout=2)
         self.restart.stop()
 
-    def request(self, streaming=True):
-        return Request(self.url, method="POST", headers={"Accept": "application/x-ndjson"} if streaming else {})
+    def request(self, streaming=True, origin=None):
+        headers = {"Origin": origin or f"http://127.0.0.1:{self.server.server_port}"}
+        if streaming:
+            headers["Accept"] = "application/x-ndjson"
+        return Request(self.url, method="POST", headers=headers)
+
+    def test_other_sites_cannot_start_an_upgrade(self):
+        with patch.object(manage, "update_repository") as upgrade:
+            for origin in ("https://evil.example", "null"):
+                with self.subTest(origin=origin):
+                    with self.assertRaises(HTTPError) as caught:
+                        urlopen(self.request(origin=origin), timeout=2)
+                    with caught.exception as response:
+                        self.assertEqual(response.code, 403)
+        upgrade.assert_not_called()
+        self.schedule.assert_not_called()
 
     def test_progress_arrives_before_upgrade_finishes(self):
         release = threading.Event()

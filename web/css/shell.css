@@ -233,6 +233,7 @@ header {
   outline: none;
   font: inherit;
 }
+.search input::placeholder { color: var(--muted); opacity: 1; }
 .search input:focus {
   border-color: rgba(125, 211, 252, 0.7);
   box-shadow: 0 0 0 4px var(--glow), 0 16px 48px rgba(0, 0, 0, 0.35);
@@ -256,6 +257,8 @@ header {
 }
 .search input:focus ~ .search-kbd,
 .search input:not(:placeholder-shown) ~ .search-kbd { opacity: 0; }
+/* Touch screens have no Ctrl/⌘ K to press. */
+@media (hover: none) and (pointer: coarse) { .search-kbd { display: none; } }
 .search-ico {
   position: absolute;
   left: 16px;

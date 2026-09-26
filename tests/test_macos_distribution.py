@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
 from urllib.error import HTTPError
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -137,17 +137,39 @@ class MacOSDistributionTests(TestCase):
         threading.Thread(target=server.serve_forever, daemon=True).start()
         self.addCleanup(server.shutdown)
         url = f"http://127.0.0.1:{server.server_port}/__icon?skin=aurora"
+        page = {"Origin": f"http://127.0.0.1:{server.server_port}"}
         with patch.object(manage.sys, "platform", "darwin"):
-            with urlopen(url, timeout=5) as response:
+            with urlopen(Request(url, method="POST", headers=page), timeout=5) as response:
                 self.assertEqual(response.status, 204)
         # Windows still reports a failure rather than resetting the connection.
         with patch.object(manage.sys, "platform", "win32"):
             with patch.dict("sys.modules", {"shortcut": SimpleNamespace(
                     set_icon=lambda skin: (_ for _ in ()).throw(SystemExit("missing icon")))}):
                 with self.assertRaises(HTTPError) as failure:
-                    urlopen(url, timeout=5)
+                    urlopen(Request(url, method="POST", headers=page), timeout=5)
         self.addCleanup(failure.exception.close)
         self.assertEqual(failure.exception.code, 400)
+
+    def test_other_sites_cannot_change_the_shortcut_icon(self):
+        spec = importlib.util.spec_from_file_location("bookmark_icon_origin_manage", ROOT / "scripts" / "manage.py")
+        manage = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(manage)
+        server = manage.BookmarkServer(("127.0.0.1", 0), manage.Handler)
+        self.addCleanup(server.server_close)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.shutdown)
+        url = f"http://127.0.0.1:{server.server_port}/__icon?skin=cyber"
+        changed = []
+        icons = SimpleNamespace(set_icon=changed.append)
+        with patch.object(manage.sys, "platform", "win32"), patch.dict("sys.modules", {"shortcut": icons}):
+            # An <img> or form on another site cannot carry this page's Origin.
+            for request in (Request(url), Request(url, method="POST", headers={"Origin": "https://evil.example"})):
+                with self.subTest(method=request.get_method()):
+                    with self.assertRaises(HTTPError) as failure:
+                        urlopen(request, timeout=5)
+                    failure.exception.close()
+                    self.assertIn(failure.exception.code, (403, 404))
+        self.assertEqual(changed, [])
 
     def test_packaged_restart_relaunches_the_app_not_a_python_script(self):
         spec = importlib.util.spec_from_file_location("bookmark_packaged_restart", ROOT / "scripts" / "manage.py")
@@ -158,14 +180,12 @@ class MacOSDistributionTests(TestCase):
                          ["/Applications/Bookmark.app/Contents/MacOS/Bookmark", "--serve", "8765"])
 
     def test_open_page_uses_the_default_browser(self):
+        steps = []
         manage = SimpleNamespace(
-            build=lambda: None,
-            pick_port=lambda: 8765,
-            page_ok=lambda _port: True,
-            WEB_ROOT=ROOT / "web",
-            DATA_JS=ROOT / "web" / "data.example.js",
+            build=lambda: steps.append("build"),
+            local_url=lambda: steps.append("url") or "http://127.0.0.1:8765/index.html?v=1-2",
         )
         with patch.object(macos_app.webbrowser, "open") as browser:
             macos_app.open_page(manage)
-        browser.assert_called_once()
-        self.assertIn("http://127.0.0.1:8765/index.html", browser.call_args.args[0])
+        self.assertEqual(steps, ["build", "url"], "页面数据应先于打开页面生成")
+        browser.assert_called_once_with("http://127.0.0.1:8765/index.html?v=1-2")

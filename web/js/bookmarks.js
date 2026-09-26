@@ -1,17 +1,19 @@
-const ITEMS = (window.BOOKMARKS || []).map((it) => ({
-  ...it,
-  search: [it.title, it.href, it.path, it.group, it.host].join(" ").toLowerCase(),
-  hue: hue(it.host || it.path)
-}));
+const ITEMS = (window.BOOKMARKS || []).map((it) => {
+  // Older data.js files may still carry "user:password@"; never show it or send it to icon services.
+  const host = String(it.host || "").replace(/^.*@/, "");
+  return {
+    ...it,
+    host,
+    search: [it.title, it.href, it.path, it.group, host].join(" ").toLowerCase(),
+    hue: hue(host || it.path)
+  };
+});
 const folderNameTooltip = document.getElementById("folderNameTooltip");
 
 function hue(text) {
   let h = 0;
   for (const ch of String(text)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return h % 360;
-}
-function sortNames(names) {
-  return [...names];
 }
 function inFolder(item) {
   if (!state.folder) return true;
@@ -68,28 +70,58 @@ function openColumns(folder, tree) {
   return cols;
 }
 
+// Script URLs would run inside this local homepage, so such bookmarks stay visible but inert.
+function safeHref(href) {
+  const scheme = /^([a-z][a-z\d+.-]*):/i.exec(String(href).replace(/[\x00-\x20]/g, ""));
+  return scheme && /^(javascript|vbscript|data)$/i.test(scheme[1]) ? "" : href;
+}
+// Bookmarks without a host (scripts, local files) keep their letter instead of a doomed lookup.
+function faviconImg(host) {
+  if (!host) return "";
+  const encoded = encodeURIComponent(host);
+  return `<img src="https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${encoded}&size=64" data-fallback="https://icons.duckduckgo.com/ip3/${encoded}.ico" alt="" loading="lazy">`;
+}
+// The section heading already names the folder, so a tag only shows the path below it.
+function pathBelowSection(item) {
+  const key = sectionKey(item);
+  return item.path.startsWith(key + "/") ? item.path.slice(key.length + 1) : "";
+}
+function sectionTitle(name) {
+  const parts = name.split("/");
+  const last = parts.pop();
+  return (parts.length ? `<span class="section-parent">${escapeHtml(parts.join(" › "))} ›</span>` : "") + escapeHtml(last);
+}
 function cardHtml(item) {
   const h = item.hue;
   const letter = (item.title || item.host || "?").trim().charAt(0).toUpperCase();
-  const sub = item.path.includes("/") ? item.path.slice(item.path.indexOf("/") + 1) : "";
+  const sub = pathBelowSection(item);
+  const href = safeHref(item.href);
+  const link = href
+    ? `href="${escapeHtml(href)}" target="_blank" rel="noreferrer" title="${escapeHtml(item.title)}"`
+    : 'aria-disabled="true" title="书签脚本不能在主页中运行"';
   return `
-    <a class="card" style="--h:${h}" href="${item.href}" target="_blank" rel="noreferrer" data-key="${escapeHtml(item.href)}">
+    <a class="card" style="--h:${h}" ${link} data-key="${escapeHtml(item.href)}">
       <div class="ico">
         <span>${escapeHtml(letter)}</span>
-        <img src="https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${encodeURIComponent(item.host)}&size=64" alt="" loading="lazy" onerror="if(!this.dataset.fb){this.dataset.fb=1;this.src='https://icons.duckduckgo.com/ip3/${encodeURIComponent(item.host)}.ico'}else this.remove()">
+        ${faviconImg(item.host)}
       </div>
       <div>
         <h3>${escapeHtml(item.title)}</h3>
         <p>${escapeHtml(item.host)}</p>
         <div class="meta">
-          ${sub && state.folder.split("/").length < 2 ? `<span class="tag">${escapeHtml(sub)}</span>` : ""}
+          ${sub ? `<span class="tag">${escapeHtml(sub)}</span>` : ""}
           ${item.href.startsWith("http://") ? '<span class="tag">http</span>' : ""}
         </div>
       </div>
       <i class="card-glow" aria-hidden="true"></i>
     </a>`;
 }
-function selectedInCol(colPath, itemPath) {
+// A few site icons make each category card recognisable at a glance on the overview.
+function peekHtml(items) {
+  const hosts = [...new Set(items.map((item) => item.host).filter(Boolean))].slice(0, 4);
+  return hosts.length ? `<span class="card-peek" aria-hidden="true">${hosts.map(faviconImg).join("")}</span>` : "";
+}
+function selectedInCol(itemPath) {
   if (!state.folder) return itemPath === "";
   if (itemPath === "") return false;
   return state.folder === itemPath || state.folder.startsWith(itemPath + "/");
@@ -158,14 +190,14 @@ function render() {
   const cols = openColumns(state.folder, tree);
 
   document.getElementById("nav").innerHTML = document.documentElement.dataset.layout === "tree"
-    ? treeNavHtml(tree, groupCounts, searched.length)
+    ? treeNavHtml(tree, searched.length)
     : ["tabs", "start", "accordion"].includes(document.documentElement.dataset.layout)
     ? horizontalNavHtml(tree, searched.length)
     : cols.map((colPath) => {
     const node = nodeAt(tree, colPath);
     let items = [];
     if (colPath === "") {
-      const names = sortNames(Object.keys(tree.kids), groupCounts);
+      const names = Object.keys(tree.kids);
       items = [
         { name: "全部", path: "", count: searched.length, hasKids: false },
         ...names.map((name) => {
@@ -181,7 +213,7 @@ function render() {
     }
     const nameWidth = folderNameWidth(items);
     const buttons = items.map((it) => {
-      const on = selectedInCol(colPath, it.path) || (it.path === "" && !state.folder);
+      const on = selectedInCol(it.path) || (it.path === "" && !state.folder);
       const fullName = folderNameLength(it.name) > 4 ? ` data-full-name="${escapeHtml(it.name)}"` : "";
       return `<button class="folder ${it.hasKids ? "has-kids" : ""} ${on ? "on" : ""}" data-folder="${escapeHtml(it.path)}"${fullName} style="--h:${hue(it.path || it.name)}"><em class="dot"></em><b><span class="folder-name">${escapeHtml(it.name)}</span></b><span>${it.count}</span></button>`;
     }).join("");
@@ -215,11 +247,12 @@ function render() {
   }
   if (!state.folder && !state.q.trim()) {
     main.innerHTML = `<div class="grid">${order.map((name) => `
-      <button type="button" class="card" data-folder="${escapeHtml(name)}" data-key="folder:${escapeHtml(name)}" style="--h:${hue(name)}">
+      <button type="button" class="card" data-folder="${escapeHtml(name)}" data-key="folder:${escapeHtml(name)}" title="${escapeHtml(name)}" style="--h:${hue(name)}">
         <div class="ico"><span>${escapeHtml(name.charAt(0))}</span></div>
         <div>
           <h3>${escapeHtml(name)}</h3>
           <p>${sections.get(name).length} 个书签</p>
+          ${peekHtml(sections.get(name))}
         </div>
         <i class="card-glow" aria-hidden="true"></i>
       </button>`).join("")}</div>`;
@@ -235,7 +268,7 @@ function render() {
     used += shown.length;
     html.push(`
     <section class="section">
-      <h2 style="--h:${hue(name)}"><em class="dot"></em>${escapeHtml(name)}<span>${all.length}</span></h2>
+      <h2 style="--h:${hue(name)}"><em class="dot"></em>${sectionTitle(name)}<span>${all.length}</span></h2>
       <div class="grid">${shown.map(cardHtml).join("")}</div>
     </section>`);
   }
@@ -274,7 +307,9 @@ function pickFolder(e) {
   state.shown = PAGE;
   render();
   if (document.documentElement.dataset.layout === "tree") {
-    const selected = [...document.querySelectorAll(".tree-label")].find(el => el.dataset.folder === state.folder);
+    const selected = matchMedia("(max-width: 600px)").matches
+      ? document.querySelector("[data-tree-menu]")
+      : [...document.querySelectorAll(".tree-label")].find(el => el.dataset.folder === state.folder);
     if (selected) {
       selected.focus({ preventScroll: true });
       selected.closest(".tree-nav").scrollTop = treeScroll;
@@ -299,6 +334,11 @@ function hideFolderNameTooltip() {
 }
 
 function initBookmarks() {
+  // The saved or default category may not exist in these bookmarks, e.g. after a sync.
+  if (state.folder && !ITEMS.some(inFolder)) {
+    state.folder = "";
+    try { localStorage.setItem("bm-folder", ""); } catch (e) {}
+  }
   const nav = document.getElementById("nav");
   nav.addEventListener("click", pickFolder);
   nav.addEventListener("pointerover", (event) => {
@@ -314,7 +354,18 @@ function initBookmarks() {
     if (button) showFolderNameTooltip(button);
   });
   nav.addEventListener("focusout", hideFolderNameTooltip);
-  document.getElementById("main").addEventListener("click", pickFolder);
+  const main = document.getElementById("main");
+  main.addEventListener("click", pickFolder);
+  // Image errors do not bubble: try the second icon service once, then keep the letter.
+  main.addEventListener("error", (event) => {
+    const img = event.target;
+    if (img.tagName !== "IMG" || !img.dataset.fallback) return;
+    if (img.dataset.fb) img.remove();
+    else {
+      img.dataset.fb = "1";
+      img.src = img.dataset.fallback;
+    }
+  }, true);
   let searchTimer = 0;
   document.getElementById("q").addEventListener("input", (e) => {
     state.q = e.target.value;

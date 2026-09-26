@@ -40,7 +40,8 @@ html[data-layout="icons"] .card > div:not(.ico) {
 }
 html[data-layout="icons"] .card h3 { margin: 0; font-size: 12px; }
 html[data-layout="icons"] .card p,
-html[data-layout="icons"] .card .meta { display: none; }
+html[data-layout="icons"] .card .meta,
+html[data-layout="icons"] .card-peek { display: none; }
 .choice[data-value="icons"] .layout-swatch { grid-template-columns: repeat(3, 1fr); gap: 3px; }
 .choice[data-value="icons"] .layout-swatch i { border-radius: 50%; }
 
@@ -78,6 +79,8 @@ html[data-layout="board"] .nav-cols > .nav-col { flex-shrink: 0; width: 100%; ma
 }
 .board-heading span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .board-heading b { padding: 2px 8px; border: 1px solid var(--stroke); border-radius: 999px; color: var(--muted); font-size: 12px; font-weight: 400; }
+/* Top-level columns have no path line, so the heading itself spaces the cards. */
+.board-heading + .grid { margin-top: 12px; }
 .board-path { margin: 6px 0 14px 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 11px; }
 .board-column .grid { grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .board-column .card { min-height: 76px; padding: 11px; gap: 10px; }
@@ -92,8 +95,9 @@ html[data-layout="board"] .nav-cols > .nav-col { flex-shrink: 0; width: 100%; ma
 
 /* A bounded sidebar replaces the expanding multi-column navigation only in tree mode. */
 .tree-nav.nav-col { width: max-content; min-width: 0; max-width: 240px; }
-.tree-caption { display: flex; justify-content: space-between; gap: 8px; padding: 5px 8px 12px; color: var(--text); font-size: 13px; }
-.tree-caption span { color: var(--muted); font-size: 11px; }
+.tree-caption { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; width: 100%; padding: 5px 8px 12px; border: 0; background: none; color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: default; }
+.tree-caption span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 11px; }
+.tree-caption-toggle { display: none; }
 .tree-nav ul { list-style: none; padding: 0; margin: 0; }
 .tree-row { display: flex; align-items: center; min-width: 0; padding-left: calc(var(--tree-depth) * 12px); }
 .tree-all { margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--stroke); }
@@ -104,7 +108,7 @@ html[data-layout="board"] .nav-cols > .nav-col { flex-shrink: 0; width: 100%; ma
 .tree-toggle:hover { color: var(--text); background: var(--glass); }
 .tree-label.folder { width: auto; flex: 0 1 auto; min-width: 0; padding: 8px 6px; gap: 7px; }
 .tree-label.folder::after { display: none; }
-.tree-label.folder b { flex: 0 1 auto; width: auto; min-width: 2.8em; text-align: justify; text-align-last: justify; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; font-size: 13px; }
+.tree-label.folder b { flex: 0 1 auto; width: auto; min-width: 0; text-align: left; text-align-last: auto; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; font-size: 13px; }
 .tree-label.folder span { min-width: 24px; flex-shrink: 0; text-align: center; font-size: 11px; }
 .tree-folder-icon { width: 17px; height: 17px; flex: 0 0 17px; color: hsl(var(--h), 55%, 58%); fill: currentColor; fill-opacity: .15; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
 .board-heading button:focus-visible, .board-more:focus-visible, .tree-toggle:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
@@ -144,13 +148,14 @@ html[data-layout="start"] .search { grid-row: 2; grid-column: 1; max-width: 640p
 html[data-layout="start"] .layout { max-width: 1040px; margin: 0 auto; }
 html[data-layout="start"] .horizontal-tabs { width: auto; max-width: 100%; align-self: center; }
 html[data-layout="start"] .layout-breadcrumbs, html[data-layout="start"] .horizontal-children { align-self: center; justify-content: center; }
-html[data-layout="start"] .grid { grid-template-columns: repeat(auto-fill, minmax(var(--bookmark-start-min, 112px), 1fr)); gap: var(--bookmark-grid-gap, 12px); }
+/* Tiles keep a bounded width and center under the clock instead of hugging the left edge. */
+html[data-layout="start"] .grid { grid-template-columns: repeat(auto-fit, minmax(var(--bookmark-start-min, 112px), calc(var(--bookmark-start-min, 112px) * 1.3))); justify-content: center; gap: var(--bookmark-grid-gap, 12px); }
 html[data-layout="start"] .section { margin-inline: 0; }
-html[data-layout="start"] .section h2 { min-height: 28px; font-size: 14px; margin-bottom: 12px; }
+html[data-layout="start"] .section h2 { justify-content: center; min-height: 28px; font-size: 14px; margin-bottom: 12px; }
 html[data-layout="start"] .card { flex-direction: column; align-items: center; text-align: center; min-height: 112px; padding: 16px 10px; gap: 12px; }
 html[data-layout="start"] .card > div:not(.ico) { width: 100%; }
 html[data-layout="start"] .card h3 { margin: 0; font-size: 13px; }
-html[data-layout="start"] .card p, html[data-layout="start"] .card .meta { display: none; }
+html[data-layout="start"] .card p, html[data-layout="start"] .card .meta, html[data-layout="start"] .card-peek { display: none; }
 @media (max-width: 1100px) {
   html[data-layout="start"] .tools { position: static; transform: none; grid-row: 1; }
   html[data-layout="start"] .hello { grid-row: 2; }

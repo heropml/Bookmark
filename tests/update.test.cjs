@@ -174,6 +174,8 @@ test('证书失败显示具体提示，点击只重新检查，恢复后才允�
     assert.equal(app.elements.get('updateBtn').dataset.state, 'error');
     assert.match(app.elements.get('updateBtn').title, /证书验证失败.*重新检查/);
     await app.click();
+    assert.equal(app.calls[0].url, '/__update', '打开页面时使用服务端共享的检查结果');
+    assert.equal(app.calls[1].url, '/__update?refresh=1', '点击重新检查要求服务端重新获取');
     assert.equal(app.calls[1].options.method, undefined, '错误点不能直接发起安装');
     assert.equal(app.elements.get('updateBtn').dataset.state, 'ready');
     await app.click();

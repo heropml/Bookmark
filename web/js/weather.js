@@ -84,6 +84,7 @@ function setWeatherUI(text, code) {
   document.getElementById("weatherTxt").textContent = text;
 }
 const WEATHER_REFRESH_MS = 10 * 60 * 1000;
+const WEATHER_TICK_MS = 60 * 1000;
 const WEATHER_PRIMARY_TIMEOUT_MS = 4000;
 const WEATHER_FALLBACK_TIMEOUT_MS = 7000;
 const WEATHER_RETRY_COUNT = 3;
@@ -205,10 +206,17 @@ async function loadWeather(quiet, force = false) {
   syncParticles();
 }
 
+function refreshStaleWeather() {
+  // 其他标签页刚刷新过时直接用共享缓存；后台页面和进行中的请求不打扰。
+  if (document.hidden || weatherRequest) return;
+  loadWeather(true);
+}
+
 function initWeatherRefresh() {
-  // 首次打开（含网页刷新）立即获取；缓存仅用于等待期间的显示。
+  // 首次打开（含网页刷新）立即获取；之后每分钟检查，缓存满 10 分钟才重新请求，切回页面时补上。
   loadWeather(true, true);
-  setInterval(() => loadWeather(true, true), WEATHER_REFRESH_MS);
+  setInterval(refreshStaleWeather, WEATHER_TICK_MS);
+  document.addEventListener("visibilitychange", refreshStaleWeather);
 }
 
 function initWeatherControls() {

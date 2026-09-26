@@ -55,7 +55,7 @@ class UpdateStatusTests(TestCase):
             "remote": "remote1",
             "target": "remote111",
             "source": "Gitee",
-            "version": "v1.1.0",
+            "version": manage.APP_VERSION,
         })
 
     def test_declines_update_when_tracked_changes_exist(self):
@@ -64,7 +64,7 @@ class UpdateStatusTests(TestCase):
         self.assertFalse(status["available"])
         self.assertFalse(status["can_update"])
         self.assertEqual(status["reason"], "存在未提交的本地代码修改")
-        self.assertEqual(status["version"], "v1.1.0")
+        self.assertEqual(status["version"], manage.APP_VERSION)
 
     def test_updates_with_fast_forward_only(self):
         with patch.object(manage, "repository_update_status", return_value={
@@ -74,3 +74,48 @@ class UpdateStatusTests(TestCase):
             result = manage.update_repository()
         self.assertEqual(result, {"ok": True, "updated": True, "previous": "old1234", "current": "new5678", "source": "Gitee"})
         git.assert_any_call("merge", "--ff-only", "new5678full")
+
+
+class BookmarkDataTests(TestCase):
+    def test_hosts_never_keep_credentials(self):
+        self.assertEqual(manage.host_of("http://admin:secret@192.168.1.1:8080/login"), "192.168.1.1:8080")
+        self.assertEqual(manage.host_of("https://user@www.example.com/"), "example.com")
+        self.assertEqual(manage.host_of("https://www.example.com/a@b"), "example.com")
+
+    def test_toolbar_folder_is_not_a_category_in_any_language(self):
+        template = (
+            "<DL><p>\n"
+            '    <DT><H3 ADD_DATE="1" PERSONAL_TOOLBAR_FOLDER="true">{}</H3>\n'
+            "    <DL><p>\n"
+            '        <DT><A HREF="https://a.example/">A</A>\n'
+            "        <DT><H3>工作</H3>\n"
+            "        <DL><p>\n"
+            '            <DT><A HREF="https://b.example/">B</A>\n'
+            "        </DL><p>\n"
+            "    </DL><p>\n"
+            '    <DT><H3>其他收藏</H3>\n'
+            "    <DL><p>\n"
+            '        <DT><A HREF="https://c.example/">C</A>\n'
+            "    </DL><p>\n"
+            "</DL><p>\n"
+        )
+        for toolbar in ("书签栏", "收藏夹栏", "Bookmarks bar", "Favorites bar"):
+            with self.subTest(toolbar=toolbar):
+                items = manage.parse_html(template.format(toolbar))
+                self.assertEqual([(item["title"], item["path"], item["group"]) for item in items], [
+                    ("A", "其他", "其他"), ("B", "工作", "工作"), ("C", "其他收藏", "其他收藏"),
+                ])
+
+    def test_folder_named_like_the_chinese_toolbar_is_still_skipped_without_the_marker(self):
+        items = manage.parse_html('<DL><p>\n<DT><H3>书签栏</H3>\n<DL><p>\n<DT><A HREF="https://a.example/">A</A>\n</DL><p>\n</DL><p>\n')
+        self.assertEqual(items[0]["path"], "其他")
+
+    def test_page_data_only_carries_fields_the_page_reads(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as folder, patch.object(manage, "DATA_JS", Path(folder) / "data.js"):
+            item = {"title": "A", "href": "https://a.example/", "path": "工作", "group": "工作", "host": "a.example"}
+            manage.write_data([item], "test")
+            written = (Path(folder) / "data.js").read_text(encoding="utf-8")
+        self.assertEqual(written, 'window.BOOKMARKS = [{"title": "A", "href": "https://a.example/", '
+                                  '"path": "工作", "group": "工作", "host": "a.example"}];\n')

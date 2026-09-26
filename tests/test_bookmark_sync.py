@@ -6,7 +6,11 @@ import threading
 from unittest import TestCase
 from unittest.mock import patch
 from urllib.error import HTTPError
-from urllib.request import Request, urlopen
+from urllib.request import Request, build_opener, install_opener, urlopen
+
+# Build urllib's shared opener now: creating it later, while tests pretend to be on Windows,
+# makes ssl look for the Windows certificate store on other systems.
+install_opener(build_opener())
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("bookmark_sync_manage", ROOT / "scripts/manage.py")
@@ -43,12 +47,69 @@ class DirectoryServiceTests(TestCase):
                     ["chrome", "brave", "opera", "qq", "sogou", "quark", "html"],
                 )
 
+    def test_unreadable_or_malformed_local_state_is_reported_not_raised(self):
+        with tempfile.TemporaryDirectory() as folder:
+            local = Path(folder)
+            edge = local / "Microsoft/Edge/User Data"
+            (edge / "Default").mkdir(parents=True)
+            (edge / "Default/Bookmarks").write_text('{"roots": {}}', encoding="utf-8")
+            brave = local / "BraveSoftware/Brave-Browser/User Data"
+            (brave / "Default").mkdir(parents=True)
+            (brave / "Default/Bookmarks").write_text('{"roots": {}}', encoding="utf-8")
+            with patch.dict(manage.os.environ, {"LOCALAPPDATA": str(local)}):
+                (edge / "Local State").write_text("{broken", encoding="utf-8")
+                with self.assertRaisesRegex(SystemExit, "unable to read Edge profile"):
+                    manage.edge_bookmarks_file()
+                for state in ("[]", '{"profile": []}', '{"profile": {"last_used": null}}'):
+                    with self.subTest(state=state):
+                        (edge / "Local State").write_text(state, encoding="utf-8")
+                        with self.assertRaisesRegex(SystemExit, "Edge active profile was not found"):
+                            manage.edge_bookmarks_file()
+                        # Browsers without a usable Local State still fall back to Default.
+                        (brave / "Local State").write_text(state, encoding="utf-8")
+                        self.assertEqual(manage.chromium_bookmarks_file("brave"), ("Default", brave / "Default/Bookmarks"))
+                self.assertEqual(manage.edge_bookmarks_file("Default"), ("Default", edge / "Default/Bookmarks"))
+
+    def test_local_url_reuses_this_directory_service_or_starts_one(self):
+        with tempfile.TemporaryDirectory() as folder:
+            web = Path(folder)
+            (web / "index.html").write_text("<html>", encoding="utf-8")
+            (web / "data.js").write_text("window.BOOKMARKS = [];", encoding="utf-8")
+            version = f"{(web / 'index.html').stat().st_mtime_ns}-{(web / 'data.js').stat().st_mtime_ns}"
+            with patch.object(manage, "WEB_ROOT", web), patch.object(manage, "DATA_JS", web / "data.js"), patch.object(manage, "pick_port", return_value=8767):
+                with patch.object(manage, "page_ok", return_value=True), patch.object(manage, "serve_hidden") as start:
+                    self.assertEqual(manage.local_url(), f"http://127.0.0.1:8767/index.html?v={version}")
+                    start.assert_not_called()
+                with patch.object(manage, "page_ok", return_value=False), patch.object(manage, "serve_hidden") as start:
+                    manage.local_url()
+                    start.assert_called_once_with(8767)
+
+    def test_url_option_prints_only_the_address_for_launchers(self):
+        from io import StringIO
+        output = StringIO()
+        with patch.object(manage.sys, "argv", ["manage.py", "--url"]), patch.object(manage, "local_url", return_value="http://127.0.0.1:8765/index.html?v=1-2"), patch.object(manage, "build") as build, patch("sys.stdout", output):
+            manage.main()
+        self.assertEqual(output.getvalue(), "http://127.0.0.1:8765/index.html?v=1-2\n")
+        build.assert_not_called()
+
     def test_macos_sync_failure_explains_full_disk_access(self):
         with patch.object(manage.sys, "platform", "darwin"):
-            message = manage.sync_failure_message("chrome")
-        self.assertIn("Chrome", message)
-        self.assertIn("完全磁盘访问权限", message)
-        self.assertIn("/Applications/Bookmark.app", message)
+            failure = manage.sync_failure("chrome")
+        self.assertEqual(failure["message"], "macOS 未允许“书签”读取 Chrome 数据。")
+        self.assertTrue(failure["settings"])
+        self.assertTrue(failure["restart"])
+        steps = "".join(failure["steps"])
+        self.assertIn("完全磁盘访问权限", steps)
+        self.assertIn("/Applications/Bookmark.app", steps)
+        self.assertIn("即使开关已开启", steps)
+        self.assertIn("“−”移除", steps)
+        self.assertIn("“＋”重新添加", steps)
+        self.assertIn("“重启书签”重启后台服务", steps)
+        with patch.object(manage.sys, "platform", "win32"):
+            failure = manage.sync_failure("edge")
+        self.assertEqual(failure["message"], "无法读取或保存 Edge 书签。")
+        self.assertNotIn("settings", failure, "只有 macOS 权限问题提供系统设置入口")
+        self.assertNotIn("restart", failure)
 
     def test_directory_identity_is_stable_distinct_and_not_a_plain_path(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -224,3 +285,98 @@ class BookmarkSyncHTTPTests(TestCase):
                 items = manage.sync_html()
             self.assertEqual(len(items), 1)
             self.assertIn("导入测试", (root / "data.js").read_text(encoding="utf-8"))
+
+    def test_settings_shortcut_opens_full_disk_access_only_on_macos_and_only_from_this_page(self):
+        url = self.base + "/__bookmarks/settings"
+        page = {"Origin": self.base}
+        with patch.object(manage.subprocess, "run") as run:
+            for origin in ("https://evil.example", None):
+                headers = {} if origin is None else {"Origin": origin}
+                with self.assertRaises(HTTPError) as caught:
+                    urlopen(Request(url, method="POST", headers=headers), timeout=3)
+                caught.exception.close()
+                self.assertEqual(caught.exception.code, 403)
+            with self.assertRaises(HTTPError) as caught:
+                urlopen(Request(url, method="POST", headers=page), timeout=3)
+            caught.exception.close()
+            self.assertEqual(caught.exception.code, 404, "Windows 上没有对应的设置页")
+            run.assert_not_called()
+            with patch.object(manage.sys, "platform", "darwin"):
+                with urlopen(Request(url, method="POST", headers=page), timeout=3) as response:
+                    self.assertEqual(response.status, 204)
+        self.assertEqual(run.call_args.args[0], ["open", manage.FULL_DISK_ACCESS_SETTINGS])
+        self.assertIn("Privacy_AllFiles", manage.FULL_DISK_ACCESS_SETTINGS)
+
+    def post_restart(self, headers=None):
+        request_headers = {"Origin": self.base, "X-Bookmark-Sync": "1"}
+        request_headers.update(headers or {})
+        request = Request(self.base + "/__bookmarks/restart", method="POST", headers=request_headers)
+        try:
+            response = urlopen(request, timeout=3)
+        except HTTPError as error:
+            response = error
+        with response:
+            return response.status, json.load(response)
+
+    def test_permission_restart_schedules_existing_mechanism_after_response(self):
+        sequence = []
+        scheduled = threading.Event()
+        send_json = manage.Handler.send_json
+
+        def record_response(handler, status, data):
+            send_json(handler, status, data)
+            sequence.append("response")
+
+        def schedule():
+            sequence.append(("restart", manage.BOOKMARK_SYNC_LOCK.locked()))
+            scheduled.set()
+
+        with patch.object(manage.sys, "platform", "darwin"), patch.object(
+            manage.Handler, "send_json", record_response
+        ), patch.object(self.server, "schedule_restart", side_effect=schedule) as restart:
+            status, data = self.post_restart()
+            self.assertTrue(scheduled.wait(timeout=1))
+        self.assertEqual(status, 200)
+        self.assertEqual(data, {"ok": True, "instance": self.server.instance})
+        self.assertEqual(sequence, ["response", ("restart", True)])
+        restart.assert_called_once_with()
+        self.sync.assert_not_called()
+
+    def test_permission_restart_rejects_foreign_origins_and_missing_action_header(self):
+        with patch.object(manage.sys, "platform", "darwin"), patch.object(self.server, "schedule_restart") as restart:
+            for headers in (
+                {"Origin": "https://evil.example"}, {"Origin": "null"}, {"Origin": ""},
+                {"Host": "evil.example", "Origin": "http://evil.example"},
+                {"X-Bookmark-Sync": ""},
+            ):
+                with self.subTest(headers=headers):
+                    status, data = self.post_restart(headers)
+                    self.assertEqual(status, 403)
+                    self.assertFalse(data["ok"])
+        restart.assert_not_called()
+
+    def test_permission_restart_does_not_interrupt_sync_or_repeat_restart(self):
+        with patch.object(manage.sys, "platform", "darwin"), patch.object(self.server, "schedule_restart") as restart:
+            with manage.BOOKMARK_SYNC_LOCK:
+                status, data = self.post_restart()
+                self.assertEqual(status, 409)
+                self.assertIn("同步正在进行", data["message"])
+            self.server.restarting = True
+            status, data = self.post_restart()
+            self.assertEqual(status, 409)
+            self.assertIn("正在重启", data["message"])
+        restart.assert_not_called()
+        acquired = manage.BOOKMARK_SYNC_LOCK.acquire(timeout=1)
+        self.assertTrue(acquired)
+        if acquired:
+            manage.BOOKMARK_SYNC_LOCK.release()
+
+    def test_permission_restart_is_only_available_on_macos(self):
+        with patch.object(self.server, "schedule_restart") as restart:
+            request = Request(self.base + "/__bookmarks/restart", method="POST",
+                              headers={"Origin": self.base, "X-Bookmark-Sync": "1"})
+            with self.assertRaises(HTTPError) as caught:
+                urlopen(request, timeout=3)
+            caught.exception.close()
+        self.assertEqual(caught.exception.code, 404)
+        restart.assert_not_called()

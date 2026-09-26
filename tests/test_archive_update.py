@@ -280,7 +280,8 @@ class ArchiveTests(TestCase):
                     status = json.load(response)
                 self.assertEqual(status["mode"], "archive")
                 self.assertTrue(status["available"])
-                request = Request(endpoint, method="POST", headers={"Accept": "application/x-ndjson"})
+                request = Request(endpoint, method="POST", headers={
+                    "Accept": "application/x-ndjson", "Origin": f"http://127.0.0.1:{server.server_port}"})
                 with urlopen(request, timeout=3) as response:
                     events = [json.loads(line) for line in response]
                 self.assertEqual(events[0]["stage"], "waiting")
@@ -352,8 +353,10 @@ class LaunchZIPTests(TestCase):
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             )
             service = None
+            # A cold interpreter start can take several seconds on a busy machine.
+            deadline = time.monotonic() + 15
             try:
-                for _ in range(50):
+                while time.monotonic() < deadline:
                     if process.poll() is not None:
                         self.fail(process.communicate()[1].decode("utf-8", errors="replace"))
                     try:

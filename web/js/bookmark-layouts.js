@@ -4,6 +4,8 @@ const boardLimits = new Map();
 const treeExpanded = new Set();
 const accordionCollapsed = new Set();
 let layoutFolder = null;
+// Phones show the directory tree folded to its caption until it is opened.
+let treeMenuOpen = false;
 let layoutQuery = null;
 
 function prepareLayoutState(tree) {
@@ -13,6 +15,7 @@ function prepareLayoutState(tree) {
     accordionCollapsed.clear();
   }
   if (layoutFolder !== state.folder) {
+    treeMenuOpen = false;
     const parts = state.folder.split("/");
     for (let i = 1; i <= parts.length; i++) treeExpanded.add(parts.slice(0, i).join("/"));
   }
@@ -40,15 +43,15 @@ function boardHtml(sections, order) {
       <h2 class="board-heading"><button type="button" data-folder="${escapeHtml(name)}" title="查看 ${escapeHtml(name)}">
         <em class="dot" aria-hidden="true"></em><span>${escapeHtml(shortName)}</span><b>${items.length}</b>
       </button></h2>
-      <p class="board-path" title="${escapeHtml(name)}">${escapeHtml(name)}</p>
+      ${name.includes("/") ? `<p class="board-path" title="${escapeHtml(name)}">${escapeHtml(name)}</p>` : ""}
       <div class="grid">${shown.map(cardHtml).join("")}</div>
       ${remaining ? `<button type="button" class="board-more" data-board-more="${escapeHtml(name)}">再显示 ${Math.min(BOARD_PAGE, remaining)} 个 <span>· 还有 ${remaining} 个</span></button>` : ""}
     </section>`;
   }).join("")}</div>`;
 }
 
-function treeNavHtml(tree, groupCounts, total) {
-  const label = (name, path, count) => `<button type="button" class="folder tree-label ${selectedInCol("", path) ? "on" : ""}" data-folder="${escapeHtml(path)}" title="${escapeHtml(path || name)}"${state.folder === path ? ' aria-current="page"' : ""}>
+function treeNavHtml(tree, total) {
+  const label = (name, path, count) => `<button type="button" class="folder tree-label ${selectedInCol(path) ? "on" : ""}" data-folder="${escapeHtml(path)}" title="${escapeHtml(path || name)}"${state.folder === path ? ' aria-current="page"' : ""}>
     <svg class="tree-folder-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v10H3Z"/></svg>
     <b>${escapeHtml(name)}</b><span>${count}</span></button>`;
   const branch = (node, depth) => {
@@ -63,10 +66,12 @@ function treeNavHtml(tree, groupCounts, total) {
       ${children.length ? `<ul id="${id}"${expanded ? "" : " hidden"}>${children.map(child => branch(child, depth + 1)).join("")}</ul>` : ""}
     </li>`;
   };
-  return `<nav class="nav-col tree-nav" aria-label="书签目录">
-    <div class="tree-caption">书签目录<span>分类 / 层级</span></div>
+  const current = state.folder ? state.folder.split("/").join(" › ") : "全部";
+  return `<nav class="nav-col tree-nav${treeMenuOpen ? " is-open" : ""}" aria-label="书签目录">
+    <div class="tree-caption tree-caption-static">书签目录<span>${escapeHtml(current)}</span></div>
+    <button type="button" class="tree-caption tree-caption-toggle" data-tree-menu aria-expanded="${treeMenuOpen}">书签目录<span>${escapeHtml(current)}</span></button>
     <div class="tree-row tree-all" style="--tree-depth:0;--h:210"><span class="tree-spacer" aria-hidden="true"></span>${label("全部", "", total)}</div>
-    <ul>${sortNames(Object.keys(tree.kids), groupCounts).map(name => branch(tree.kids[name], 0)).join("")}</ul>
+    <ul>${Object.values(tree.kids).map(node => branch(node, 0)).join("")}</ul>
   </nav>`;
 }
 
@@ -74,7 +79,7 @@ function horizontalNavHtml(tree, total) {
   const button = (name, path, count, current) => `<button type="button" class="folder ${current ? "on" : ""}" data-folder="${escapeHtml(path)}" style="--h:${hue(path || name)}"${current ? ' aria-current="page"' : ""}><b>${escapeHtml(name)}</b>${count === undefined ? "" : `<span>${count}</span>`}</button>`;
   const roots = Object.values(tree.kids);
   const tabs = button("全部", "", total, !state.folder) + roots.map(node =>
-    button(node.name, node.path, node.count, selectedInCol("", node.path))).join("");
+    button(node.name, node.path, node.count, selectedInCol(node.path))).join("");
   const parts = state.folder ? state.folder.split("/") : [];
   const crumbs = parts.length ? `<nav class="layout-breadcrumbs" aria-label="当前位置">${button("全部", "", undefined, false)}${parts.map((part, i) =>
     `<span aria-hidden="true">/</span>${button(part, parts.slice(0, i + 1).join("/"), undefined, i === parts.length - 1)}`).join("")}</nav>` : "";
@@ -93,7 +98,7 @@ function accordionHtml(sections, order) {
     const id = "accordion-" + encodeURIComponent(name);
     return `<section class="accordion-group nav-col" data-board="${escapeHtml(name)}" style="--h:${hue(name)}">
       <h2><button type="button" class="accordion-toggle" data-accordion-toggle="${escapeHtml(name)}" aria-expanded="${expanded}" aria-controls="${id}">
-        <span class="accordion-arrow" aria-hidden="true">›</span><span class="accordion-name">${escapeHtml(name)}</span><span class="accordion-count">${items.length} 个书签</span>
+        <span class="accordion-arrow" aria-hidden="true">›</span><span class="accordion-name">${sectionTitle(name)}</span><span class="accordion-count">${items.length} 个书签</span>
       </button></h2>
       <div class="accordion-body" id="${id}"${expanded ? "" : " hidden"}>
         <div class="grid">${shown.map(cardHtml).join("")}</div>
@@ -104,6 +109,13 @@ function accordionHtml(sections, order) {
 }
 
 function handleLayoutClick(event) {
+  const menu = event.target.closest("[data-tree-menu]");
+  if (menu) {
+    treeMenuOpen = !treeMenuOpen;
+    menu.setAttribute("aria-expanded", String(treeMenuOpen));
+    menu.closest(".tree-nav").classList.toggle("is-open", treeMenuOpen);
+    return true;
+  }
   const accordion = event.target.closest("[data-accordion-toggle]");
   if (accordion) {
     const name = accordion.dataset.accordionToggle;

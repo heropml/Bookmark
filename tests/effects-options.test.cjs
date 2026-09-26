@@ -95,3 +95,66 @@ test('新图标动效同时具有列表预览与书签卡片动画规则', () =>
     assert.match(appearanceCss, new RegExp('motion-' + preview));
   }
 });
+
+const script = file => fs.readFileSync(path.join(__dirname, '../web/js', file), 'utf8');
+
+function bootstrapFx({ reduceMotion, stored }) {
+  const storage = new Map(stored ? [['bm-fx', stored]] : []);
+  const root = { dataset: { fx: 'on' } };
+  const context = vm.createContext({
+    URL, location: { href: 'http://127.0.0.1:8765/index.html' }, history: { replaceState() {} },
+    localStorage: { getItem: key => storage.get(key) ?? null },
+    matchMedia: query => ({ matches: query.includes('prefers-reduced-motion') && reduceMotion }),
+    document: { documentElement: root, createElement: () => ({}), head: { appendChild() {} } }
+  });
+  vm.runInContext(script('bootstrap.js'), context, { filename: 'bootstrap.js' });
+  return root.dataset.fx;
+}
+
+test('系统要求减少动态效果且未手动选择时默认关闭，手动选择始终优先', () => {
+  assert.equal(bootstrapFx({ reduceMotion: true }), 'off');
+  assert.equal(bootstrapFx({ reduceMotion: false }), 'on');
+  assert.equal(bootstrapFx({ reduceMotion: true, stored: 'on' }), 'on');
+  assert.equal(bootstrapFx({ reduceMotion: false, stored: 'off' }), 'off');
+});
+
+function fxChoice({ stored, fx = 'on' } = {}) {
+  const storage = new Map(stored ? [['bm-fx', stored]] : []);
+  const handlers = new Map();
+  let mediaChange;
+  const root = { dataset: { fx } };
+  const context = vm.createContext({
+    Event: class { constructor(type) { this.type = type; } },
+    window: { dispatchEvent() {} },
+    document: {
+      documentElement: root, querySelector: () => null,
+      getElementById: id => ({ innerHTML: '', querySelectorAll: () => [], addEventListener: (type, callback) => handlers.set(id + ':' + type, callback) })
+    },
+    localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
+    matchMedia: () => ({ matches: false, addEventListener: (type, callback) => { mediaChange = callback; } })
+  });
+  for (const file of ['config.js', 'appearance.js']) vm.runInContext(script(file), context, { filename: file });
+  vm.runInContext('setupChoice(FX, "fx", "fxChoices")', context);
+  return {
+    storage, root,
+    choose: value => handlers.get('fxChoices:click')({ target: { closest: () => ({ dataset: { value } }) } }),
+    setReducedMotion: matches => mediaChange({ matches })
+  };
+}
+
+test('加载时不把默认值写入本地存储，系统设置变化后仍能跟随；点击选择才保存', () => {
+  const app = fxChoice({ fx: 'off' });
+  assert.equal(app.root.dataset.fx, 'off');
+  assert.equal(app.storage.has('bm-fx'), false);
+  app.setReducedMotion(false);
+  assert.equal(app.root.dataset.fx, 'on');
+  app.setReducedMotion(true);
+  assert.equal(app.root.dataset.fx, 'off');
+  assert.equal(app.storage.has('bm-fx'), false);
+  app.choose('on');
+  assert.equal(app.root.dataset.fx, 'on');
+  assert.equal(app.storage.get('bm-fx'), 'on');
+  app.setReducedMotion(true);
+  assert.equal(app.root.dataset.fx, 'on', '手动选择后不再受系统设置变化影响');
+  assert.equal(fxChoice({ stored: 'broken' }).storage.get('bm-fx'), 'on', '无效的保存值会被纠正');
+});

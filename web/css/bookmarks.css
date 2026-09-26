@@ -135,6 +135,7 @@ main { min-width: 0; padding-top: 0; }
   letter-spacing: 0.01em;
 }
 .section h2 span { color: var(--muted); font-size: 13px; font-weight: 500; }
+.section h2 .section-parent { margin-right: -4px; font-size: inherit; }
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(var(--bookmark-card-min, 210px), 1fr));
@@ -159,7 +160,8 @@ main { min-width: 0; padding-top: 0; }
   animation: rise 0.42s ease backwards;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
-.card > div:last-child { min-width: 0; flex: 1; }
+/* The text column, not the trailing glow layer, must be allowed to shrink so titles can ellipsize. */
+.card > div:not(.ico) { min-width: 0; flex: 1; }
 .card::before {
   content: "";
   position: absolute;
@@ -276,16 +278,27 @@ html[data-icon="logo"] .ico img {
 html[data-icon="logo"] .card:hover .ico img {
   transform: scale(1.12);
 }
+/* One line keeps every card's domain and tags at the same height; the full title is the tooltip. */
 .card h3 {
   margin: 0 0 4px;
   font-size: var(--bookmark-card-title, 14px);
   font-weight: 650;
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
-.card p { margin: 0; color: var(--muted); font-size: var(--bookmark-card-host, 12px); word-break: break-all; }
+.card-peek { display: flex; gap: 5px; margin-top: 9px; }
+.card-peek img {
+  width: 22px;
+  height: 22px;
+  padding: 3px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 0 1px var(--stroke);
+  object-fit: contain;
+}
+.section-parent { color: var(--muted); font-weight: 500; }
+.card p { margin: 0; overflow: hidden; color: var(--muted); font-size: var(--bookmark-card-host, 12px); white-space: nowrap; text-overflow: ellipsis; }
 .meta { margin-top: var(--bookmark-card-meta-margin, 8px); display: flex; gap: var(--bookmark-card-meta-gap, 6px); flex-wrap: wrap; }
 .tag {
   font-size: var(--bookmark-card-tag, 11px);
@@ -306,7 +319,8 @@ html[data-card-density="60"]:is([data-layout="classic"], [data-layout="compact"]
   padding: 10px 6px;
   text-align: center;
 }
-html[data-card-density="60"]:is([data-layout="classic"], [data-layout="compact"], [data-layout="tabs"], [data-layout="tree"], [data-layout="accordion"]) .card > div:last-child { width: 100%; }
+html[data-card-density="60"]:is([data-layout="classic"], [data-layout="compact"], [data-layout="tabs"], [data-layout="tree"], [data-layout="accordion"]) .card > div:not(.ico) { width: 100%; }
 html[data-card-density="60"]:is([data-layout="classic"], [data-layout="compact"], [data-layout="tabs"], [data-layout="tree"], [data-layout="accordion"]) .card h3 { margin: 0; font-size: var(--bookmark-card-title, 11px); }
 html[data-card-density="60"]:is([data-layout="classic"], [data-layout="compact"], [data-layout="tabs"], [data-layout="tree"], [data-layout="accordion"]) .card p,
-html[data-card-density="60"]:is([data-layout="classic"], [data-layout="compact"], [data-layout="tabs"], [data-layout="tree"], [data-layout="accordion"]) .card .meta { display: none; }
+html[data-card-density="60"]:is([data-layout="classic"], [data-layout="compact"], [data-layout="tabs"], [data-layout="tree"], [data-layout="accordion"]) .card .meta,
+html[data-card-density="60"]:is([data-layout="classic"], [data-layout="compact"], [data-layout="tabs"], [data-layout="tree"], [data-layout="accordion"]) .card-peek { display: none; }

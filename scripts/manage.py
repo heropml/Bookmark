@@ -18,7 +18,7 @@ import webbrowser
 from collections import Counter
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 try:
     import archive_update
@@ -35,9 +35,11 @@ EXAMPLE_SRC = DATA_DIR / "bookmarks.example.html"
 DATA_JS = WEB_ROOT / "data.js"
 WINDOW_STATE = DATA_DIR / ".window-state.json"
 PORT = 8765
-APP_VERSION = "v1.1.0"
+APP_VERSION = "v1.1.1"
 HEALTH_RESPONSE = b"bookmark-weather-v3\n"
 HREF_RE = re.compile(r'<A HREF="([^"]+)"', re.I)
+# Browsers mark their toolbar folder in exports; its localized name is not a category.
+TOOLBAR_FOLDER_RE = re.compile(r'\bPERSONAL_TOOLBAR_FOLDER\s*=\s*"true"', re.I)
 UPDATE_SOURCES = (
     ("Gitee", "https://gitee.com/heropml/Bookmark.git"),
     ("GitHub", "https://github.com/heropml/Bookmark.git"),
@@ -49,6 +51,9 @@ PACKAGED_RELEASES = {
 }
 PACKAGED_REASON = "macOS 安装版请下载新版 DMG 覆盖安装，不会自动改写已安装的应用"
 GIT_TIMEOUT_SECONDS = 15
+# Pages opened together share one recent check instead of each contacting Gitee/GitHub.
+UPDATE_CACHE_SECONDS = 10 * 60
+UPDATE_RETRY_SECONDS = 60
 UPDATE_LOCK = threading.RLock()
 BOOKMARK_SYNC_LOCK = threading.Lock()
 PACKAGED_APP = os.environ.get("BOOKMARK_PACKAGED") == "1"
@@ -90,19 +95,31 @@ def supported_sync_browsers() -> list[str]:
     return {"darwin": ["chrome", "safari", "html"]}.get(sys.platform, [])
 
 
-def sync_failure_message(browser: str) -> str:
+# Opens System Settings at Privacy & Security > Full Disk Access.
+FULL_DISK_ACCESS_SETTINGS = "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
+
+
+def sync_failure(browser: str) -> dict[str, object]:
+    """A one-line reason for the dialog, with the fix as separate steps it can fold away."""
     if browser == "html":
-        return "未选择有效的书签 HTML 文件，请重新导出后再试。"
+        return {"message": "未选择有效的书签 HTML 文件。", "steps": ["在浏览器的书签管理中导出 HTML 文件", "重新同步并选择导出的文件"]}
     if sys.platform == "darwin":
         name = {"chrome": "Chrome", "safari": "Safari"}.get(browser, "所选浏览器")
-        return (
-            f"macOS 未允许“书签”读取 {name} 数据。请打开“系统设置 → 隐私与安全性 → "
-            "完全磁盘访问权限”，添加并启用 /Applications/Bookmark.app，然后完全退出并重新打开应用后重试。"
-        )
+        return {
+            "message": f"macOS 未允许“书签”读取 {name} 数据。",
+            "steps": [
+                "打开“系统设置 → 隐私与安全性 → 完全磁盘访问权限”",
+                "若已有 Bookmark.app，即使开关已开启，也请选中旧条目并点“−”移除",
+                "点“＋”重新添加当前 /Applications/Bookmark.app，并开启权限",
+                "返回此窗口，点“重启书签”重启后台服务，页面恢复后再同步",
+            ],
+            "settings": True,
+            "restart": True,
+        }
     name = {"chrome": "Chrome", "edge": "Edge", **{
         key: value[0] for key, value in WINDOWS_CHROMIUM_BROWSERS.items()
     }}.get(browser, "所选浏览器")
-    return f"无法读取或保存 {name} 书签。请确认浏览器已创建书签，且程序目录可写。"
+    return {"message": f"无法读取或保存 {name} 书签。", "steps": ["确认浏览器已创建书签", "确认程序所在目录可以写入"]}
 
 
 class UpdateError(RuntimeError):
@@ -278,11 +295,33 @@ def restart_after_update(server: ThreadingHTTPServer) -> None:
 
 
 class BookmarkServer(ThreadingHTTPServer):
+    # A page load opens several connections at once; the default backlog of 5 resets some of them.
+    request_queue_size = 64
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.instance = uuid.uuid4().hex
         self.restarting = False
         self.restart_lock = threading.Lock()
+        self.update_check = None  # (checked_at, status or UpdateError)
+
+    def update_status(self, refresh: bool = False) -> dict[str, object]:
+        """Reuse this service's recent update check; retry a failed one sooner."""
+        with UPDATE_LOCK:
+            if self.update_check and not refresh:
+                checked_at, result = self.update_check
+                failed = isinstance(result, UpdateError)
+                if time.monotonic() - checked_at < (UPDATE_RETRY_SECONDS if failed else UPDATE_CACHE_SECONDS):
+                    if failed:
+                        raise UpdateError(str(result), result.code)
+                    return dict(result)
+            try:
+                status = repository_update_status()
+            except UpdateError as error:
+                self.update_check = (time.monotonic(), error)
+                raise
+            self.update_check = (time.monotonic(), status)
+            return dict(status)
 
     def schedule_restart(self) -> None:
         with self.restart_lock:
@@ -414,7 +453,8 @@ def weather_from_open_meteo(
 
 
 def host_of(href: str) -> str:
-    host = urlparse(href).netloc.lower()
+    # Drop "user:password@" so credentials are neither shown nor sent to icon services.
+    host = urlparse(href).netloc.rpartition("@")[2].lower()
     if host.startswith("www."):
         host = host[4:]
     return host
@@ -438,11 +478,12 @@ def parse_html(text: str) -> list[dict]:
     bar = "\u4e66\u7b7e\u680f"
     other = "\u5176\u4ed6"
     for line in text.splitlines():
-        h3 = re.search(r"<H3[^>]*>(.*?)</H3>", line, re.I)
+        h3 = re.search(r"<H3\b([^>]*)>(.*?)</H3>", line, re.I)
         a = re.search(r'<A HREF="([^"]+)"[^>]*>(.*?)</A>', line, re.I)
         if h3:
-            name = html.unescape(re.sub(r"<[^>]+>", "", h3.group(1))).strip()
-            stack.append(name)
+            name = html.unescape(re.sub(r"<[^>]+>", "", h3.group(2))).strip()
+            # An empty entry keeps </DL> nesting balanced but leaves the toolbar out of paths.
+            stack.append("" if TOOLBAR_FOLDER_RE.search(h3.group(1)) else name)
         elif a:
             href = html.unescape(a.group(1))
             title = html.unescape(re.sub(r"<[^>]+>", "", a.group(2))).strip()
@@ -462,78 +503,73 @@ def parse_html(text: str) -> list[dict]:
     return items
 
 
+def environment_path(variable: str) -> Path:
+    value = os.environ.get(variable)
+    if not value:
+        raise SystemExit(f"{variable} is not set")
+    return Path(value)
+
+
+def last_used_profile(name: str, user_data: Path) -> str | None:
+    """Read the profile a Chromium browser opened last from its Local State."""
+    local_state = user_data / "Local State"
+    try:
+        state = json.loads(local_state.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"unable to read {name} profile: {local_state}: {exc}") from exc
+    # Every detected browser is probed when the sync dialog opens; a malformed file must not break it.
+    profile = state.get("profile") if isinstance(state, dict) else None
+    return profile.get("last_used") if isinstance(profile, dict) else None
+
+
+def profile_bookmarks(profile_dir: Path) -> Path | None:
+    """Signed-in profiles keep account bookmarks separately; prefer those."""
+    for filename in ("AccountBookmarks", "Bookmarks"):
+        path = profile_dir / filename
+        if path.is_file():
+            return path
+    return None
+
+
+def active_profile_bookmarks(name: str, user_data: Path, profile: str | None) -> tuple[str, Path]:
+    """Read the requested or last used profile, never another profile's bookmarks."""
+    if profile is None:
+        if not (user_data / "Local State").is_file():
+            raise SystemExit(f"not found: {user_data / 'Local State'}")
+        profile = last_used_profile(name, user_data)
+    if not profile:
+        raise SystemExit(f"{name} active profile was not found")
+    path = profile_bookmarks(user_data / profile)
+    if path is None:
+        raise SystemExit(f"{name} bookmarks were not found in {user_data / profile}")
+    return profile, path
+
+
 def chrome_bookmarks_file(profile: str | None = None) -> tuple[str, Path]:
     if sys.platform == "darwin":
         user_data = Path.home() / "Library" / "Application Support" / "Google" / "Chrome"
     else:
-        local_app_data = os.environ.get("LOCALAPPDATA")
-        if not local_app_data:
-            raise SystemExit("LOCALAPPDATA is not set")
-        user_data = Path(local_app_data) / "Google" / "Chrome" / "User Data"
-    if profile is None:
-        local_state = user_data / "Local State"
-        if not local_state.is_file():
-            raise SystemExit(f"not found: {local_state}")
-        try:
-            state = json.loads(local_state.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            raise SystemExit(f"unable to read Chrome profile: {local_state}: {exc}") from exc
-        profile = state.get("profile", {}).get("last_used")
-    if not profile:
-        raise SystemExit("Chrome active profile was not found")
-    profile_dir = user_data / profile
-    for name in ("AccountBookmarks", "Bookmarks"):
-        path = profile_dir / name
-        if path.is_file():
-            return profile, path
-    raise SystemExit(f"Chrome bookmarks were not found in {profile_dir}")
+        user_data = environment_path("LOCALAPPDATA") / "Google" / "Chrome" / "User Data"
+    return active_profile_bookmarks("Chrome", user_data, profile)
 
 
 def edge_bookmarks_file(profile: str | None = None) -> tuple[str, Path]:
-    local_app_data = os.environ.get("LOCALAPPDATA")
-    if not local_app_data:
-        raise SystemExit("LOCALAPPDATA is not set")
-    user_data = Path(local_app_data) / "Microsoft" / "Edge" / "User Data"
-    if profile is None:
-        local_state = user_data / "Local State"
-        if not local_state.is_file():
-            raise SystemExit(f"not found: {local_state}")
-        state = json.loads(local_state.read_text(encoding="utf-8"))
-        profile = state.get("profile", {}).get("last_used")
-    if not profile:
-        raise SystemExit("Edge active profile was not found")
-    profile_dir = user_data / profile
-    for name in ("AccountBookmarks", "Bookmarks"):
-        path = profile_dir / name
-        if path.is_file():
-            return profile, path
-    raise SystemExit(f"Edge bookmarks were not found in {profile_dir}")
+    user_data = environment_path("LOCALAPPDATA") / "Microsoft" / "Edge" / "User Data"
+    return active_profile_bookmarks("Edge", user_data, profile)
 
 
 def chromium_bookmarks_file(browser: str) -> tuple[str, Path]:
     name, variable, locations = WINDOWS_CHROMIUM_BROWSERS[browser]
-    base = os.environ.get(variable)
-    if not base:
-        raise SystemExit(f"{variable} is not set")
+    base = environment_path(variable)
     for parts in locations:
-        user_data = Path(base).joinpath(*parts)
-        profiles = []
-        local_state = user_data / "Local State"
-        if local_state.is_file():
-            try:
-                profile = json.loads(local_state.read_text(encoding="utf-8")).get("profile", {}).get("last_used")
-            except (OSError, json.JSONDecodeError) as exc:
-                raise SystemExit(f"unable to read {name} profile") from exc
-            if profile:
-                profiles.append(profile)
-        profiles.append("Default")
-        profile_dirs = [(profile, user_data / profile) for profile in dict.fromkeys(profiles)]
-        profile_dirs.append(("Default", user_data))
-        for profile, profile_dir in profile_dirs:
-            for filename in ("AccountBookmarks", "Bookmarks"):
-                path = profile_dir / filename
-                if path.is_file():
-                    return profile, path
+        user_data = base.joinpath(*parts)
+        # Some builds lack Local State or keep bookmarks directly in their data folder.
+        last_used = last_used_profile(name, user_data) if (user_data / "Local State").is_file() else None
+        profiles = [(profile, user_data / profile) for profile in dict.fromkeys(filter(None, (last_used, "Default")))]
+        for profile, profile_dir in [*profiles, ("Default", user_data)]:
+            path = profile_bookmarks(profile_dir)
+            if path:
+                return profile, path
     raise SystemExit(f"{name} bookmarks were not found")
 
 
@@ -729,22 +765,15 @@ def src_file() -> Path:
 
 
 def write_data(items: list[dict], source_name: str):
-    seen: dict[str, int] = {}
-    for it in items:
-        key = norm_url(it["href"])
-        seen[key] = seen.get(key, 0) + 1
-    out = []
-    for i, it in enumerate(items):
-        out.append({**it, "id": i, "dupe": seen[norm_url(it["href"])] > 1})
     DATA_JS.write_text(
-        "window.BOOKMARKS = " + json.dumps(out, ensure_ascii=False) + ";\n",
+        "window.BOOKMARKS = " + json.dumps(items, ensure_ascii=False) + ";\n",
         encoding="utf-8",
     )
-    groups = Counter(x["group"] for x in out)
-    print(f"wrote {DATA_JS.name}: {len(out)} from {source_name}")
+    groups = Counter(x["group"] for x in items)
+    print(f"wrote {DATA_JS.name}: {len(items)} from {source_name}")
     for name, n in groups.most_common():
         print(f"  {n:3d}  {name}")
-    return out
+    return items
 
 
 def build():
@@ -803,6 +832,7 @@ def sync_html():
 class Handler(SimpleHTTPRequestHandler):
     # Windows registry mappings can label SVGs as image/svg, which browsers reject.
     extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".svg": "image/svg+xml"}
+    etag = None  # set by send_head for the response being written
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(WEB_ROOT), **kwargs)
@@ -819,18 +849,59 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    def end_headers(self):
-        path = self.path.split("?", 1)[0]
-        if (
+    def local_host(self) -> str | None:
+        """The Host header when it names this service; any other name may be DNS rebinding."""
+        host = self.headers.get("Host", "").lower()
+        port = self.server.server_port
+        return host if host in (f"127.0.0.1:{port}", f"localhost:{port}") else None
+
+    def same_origin(self) -> bool:
+        """Other sites can also post to 127.0.0.1; only this homepage may change local state."""
+        host = self.local_host()
+        return host is not None and self.headers.get("Origin") == f"http://{host}"
+
+    def revalidated(self) -> bool:
+        path = urlparse(getattr(self, "path", "")).path
+        return (
             path in ("/", "/index.html", "/data.example.js", "/data.js")
             or path.startswith(("/js/", "/css/", "/weather/"))
-        ):
-            self.send_header("Cache-Control", "no-store")
+        )
+
+    def send_head(self):
+        path = self.translate_path(self.path)
+        if os.path.isdir(path):
+            path = os.path.join(path, "index.html")
+        if self.revalidated() and os.path.isfile(path):
+            # Size plus nanosecond mtime changes whenever an upgrade, installer or sync rewrites
+            # a file, even when the new copy carries an older timestamp.
+            stat = os.stat(path)
+            self.etag = f'"{stat.st_mtime_ns:x}-{stat.st_size:x}"'
+            if self.etag in self.headers.get("If-None-Match", ""):
+                self.send_response(304)
+                self.end_headers()
+                return None
+        return super().send_head()
+
+    def end_headers(self):
+        etag, self.etag = self.etag, None
+        if self.revalidated():
+            # Revalidate on every load so upgrades and syncs show at once; unchanged files answer
+            # 304 and keep the browser's compiled script cache.
+            self.send_header("Cache-Control", "no-cache")
+            if etag:
+                self.send_header("ETag", etag)
         super().end_headers()
 
-    def do_GET(self):
-        from urllib.parse import parse_qs, urlparse
+    def do_HEAD(self):
+        if not self.local_host():
+            self.send_error(403)
+            return
+        super().do_HEAD()
 
+    def do_GET(self):
+        if not self.local_host():
+            self.send_error(403)
+            return
         parsed = urlparse(self.path)
         if parsed.path == "/__health":
             data = HEALTH_RESPONSE
@@ -842,9 +913,12 @@ class Handler(SimpleHTTPRequestHandler):
             self.wfile.write(data)
             return
         if parsed.path == "/__update":
+            # Only this page's explicit "check again" skips the cache; other sites cannot force fetches.
+            refresh = (parse_qs(parsed.query).get("refresh") == ["1"]
+                       and self.headers.get("Sec-Fetch-Site", "same-origin") == "same-origin")
             try:
                 if PACKAGED_APP:
-                    self.send_json(200, repository_update_status())
+                    self.send_json(200, self.server.update_status(refresh))
                 elif self.server.restarting or installed_version() != APP_VERSION:
                     self.send_json(200, {
                         "available": False, "can_update": False, "restarting": True,
@@ -852,7 +926,7 @@ class Handler(SimpleHTTPRequestHandler):
                     })
                     self.server.schedule_restart()
                 else:
-                    self.send_json(200, repository_update_status())
+                    self.send_json(200, self.server.update_status(refresh))
             except (UpdateError, OSError) as error:
                 self.send_json(503, {"available": False, "can_update": False, "reason": str(error),
                                      "error": getattr(error, "code", "update_failed")})
@@ -861,6 +935,7 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_json(200, {
                 "version": APP_VERSION, "instance": self.server.instance,
                 "installation": installation_id(),
+                "can_restart": sys.platform == "darwin",
             })
             return
         if parsed.path == "/__bookmarks/sync":
@@ -920,23 +995,6 @@ class Handler(SimpleHTTPRequestHandler):
             except OSError:
                 self.send_error(404)
             return
-        if parsed.path == "/__icon":
-            if sys.platform != "win32":
-                # Only Windows has a shortcut whose icon can follow the skin.
-                self.send_response(204)
-                self.end_headers()
-                return
-            skin = (parse_qs(parsed.query).get("skin") or [""])[0]
-            try:
-                from shortcut import set_icon
-
-                set_icon(skin)
-                self.send_response(204)
-                self.end_headers()
-            except (Exception, SystemExit):
-                # A missing icon file exits with SystemExit, which is not an Exception.
-                self.send_error(400)
-            return
         return super().do_GET()
 
     def stream_update(self):
@@ -965,16 +1023,71 @@ class Handler(SimpleHTTPRequestHandler):
         except UpdateError as error:
             send_event({"type": "error", "message": str(error), "error": error.code})
             return
+        finally:
+            # Whatever the outcome, the check made before this upgrade is stale.
+            self.server.update_check = None
         send_event({"type": "result", **result, "instance": self.server.instance})
         if result.get("updated"):
             self.server.schedule_restart()
 
     def do_POST(self):
-        from urllib.parse import urlparse
-
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
+        if not self.same_origin():
+            self.send_json(403, {"ok": False, "message": "请从本地书签主页操作。"})
+            return
         if path == "/__bookmarks/sync":
             self.sync_bookmarks()
+            return
+        if path == "/__bookmarks/settings":
+            # Only macOS has a settings page that grants browser-bookmark access.
+            if sys.platform != "darwin":
+                self.send_error(404)
+                return
+            try:
+                subprocess.run(["open", FULL_DISK_ACCESS_SETTINGS], check=True, timeout=10,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except (OSError, subprocess.SubprocessError):
+                self.send_json(502, {"ok": False, "message": "无法打开系统设置，请手动打开。"})
+                return
+            self.send_response(204)
+            self.end_headers()
+            return
+        if path == "/__bookmarks/restart":
+            if sys.platform != "darwin":
+                self.send_error(404)
+                return
+            if self.headers.get("X-Bookmark-Sync") != "1":
+                self.send_json(403, {"ok": False, "message": "请从本地书签主页重启。"})
+                return
+            if not BOOKMARK_SYNC_LOCK.acquire(blocking=False):
+                self.send_json(409, {"ok": False, "message": "已有书签同步正在进行，请完成后再重启。"})
+                return
+            try:
+                if self.server.restarting:
+                    self.send_json(409, {"ok": False, "message": "服务正在重启，请稍后再试。"})
+                    return
+                self.send_json(200, {"ok": True, "instance": self.server.instance})
+                self.server.schedule_restart()
+            finally:
+                BOOKMARK_SYNC_LOCK.release()
+            return
+        if path == "/__icon":
+            if sys.platform != "win32":
+                # Only Windows has a shortcut whose icon can follow the skin.
+                self.send_response(204)
+                self.end_headers()
+                return
+            skin = (parse_qs(parsed.query).get("skin") or [""])[0]
+            try:
+                from shortcut import set_icon
+
+                set_icon(skin)
+                self.send_response(204)
+                self.end_headers()
+            except (Exception, SystemExit):
+                # A missing icon file exits with SystemExit, which is not an Exception.
+                self.send_error(400)
             return
         if path == "/__update":
             if "application/x-ndjson" in self.headers.get("Accept", ""):
@@ -985,6 +1098,8 @@ class Handler(SimpleHTTPRequestHandler):
             except UpdateError as error:
                 self.send_json(409, {"ok": False, "message": str(error)})
                 return
+            finally:
+                self.server.update_check = None
             self.send_json(200, {**result, "instance": self.server.instance})
             if result.get("updated"):
                 self.server.schedule_restart()
@@ -1017,12 +1132,9 @@ class Handler(SimpleHTTPRequestHandler):
 
 
     def sync_bookmarks(self):
-        # Require a same-origin JSON request: a foreign page must not overwrite bookmarks.
-        port = self.server.server_port
-        hosts = (f"127.0.0.1:{port}", f"localhost:{port}")
-        host = self.headers.get("Host", "").lower()
-        if (host not in hosts or self.headers.get("Origin") != f"http://{host}"
-                or self.headers.get("X-Bookmark-Sync") != "1"
+        # do_POST already required this page's origin; the JSON type and custom header also
+        # rule out plain form posts that could overwrite bookmarks.
+        if (self.headers.get("X-Bookmark-Sync") != "1"
                 or self.headers.get_content_type() != "application/json"):
             self.send_json(403, {"ok": False, "message": "请从本地书签主页确认同步。"})
             return
@@ -1054,7 +1166,7 @@ class Handler(SimpleHTTPRequestHandler):
         except (SystemExit, OSError, ValueError, TypeError, KeyError):
             self.send_json(422, {
                 "ok": False,
-                "message": sync_failure_message(browser),
+                **sync_failure(browser),
             })
         finally:
             BOOKMARK_SYNC_LOCK.release()
@@ -1133,13 +1245,27 @@ def serve_hidden(port: int) -> None:
     raise SystemExit("server did not start")
 
 
-def main():
-    import sys
+def local_url() -> str:
+    """Reuse this directory's running service or start one, and return the page address."""
+    port = pick_port()
+    if not page_ok(port):
+        serve_hidden(port)
+    version = "%s-%s" % (
+        (WEB_ROOT / "index.html").stat().st_mtime_ns,
+        DATA_JS.stat().st_mtime_ns,
+    )
+    return f"http://127.0.0.1:{port}/index.html?v={version}"
 
+
+def main():
     args = sys.argv[1:]
     if args and args[0] == "--serve":
         port = int(args[1]) if len(args) > 1 else PORT
         serve(port)
+        return
+    if args and args[0] == "--url":
+        # For launchers that open their own browser window: print the address only.
+        print(local_url())
         return
     if "--replace" in args:
         idx = args.index("--replace")
@@ -1175,15 +1301,7 @@ def main():
         build()
     if "--build" in args:
         return
-    port = pick_port()
-    version = "%s-%s" % (
-        (WEB_ROOT / "index.html").stat().st_mtime_ns,
-        DATA_JS.stat().st_mtime_ns,
-    )
-    url = f"http://127.0.0.1:{port}/index.html?v={version}"
-    if not page_ok(port):
-        serve_hidden(port)
-    webbrowser.open(url)
+    webbrowser.open(local_url())
 
 
 if __name__ == "__main__":

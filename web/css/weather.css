@@ -12,12 +12,33 @@
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
+  --tinted-top: color-mix(in srgb, var(--sky-top), var(--sky-tint, transparent) var(--sky-tint-amount, 0%));
+  --tinted-horizon: color-mix(in srgb, var(--sky-horizon), var(--sky-tint, transparent) var(--sky-tint-amount, 0%));
   background:
-    radial-gradient(100vmax 48vmax at 78% 4%, var(--sky-glow), transparent 58%),
+    radial-gradient(100vmax 48vmax at 92% 0%, var(--sky-glow), transparent 58%),
     radial-gradient(120vmax 62vmax at 16% 115%, var(--sky-depth), transparent 64%),
-    linear-gradient(180deg, var(--sky-top) 0%, color-mix(in srgb, var(--sky-top) 44%, var(--sky-horizon)) 52%, var(--sky-horizon) 100%);
+    linear-gradient(180deg, var(--tinted-top) 0%, color-mix(in srgb, var(--tinted-top) 44%, var(--tinted-horizon)) 52%, var(--tinted-horizon) 100%);
   transition: background 1.2s ease, filter 1.2s ease;
 }
+/* The sky takes on each theme's hue so switching themes still changes the page, not just the cards. */
+html[data-skin="aurora"] { --sky-tint: #4b3aa6; --sky-tint-amount: 14%; }
+html[data-skin="cyber"] { --sky-tint: #0b5a3a; --sky-tint-amount: 40%; }
+html[data-skin="ember"] { --sky-tint: #8c3312; --sky-tint-amount: 44%; }
+html[data-skin="abyss"] { --sky-tint: #06586a; --sky-tint-amount: 34%; }
+html[data-skin="nebula"] { --sky-tint: #3a2a8c; --sky-tint-amount: 36%; }
+html[data-skin="prism"] { --sky-tint: #5b3a9c; --sky-tint-amount: 26%; }
+html[data-skin="obsidian"] { --sky-tint: #5c4518; --sky-tint-amount: 46%; }
+html[data-skin="paper"] { --sky-tint: #d7ae74; --sky-tint-amount: 42%; }
+html[data-skin="sakura"] { --sky-tint: #f0a3c3; --sky-tint-amount: 36%; }
+html[data-skin="celadon"] { --sky-tint: #78c3a6; --sky-tint-amount: 36%; }
+/* Ink-painting themes keep their artwork: weather only adds drifting cloud, mist and particles. */
+html:is([data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"], [data-skin="yemo"]) .weather-scene {
+  background: none;
+  opacity: .72;
+}
+html:is([data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"], [data-skin="yemo"]) .weather-scene::before { opacity: .3; }
+html:is([data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"], [data-skin="yemo"]) .weather-scene::after,
+html:is([data-skin="shuimo"], [data-skin="daiqing"], [data-skin="zhusha"], [data-skin="yemo"]) .weather-orb { display: none; }
 .weather-scene[hidden] { display: none; }
 .weather-scene[data-period="night"] {
   --sky-top: #09162f;
@@ -77,15 +98,17 @@
   transform: translate3d(-2%, 0, 0) scale(1.06);
   animation: weather-atmosphere-drift 42s cubic-bezier(.4, 0, .2, 1) -16s infinite alternate;
 }
+/* Peeks in from the top-right corner, above the header tools, so its glow never sits behind cards. */
 .weather-orb {
+  --orb-size: clamp(76px, 7.5vw, 112px);
   position: absolute;
-  top: 13%;
-  right: 17%;
-  width: clamp(64px, 8vw, 116px);
+  top: calc(var(--orb-size) * -.46);
+  right: calc(var(--orb-size) * -.38);
+  width: var(--orb-size);
   aspect-ratio: 1;
   border-radius: 50%;
   background: radial-gradient(circle, #fffef0 0 42%, #ffe6af 66%, transparent 72%);
-  box-shadow: 0 0 70px 30px #ffe6af70, 0 0 180px 100px #ffe6af30;
+  box-shadow: 0 0 42px 14px #ffe6af52, 0 0 110px 44px #ffe6af1a;
 }
 .weather-orb::before {
   content: "";
@@ -165,6 +188,10 @@
   background: linear-gradient(90deg, color-mix(in srgb, var(--bg) 88%, transparent), color-mix(in srgb, var(--bg) 56%, transparent) 31%, transparent 74%), linear-gradient(0deg, var(--bg), color-mix(in srgb, var(--bg) 47%, transparent) 35%, transparent 80%);
 }
 html[data-weather-scene]:not([data-weather-scene=""]) .cursor-glow { opacity: .2; }
+/* The sun sits behind the header tools; a denser backing keeps their labels readable over it. */
+html[data-weather-scene]:not([data-weather-scene=""]) .tools .stat {
+  background: color-mix(in srgb, var(--bg) 76%, transparent);
+}
 @keyframes weather-cloud-drift {
   from { translate: -7vw -1vh; }
   to { translate: 6vw 1.5vh; }
