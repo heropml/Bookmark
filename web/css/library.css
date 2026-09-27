@@ -1,0 +1,85 @@
+/* The library shelf stays independent of the imported folder hierarchy. */
+.bookmark-content { min-width: 0; }
+.library-toolbar, .library-heading, .shelf-heading { display: flex; align-items: center; gap: 12px; }
+.library-toolbar { justify-content: space-between; flex-wrap: wrap; margin: 0 8px 18px; min-height: 38px; }
+.library-heading h1 { margin: 0; font-size: 16px; font-weight: 650; }
+.library-heading > span, .shelf-heading > span { font-size: 12px; color: var(--muted); }
+.search-scope { display: flex; padding: 3px; gap: 3px; border: 1px solid var(--stroke); border-radius: 10px; background: var(--glass); }
+.search-scope[hidden], .pinned-shelf[hidden], .backup-confirm-panel[hidden] { display: none; }
+.search-scope button { border: 0; padding: 6px 11px; border-radius: 7px; background: none; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+.search-scope button[aria-pressed="true"] { color: var(--text); background: var(--glow); }
+.search-scope button:disabled { opacity: .4; cursor: default; }
+.pinned-shelf { margin: 0 8px 24px; padding-bottom: 22px; border-bottom: 1px solid var(--stroke); }
+.shelf-heading { justify-content: space-between; margin: 4px 0 14px; }
+.shelf-heading h2 { display: flex; align-items: center; gap: 9px; margin: 0; font-size: 14px; font-weight: 650; }
+.shelf-heading h2 > span { color: var(--skin-accent, #7dd3fc); font-size: 21px; }
+.shelf-heading small { color: var(--muted); font: 12px ui-monospace, monospace; }
+.bookmark-item { position: relative; min-width: 0; }
+.bookmark-item > .card { height: 100%; }
+#pinnedGrid .card { cursor: grab; }
+#pinnedGrid .is-dragging { opacity: .4; }
+#pinnedGrid .is-dragging .card { cursor: grabbing; }
+#pinnedGrid .drop-before::before, #pinnedGrid .drop-after::after { content: ""; position: absolute; top: 4px; bottom: 4px; width: 3px; border-radius: 3px; background: var(--skin-accent, #7dd3fc); box-shadow: 0 0 8px var(--glow); pointer-events: none; }
+#pinnedGrid .drop-before::before { left: -7px; }
+#pinnedGrid .drop-after::after { right: -7px; }
+.bookmark-item .card h3, .bookmark-item .card p { padding-right: 17px; }
+.bookmark-pin { position: absolute; z-index: 4; top: 5px; right: 5px; width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); opacity: .55; cursor: pointer; }
+.bookmark-pin svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.bookmark-pin[aria-pressed="true"] { opacity: 1; color: var(--skin-accent, #7dd3fc); }
+.bookmark-pin[aria-pressed="true"] svg { fill: currentColor; }
+.bookmark-item:hover .bookmark-pin, .bookmark-pin:focus-visible { opacity: 1; background: var(--glass); }
+.library-button { padding: 7px 12px; border: 1px solid var(--stroke); border-radius: 8px; background: var(--glass); color: var(--text); font: inherit; font-size: 12px; cursor: pointer; }
+.bookmark-pin:focus-visible, .library-button:focus-visible, .search-scope button:focus-visible, .focus-preset:focus-visible, .card:focus-visible { outline: 2px solid var(--skin-accent, #7dd3fc); outline-offset: 2px; }
+.empty strong { color: var(--text); font-size: 16px; }
+.empty p { margin: 8px 0 16px; }
+.library-status { margin: 0 8px; color: var(--muted); font-size: 12px; }
+.library-status:empty { display: none; }
+.focus-preset { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font: inherit; }
+.focus-preset svg { width: 16px; height: 16px; }
+.focus-preset[aria-pressed="true"] { border-color: var(--skin-accent, #7dd3fc); color: var(--text); }
+.backup-entry { display: flex; justify-content: space-between; width: 100%; margin-top: 12px; border: 0; padding: 10px 2px; color: var(--skin-accent, var(--text)); background: none; font: inherit; font-size: 13px; cursor: pointer; }
+.backup-list { display: grid; gap: 8px; max-height: 40vh; overflow: auto; }
+.backup-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; border: 1px solid var(--stroke); border-radius: 12px; }
+.backup-row strong { display: block; font-size: 13px; font-weight: 600; }
+.backup-row span { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+.backup-confirm-panel { padding: 14px; margin-top: 16px; background: var(--glass); border: 1px solid var(--skin-accent, var(--stroke)); border-radius: 12px; }
+.backup-confirm-panel p { margin: 0; font-size: 13px; line-height: 1.7; }
+/* Focus is a reversible overlay: all existing theme and layout choices remain intact. */
+html[data-focus="on"] .aurora, html[data-focus="on"] .weather-scene, html[data-focus="on"] #fx-canvas,
+html[data-focus="on"] .cursor-glow, html[data-focus="on"] .bg-clock { display: none !important; }
+html[data-focus="on"] .card, html[data-focus="on"] .ico, html[data-focus="on"] .ico::before,
+html[data-focus="on"] .ico::after, html[data-focus="on"] .ico img, html[data-focus="on"] .ico span,
+html[data-focus="on"] .card::before { animation: none !important; transition: none !important; transform: none !important; }
+html[data-focus="on"] .card-glow, html[data-focus="on"] .card::before { display: none; }
+html[data-focus="on"] .card, html[data-focus="on"] .nav-col { background: var(--skin-panel, #111a2b); box-shadow: none; }
+html[data-focus="on"] .card:hover { border-color: var(--skin-accent, #7dd3fc); }
+@media (min-width: 601px) and (max-width: 1280px) {
+  html:not([data-layout="start"]) header { grid-template-columns: minmax(0, 1fr) auto; }
+  html:not([data-layout="start"]) .search { grid-column: 1 / -1; grid-row: 2; max-width: none; }
+}
+@media (min-width: 601px) and (max-width: 1000px) {
+  html:not([data-layout="start"]) header { grid-template-columns: minmax(0, 1fr); }
+  html:not([data-layout="start"]) .hello { justify-self: center; }
+  html:not([data-layout="start"]) .tools { justify-content: center; }
+  html:not([data-layout="start"]) .search { grid-row: 3; }
+}
+@media (max-width: 600px) {
+  .pinned-shelf { margin-inline: 0; }
+  .library-toolbar { margin-inline: 0; gap: 8px; }
+  .shelf-heading > span { display: none; }
+  html:not([data-layout="start"]) .focus-preset span { display: none; }
+  .bookmark-pin { opacity: .8; width: 32px; height: 32px; top: 1px; right: 1px; }
+  .bookmark-item .card h3, .bookmark-item .card p { padding-right: 20px; }
+  .backup-row { padding: 10px; gap: 8px; }
+  /* Pins become one sideways row of icon tiles, so they never push the folder's bookmarks off screen. */
+  .pinned-shelf { margin-bottom: 16px; padding-bottom: 14px; }
+  .shelf-heading { margin-bottom: 10px; }
+  #pinnedGrid { display: flex; gap: 8px; overflow-x: auto; }
+  #pinnedGrid .bookmark-item { flex: 0 0 76px; }
+  #pinnedGrid .card { flex-direction: column; align-items: center; gap: 6px; min-height: 0; padding: 10px 6px 8px; text-align: center; }
+  #pinnedGrid .card > div:not(.ico) { width: 100%; }
+  #pinnedGrid .card h3 { display: block; margin: 0; padding: 0; font-size: 11px; white-space: nowrap; }
+  #pinnedGrid .card p, #pinnedGrid .card .meta { display: none; }
+  #pinnedGrid .bookmark-pin { width: 22px; height: 22px; top: 0; right: 0; }
+  #pinnedGrid .bookmark-pin svg { width: 12px; height: 12px; }
+}

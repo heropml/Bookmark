@@ -35,7 +35,7 @@ EXAMPLE_SRC = DATA_DIR / "bookmarks.example.html"
 DATA_JS = WEB_ROOT / "data.js"
 WINDOW_STATE = DATA_DIR / ".window-state.json"
 PORT = 8765
-APP_VERSION = "v1.1.1"
+APP_VERSION = "v1.1.2"
 HEALTH_RESPONSE = b"bookmark-weather-v3\n"
 HREF_RE = re.compile(r'<A HREF="([^"]+)"', re.I)
 # Browsers mark their toolbar folder in exports; its localized name is not a category.
@@ -56,6 +56,8 @@ UPDATE_CACHE_SECONDS = 10 * 60
 UPDATE_RETRY_SECONDS = 60
 UPDATE_LOCK = threading.RLock()
 BOOKMARK_SYNC_LOCK = threading.Lock()
+# Enough history to undo several imports without letting repeated syncs fill the disk.
+BOOKMARK_BACKUP_LIMIT = 20
 PACKAGED_APP = os.environ.get("BOOKMARK_PACKAGED") == "1"
 WINDOWS_CHROMIUM_BROWSERS = {
     "brave": ("Brave", "LOCALAPPDATA", (("BraveSoftware", "Brave-Browser", "User Data"),)),
@@ -712,10 +714,65 @@ def render_bookmarks_html(items: list[dict]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def write_bookmarks_html(items: list[dict]) -> None:
+def backup_files() -> list[Path]:
+    """Snapshots this app wrote, newest first."""
+    folder = SRC.parent / ".bookmark-backups"
+    return sorted((path for path in folder.glob("*.html") if re.fullmatch(r"[a-f0-9]{32}", path.stem)),
+                  key=lambda path: path.stat().st_mtime, reverse=True)
+
+
+def backup_bookmarks() -> None:
+    """Keep a private, exact copy before replacing the imported bookmark source."""
+    if not SRC.is_file():
+        return
+    content = SRC.read_bytes()
+    existing = backup_files()
+    # Re-syncing unchanged bookmarks would otherwise stack identical snapshots.
+    if existing and existing[0].read_bytes() == content:
+        return
+    folder = SRC.parent / ".bookmark-backups"
+    folder.mkdir(parents=True, exist_ok=True)
+    snapshot = folder / (uuid.uuid4().hex + ".html")
+    temporary = snapshot.with_suffix(".tmp")
+    try:
+        temporary.write_bytes(content)
+        temporary.replace(snapshot)
+    finally:
+        temporary.unlink(missing_ok=True)
+    for old in existing[BOOKMARK_BACKUP_LIMIT - 1:]:
+        old.unlink(missing_ok=True)
+
+
+def bookmark_backups() -> list[dict]:
+    return [{"id": path.stem, "created": path.stat().st_mtime,
+             "count": len(parse_html(path.read_text(encoding="utf-8")))}
+            for path in backup_files()]
+
+
+def replace_bookmark_source(text: str) -> None:
     tmp = SRC.with_suffix(SRC.suffix + ".tmp")
-    tmp.write_text(render_bookmarks_html(items), encoding="utf-8", newline="\n")
-    tmp.replace(SRC)
+    try:
+        tmp.write_text(text, encoding="utf-8", newline="\n")
+        # Writing the same bookmarks again replaces nothing, so there is nothing to back up.
+        if not (SRC.is_file() and SRC.read_bytes() == tmp.read_bytes()):
+            backup_bookmarks()
+        tmp.replace(SRC)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def restore_bookmarks(snapshot_id: str) -> list[dict]:
+    if not re.fullmatch(r"[a-f0-9]{32}", snapshot_id):
+        raise ValueError("invalid backup id")
+    path = SRC.parent / ".bookmark-backups" / (snapshot_id + ".html")
+    text = path.read_text(encoding="utf-8")
+    items = parse_html(text)
+    replace_bookmark_source(text)
+    return write_data(items, SRC.name)
+
+
+def write_bookmarks_html(items: list[dict]) -> None:
+    replace_bookmark_source(render_bookmarks_html(items))
     print(f"wrote {SRC.name}: {len(items)}")
 
 
@@ -756,7 +813,7 @@ def pick_html() -> Path | None:
 def replace_src(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     if path.resolve() != SRC.resolve():
-        SRC.write_text(text, encoding="utf-8", newline="\n")
+        replace_bookmark_source(text)
         print(f"copied {path} -> {SRC.name}")
 
 
@@ -941,6 +998,12 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/__bookmarks/sync":
             self.send_json(200, {"browsers": supported_sync_browsers()})
             return
+        if parsed.path == "/__bookmarks/backups":
+            try:
+                self.send_json(200, {"backups": bookmark_backups()})
+            except (OSError, ValueError, UnicodeError):
+                self.send_json(500, {"ok": False, "message": "无法读取书签备份，请检查目录权限。"})
+            return
         if parsed.path == "/__weather":
             query = parse_qs(parsed.query)
             city = ((query.get("city") or [""])[0]).strip()[:80]
@@ -1039,6 +1102,9 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/__bookmarks/sync":
             self.sync_bookmarks()
             return
+        if path == "/__bookmarks/restore":
+            self.restore_bookmark_backup()
+            return
         if path == "/__bookmarks/settings":
             # Only macOS has a settings page that grants browser-bookmark access.
             if sys.platform != "darwin":
@@ -1130,6 +1196,39 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
 
+
+    def restore_bookmark_backup(self):
+        if (self.headers.get("X-Bookmark-Sync") != "1"
+                or self.headers.get_content_type() != "application/json"):
+            self.send_json(403, {"ok": False, "message": "请从本地书签主页确认恢复。"})
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            if not 0 < length <= 256:
+                raise ValueError
+            data = json.loads(self.rfile.read(length))
+            if (not isinstance(data, dict) or data.get("confirmed") is not True
+                    or not isinstance(data.get("id"), str)
+                    or not re.fullmatch(r"[a-f0-9]{32}", data["id"])):
+                raise ValueError
+        except (ValueError, TypeError, UnicodeDecodeError):
+            self.send_json(400, {"ok": False, "message": "请选择备份并确认恢复。"})
+            return
+        if not BOOKMARK_SYNC_LOCK.acquire(blocking=False):
+            self.send_json(409, {"ok": False, "message": "已有书签操作正在进行，请稍后恢复。"})
+            return
+        try:
+            if self.server.restarting:
+                self.send_json(409, {"ok": False, "message": "服务正在重启，请稍后恢复。"})
+                return
+            items = restore_bookmarks(data["id"])
+            self.send_json(200, {"ok": True, "count": len(items)})
+        except FileNotFoundError:
+            self.send_json(404, {"ok": False, "message": "备份文件不存在，请重新打开备份列表。"})
+        except (OSError, ValueError, UnicodeError):
+            self.send_json(422, {"ok": False, "message": "恢复失败，请检查备份文件和目录写入权限。"})
+        finally:
+            BOOKMARK_SYNC_LOCK.release()
 
     def sync_bookmarks(self):
         # do_POST already required this page's origin; the JSON type and custom header also

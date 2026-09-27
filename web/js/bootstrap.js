@@ -11,6 +11,7 @@ try {
   }
 } catch (e) {}
 try {
+  document.documentElement.dataset.focus = localStorage.getItem("bm-focus") === "on" ? "on" : "off";
   let s = localStorage.getItem("bm-skin");
   if (s === "auto") s = matchMedia("(prefers-color-scheme: light)").matches ? "snow" : "aurora";
   const i = localStorage.getItem("bm-icon");

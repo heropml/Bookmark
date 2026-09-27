@@ -504,12 +504,12 @@ function startSky() {
 }
 function syncParticles() {
   const root = document.documentElement;
-  const scene = root.dataset.sky === "auto" && root.dataset.fx !== "off" ? weatherSceneClass(currentWeatherCode) : "";
+  const scene = root.dataset.sky === "auto" && root.dataset.fx !== "off" && root.dataset.focus !== "on" ? weatherSceneClass(currentWeatherCode) : "";
   weatherScene.hidden = !scene;
   weatherScene.dataset.weather = scene;
   weatherScene.dataset.period = weatherPeriod();
   root.dataset.weatherScene = scene;
-  const run = root.dataset.fx !== "off";
+  const run = root.dataset.fx !== "off" && root.dataset.focus !== "on";
   skyType = run ? skyClass(currentWeatherCode) : null;
   if (skyType !== populatedType) {
     skyPopulate();

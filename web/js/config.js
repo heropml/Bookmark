@@ -106,6 +106,6 @@ const SKYS = [
 const PAGE = 36;
 let savedFolder = null;
 try { savedFolder = localStorage.getItem("bm-folder"); } catch (e) {}
-const state = { folder: savedFolder === null ? "常用" : savedFolder, q: "", shown: PAGE };
-const motionOk = () => document.documentElement.dataset.fx !== "off";
+const state = { folder: savedFolder === null ? "常用" : savedFolder, q: "", shown: PAGE, searchLocal: false };
+const motionOk = () => document.documentElement.dataset.fx !== "off" && document.documentElement.dataset.focus !== "on";
 const autoSkin = () => (matchMedia("(prefers-color-scheme: light)").matches ? "snow" : "aurora");

@@ -38,6 +38,7 @@ CSS 图片路径相对于 `css/`，例如 `../themes/shuimo.svg`。
 | `js/window-state.js` | 本地窗口尺寸记录 |
 | `js/interactions.js` | 鼠标光效、拖尾和卡片倾斜交互 |
 | `js/bookmark-sync.js` | 当前浏览器识别、来源选择、确认同步与结果处理 |
+| `js/library.js` | 搜索范围、键盘导航、置顶入口、专注模式和书签备份恢复交互 |
 | `js/effects.js` | 背景天气、粒子、画布与动画调度 |
 | `js/app.js` | 按顺序绑定事件、启动时钟天气并渲染书签 |
 

@@ -1,5 +1,6 @@
 // 模块已按依赖顺序加载；事件绑定和启动操作统一在这里执行。
 initBookmarks();
+initLibrary();
 initWindowState();
 initPointerEffects();
 initAppearance();

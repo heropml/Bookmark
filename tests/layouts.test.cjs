@@ -4,17 +4,19 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-function fixture({ layout = 'board', folder = '', items } = {}) {
+function fixture({ layout = 'board', folder = '', items, pins = [] } = {}) {
   const books = items || [
     ...Array.from({ length: 45 }, (_, i) => ({ title: '工具 ' + i, href: 'https://example.com/tool/' + i, host: 'example.com', path: '工具/开发/前端', group: '工具' })),
     ...Array.from({ length: 10 }, (_, i) => ({ title: '办公 ' + i, href: 'https://example.org/office/' + i, host: 'example.org', path: '公司/办公', group: '公司' }))
   ];
   // folder: null means nothing was saved yet, so the page starts from its default category.
   const storage = new Map(folder === null ? [] : [['bm-folder', folder]]);
+  storage.set('bm-pins', JSON.stringify(pins));
   const handlers = new Map();
   const elements = new Map();
   const element = id => {
     if (!elements.has(id)) elements.set(id, { innerHTML: '', textContent: '', hidden: false,
+      attributes: {}, setAttribute(name, value) { this.attributes[name] = value; },
       addEventListener: (name, handler) => handlers.set(id + ':' + name, handler) });
     return elements.get(id);
   };
@@ -70,7 +72,7 @@ test('看板加载更多只展开目标分类，最后一页按钮消失', () =>
   assert.match(app.html(), /data-board-more="工具"/);
 });
 
-test('分类及搜索变化会重置看板展开数，保留原有过滤含义', () => {
+test('分类及搜索变化会重置看板展开数，搜索按多个关键词过滤', () => {
   const app = fixture();
   app.more('工具');
   app.choose('工具');
@@ -80,7 +82,7 @@ test('分类及搜索变化会重置看板展开数，保留原有过滤含义',
   app.more('工具/开发');
   assert.equal(cardCount(app.html()), 16);
   app.search('工具 4');
-  assert.equal(cardCount(app.html()), 6);
+  assert.equal(cardCount(app.html()), 8);
   app.search('');
   assert.equal(cardCount(app.html()), 8);
   app.search('不存在的书签');
@@ -207,7 +209,7 @@ test('搜索会展开匹配的深层目录，空结果仍可返回全部', () =>
   const app = fixture({ layout: 'tree' });
   app.search('工具 4');
   assert.match(app.elements.get('nav').innerHTML, /data-tree-toggle="工具\/开发" aria-expanded="true"/);
-  assert.equal(cardCount(app.html()), 6);
+  assert.equal(cardCount(app.html()), 9);
   app.search('无结果');
   assert.match(app.elements.get('nav').innerHTML, /data-folder=""/);
   assert.match(app.html(), /没有找到匹配的书签/);
@@ -238,7 +240,7 @@ for (const layout of ['tabs', 'start']) {
     app.choose('工具');
     assert.match(app.elements.get('nav').innerHTML, /aria-label="下级分类"/);
     app.search('工具 4');
-    assert.equal(cardCount(app.html()), 6);
+    assert.equal(cardCount(app.html()), 9);
     app.search('无匹配');
     assert.match(app.html(), /没有找到匹配的书签/);
     assert.match(app.elements.get('nav').innerHTML, /data-folder=""/);
@@ -423,4 +425,109 @@ test('看板只有嵌套分类才显示路径行，一级分类不重复名称',
   assert.doesNotMatch(app.html(), /class="board-path"/);
   app.choose('工具');
   assert.match(app.html(), /<p class="board-path" title="工具\/开发">工具\/开发<\/p>/);
+});
+
+
+test('默认跨分类搜索，多关键词匹配；切回当前分类和清空搜索都保留原分类', () => {
+  const app = fixture({ layout: 'classic', folder: '工具' });
+  app.search('office example.org');
+  assert.equal(cardCount(app.html()), 10);
+  assert.equal(app.run('state.folder'), '工具');
+  assert.equal(app.elements.get('searchAll').attributes['aria-pressed'], 'true');
+  app.run('state.searchLocal = true; render()');
+  assert.equal(cardCount(app.html()), 0);
+  assert.match(app.html(), /搜索全部分类/);
+  app.search('');
+  assert.equal(app.run('state.searchLocal'), false);
+  assert.equal(app.run('state.folder'), '工具');
+  assert.equal(cardCount(app.html()), 36);
+});
+
+test('置顶独立于分类，保存后可取消，搜索时收起置顶区', () => {
+  const app = fixture({ layout: 'classic', folder: '工具' });
+  assert.equal(app.elements.get('pinnedShelf').hidden, true);
+  const url = 'https://example.com/tool/0';
+  app.context.pinEvent = { target: { closest: selector => selector === '[data-pin]' ? { dataset: { pin: url } } : null } };
+  app.run('pickFolder(pinEvent)');
+  assert.equal(JSON.parse(app.storage.get('bm-pins'))[0], url);
+  assert.equal(app.elements.get('pinnedShelf').hidden, false);
+  app.choose('公司');
+  assert.match(app.elements.get('pinnedGrid').innerHTML, /工具 0/);
+  app.search('office');
+  assert.equal(app.elements.get('pinnedShelf').hidden, true);
+  app.search('');
+  app.run('pickFolder(pinEvent)');
+  assert.equal(app.storage.get('bm-pins'), '[]');
+  assert.equal(app.elements.get('pinnedShelf').hidden, true);
+  assert.equal(app.elements.get('pinnedGrid').innerHTML, '');
+});
+
+test('置顶卡片不带随当前分类变化的路径标签，分类列表里的同一书签照常显示', () => {
+  const items = [{ title: 'React', href: 'https://react.dev/', host: 'react.dev', path: '开发/前端/框架', group: '开发' }];
+  const app = fixture({ layout: 'classic', folder: '开发', items });
+  app.storage.set('bm-pins', JSON.stringify(['https://react.dev/']));
+  app.context.pinEvent = { target: { closest: selector => selector === '[data-pin]' ? { dataset: { pin: 'https://react.dev/' } } : null } };
+  app.run('pickFolder(pinEvent)');
+  const shelf = app.elements.get('pinnedGrid').innerHTML;
+  assert.match(shelf, /React/);
+  assert.doesNotMatch(shelf, /class="tag"/);
+  assert.match(app.html(), /<span class="tag">框架<\/span>/, '分类列表仍显示区块以下的路径');
+  app.run('render()');
+  assert.doesNotMatch(app.elements.get('pinnedGrid').innerHTML, /class="tag"/);
+});
+
+test('置顶可向前或向后排序，刷新后沿用保存顺序，不改变分类列表', () => {
+  const urls = [0, 1, 2].map(i => 'https://example.com/tool/' + i);
+  const app = fixture({ layout: 'classic', folder: '工具', pins: urls });
+  const original = app.html();
+  app.context.urls = urls;
+  assert.equal(app.run('reorderPinnedBookmark(urls[2], urls[0], false)'), true);
+  assert.deepEqual(JSON.parse(app.storage.get('bm-pins')), [urls[2], urls[0], urls[1]]);
+  assert.equal(app.run('reorderPinnedBookmark(urls[2], urls[1], true)'), true);
+  assert.deepEqual(JSON.parse(app.storage.get('bm-pins')), urls);
+  assert.equal(app.html(), original);
+  app.run('reorderPinnedBookmark(urls[0], urls[1], true)');
+  const reloaded = fixture({ pins: JSON.parse(app.storage.get('bm-pins')) });
+  const html = reloaded.elements.get('pinnedGrid').innerHTML;
+  const order = [...html.matchAll(/data-pinned-url="([^"]+)"/g)].map(match => match[1]);
+  assert.deepEqual(order, [urls[1], urls[0], urls[2]]);
+  assert.match(html, /draggable="true"/);
+  assert.doesNotMatch(app.html(), /draggable="true"/);
+});
+
+test('无效目标、未改变顺序和存储失败均保留原置顶顺序', () => {
+  const urls = [0, 1].map(i => 'https://example.com/tool/' + i);
+  const app = fixture({ pins: urls });
+  app.context.urls = urls;
+  for (const command of [
+    'reorderPinnedBookmark(urls[0], urls[0], true)',
+    'reorderPinnedBookmark(urls[0], "missing", true)',
+    'reorderPinnedBookmark("missing", urls[0], true)',
+    'reorderPinnedBookmark(urls[0], urls[1], false)'
+  ]) assert.equal(app.run(command), false);
+  app.context.localStorage.setItem = () => { throw new Error('storage denied'); };
+  assert.equal(app.run('reorderPinnedBookmark(urls[0], urls[1], true)'), false);
+  assert.equal(app.run('JSON.stringify(pinnedUrls)'), JSON.stringify(urls));
+  assert.deepEqual(JSON.parse(app.storage.get('bm-pins')), urls);
+  assert.match(app.elements.get('libraryStatus').textContent, /无法保存置顶顺序/);
+});
+
+test('“置顶顺序已保存”约 2.5 秒后自动消失，错误提示保留到下一次操作', () => {
+  const urls = [0, 1].map(i => 'https://example.com/tool/' + i);
+  const app = fixture({ pins: urls });
+  const timers = [];
+  app.context.setTimeout = (callback, ms) => { timers.push({ callback, ms }); return timers.length; };
+  app.context.urls = urls;
+  app.run('reorderPinnedBookmark(urls[0], urls[1], true)');
+  const status = app.elements.get('libraryStatus');
+  assert.equal(status.textContent, '置顶顺序已保存');
+  assert.equal(timers.at(-1).ms, 2500);
+  timers.at(-1).callback();
+  assert.equal(status.textContent, '');
+  app.context.localStorage.setItem = () => { throw new Error('storage denied'); };
+  const pending = timers.length;
+  // Order is now [1, 0]; moving 1 after 0 is a real change, so it reaches the failing save.
+  assert.equal(app.run('reorderPinnedBookmark(urls[1], urls[0], true)'), false);
+  assert.match(status.textContent, /无法保存置顶顺序/);
+  assert.equal(timers.length, pending, '错误提示不设自动清除');
 });

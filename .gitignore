@@ -5,6 +5,7 @@ __pycache__/
 *.lnk
 data/.window-state.json
 data/.update-backups/
+data/.bookmark-backups/
 data/.update-stage-*/
 data/bookmarks.html
 web/data.js

@@ -10,13 +10,13 @@ let layoutQuery = null;
 
 function prepareLayoutState(tree) {
   const query = state.q.trim().toLowerCase();
-  if (layoutFolder !== state.folder || layoutQuery !== query) {
+  if (layoutFolder !== activeFolder() || layoutQuery !== query) {
     boardLimits.clear();
     accordionCollapsed.clear();
   }
-  if (layoutFolder !== state.folder) {
+  if (layoutFolder !== activeFolder()) {
     treeMenuOpen = false;
-    const parts = state.folder.split("/");
+    const parts = activeFolder().split("/");
     for (let i = 1; i <= parts.length; i++) treeExpanded.add(parts.slice(0, i).join("/"));
   }
   // Reveal search matches without preventing users from collapsing a result branch.
@@ -29,7 +29,7 @@ function prepareLayoutState(tree) {
     };
     expand(tree);
   }
-  layoutFolder = state.folder;
+  layoutFolder = activeFolder();
   layoutQuery = query;
 }
 
@@ -51,7 +51,7 @@ function boardHtml(sections, order) {
 }
 
 function treeNavHtml(tree, total) {
-  const label = (name, path, count) => `<button type="button" class="folder tree-label ${selectedInCol(path) ? "on" : ""}" data-folder="${escapeHtml(path)}" title="${escapeHtml(path || name)}"${state.folder === path ? ' aria-current="page"' : ""}>
+  const label = (name, path, count) => `<button type="button" class="folder tree-label ${selectedInCol(path) ? "on" : ""}" data-folder="${escapeHtml(path)}" title="${escapeHtml(path || name)}"${activeFolder() === path ? ' aria-current="page"' : ""}>
     <svg class="tree-folder-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v10H3Z"/></svg>
     <b>${escapeHtml(name)}</b><span>${count}</span></button>`;
   const branch = (node, depth) => {
@@ -66,7 +66,7 @@ function treeNavHtml(tree, total) {
       ${children.length ? `<ul id="${id}"${expanded ? "" : " hidden"}>${children.map(child => branch(child, depth + 1)).join("")}</ul>` : ""}
     </li>`;
   };
-  const current = state.folder ? state.folder.split("/").join(" › ") : "全部";
+  const current = activeFolder() ? activeFolder().split("/").join(" › ") : "全部";
   return `<nav class="nav-col tree-nav${treeMenuOpen ? " is-open" : ""}" aria-label="书签目录">
     <div class="tree-caption tree-caption-static">书签目录<span>${escapeHtml(current)}</span></div>
     <button type="button" class="tree-caption tree-caption-toggle" data-tree-menu aria-expanded="${treeMenuOpen}">书签目录<span>${escapeHtml(current)}</span></button>
@@ -78,12 +78,12 @@ function treeNavHtml(tree, total) {
 function horizontalNavHtml(tree, total) {
   const button = (name, path, count, current) => `<button type="button" class="folder ${current ? "on" : ""}" data-folder="${escapeHtml(path)}" style="--h:${hue(path || name)}"${current ? ' aria-current="page"' : ""}><b>${escapeHtml(name)}</b>${count === undefined ? "" : `<span>${count}</span>`}</button>`;
   const roots = Object.values(tree.kids);
-  const tabs = button("全部", "", total, !state.folder) + roots.map(node =>
+  const tabs = button("全部", "", total, !activeFolder()) + roots.map(node =>
     button(node.name, node.path, node.count, selectedInCol(node.path))).join("");
-  const parts = state.folder ? state.folder.split("/") : [];
+  const parts = activeFolder() ? activeFolder().split("/") : [];
   const crumbs = parts.length ? `<nav class="layout-breadcrumbs" aria-label="当前位置">${button("全部", "", undefined, false)}${parts.map((part, i) =>
     `<span aria-hidden="true">/</span>${button(part, parts.slice(0, i + 1).join("/"), undefined, i === parts.length - 1)}`).join("")}</nav>` : "";
-  const node = state.folder ? nodeAt(tree, state.folder) : null;
+  const node = activeFolder() ? nodeAt(tree, activeFolder()) : null;
   const children = node ? Object.values(node.kids) : [];
   const subnav = children.length ? `<nav class="horizontal-children" aria-label="下级分类">${children.map(child => button(child.name, child.path, child.count, false)).join("")}</nav>` : "";
   return `<nav class="nav-col horizontal-tabs" aria-label="书签分类">${tabs}</nav>${crumbs}${subnav}`;

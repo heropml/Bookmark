@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="css/layouts.css" />
   <link rel="stylesheet" href="css/motion.css" />
   <link rel="stylesheet" href="css/responsive.css" />
+  <link rel="stylesheet" href="css/library.css" />
 </head>
 <body>
   <div class="aurora"></div>
@@ -28,7 +29,7 @@
   <canvas id="fx-canvas" aria-hidden="true"></canvas>
   <div id="folderNameTooltip" class="folder-name-tooltip" role="tooltip" hidden></div>
   <div class="app-meta">
-    <div id="appVersion" class="app-version" aria-label="当前版本">v1.1.1</div>
+  <div id="appVersion" class="app-version" aria-label="当前版本">v1.1.2</div>
     <div id="updateNotice" class="update-notice" hidden>
       <button type="button" id="updateBtn" class="update-action" aria-label="发现新版本，点击升级" title="发现新版本，点击升级"></button>
     </div>
@@ -68,11 +69,14 @@
         <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.8"/>
         <path d="M16 16l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
       </svg>
-      <input id="q" type="search" placeholder="搜索书签、网站或分类" autofocus />
+      <input id="q" type="search" placeholder="搜索全部书签、网站或分类" aria-label="搜索书签" autofocus />
       <kbd class="search-kbd" id="searchKbd" aria-hidden="true">Ctrl K</kbd>
     </div>
-      <div class="tools">
-        <button type="button" id="bookmarkSyncBtn" class="stat sync-trigger" title="同步浏览器书签" aria-label="同步浏览器书签" aria-haspopup="dialog" aria-controls="bookmarkSyncDialog">
+    <div class="tools">
+      <button type="button" id="focusPreset" class="stat focus-preset" aria-pressed="false" title="静态背景，关闭动效；退出后恢复原来的外观">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/><circle cx="12" cy="12" r="3"/></svg><span>专注</span>
+      </button>
+      <button type="button" id="bookmarkSyncBtn" class="stat sync-trigger" title="同步浏览器书签" aria-label="同步浏览器书签" aria-haspopup="dialog" aria-controls="bookmarkSyncDialog">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11V4h12v7M9 4v5l3-2 3 2V4M4 15a8 8 0 0 0 14 4l2-3M20 16v5m0-5h-5M4 15v-5m0 5h5"/></svg>
         <span>同步书签</span>
       </button>
@@ -278,7 +282,8 @@
         </label>
       </fieldset>
       <p id="bookmarkSyncDetected" class="sync-detected">正在识别当前浏览器…</p>
-      <div class="sync-notice"><strong>同步前请确认</strong><p>将替换本主页现有书签和分类，不会修改浏览器里的收藏夹。</p><small>多账号浏览器按最近使用的配置读取，网页无法确定当前标签页所属账号。</small></div>
+      <div class="sync-notice"><strong>同步前请确认</strong><p>将替换本主页现有书签和分类，不会修改浏览器里的收藏夹。导入前会自动备份当前书签。</p><small>多账号浏览器按最近使用的配置读取，网页无法确定当前标签页所属账号。</small></div>
+      <button type="button" id="bookmarkBackups" class="backup-entry">查看备份与恢复 <span aria-hidden="true">↗</span></button>
       <p id="bookmarkSyncStatus" class="sync-status" role="status" aria-live="polite"></p>
       <div id="bookmarkSyncHelp" class="sync-help" hidden>
         <details><summary>查看解决步骤</summary><ol id="bookmarkSyncSteps"></ol></details>
@@ -302,9 +307,33 @@
       <button id="serviceRestartConfirm" class="sync-confirm" type="button">确认重启</button>
     </div>
   </dialog>
+  <dialog id="backupDialog" class="sync-dialog backup-dialog" aria-labelledby="backupTitle">
+    <div class="sync-head"><div><h2 id="backupTitle">书签备份</h2><p>导入前自动保存，随时回到之前的书签。</p></div><button type="button" id="backupClose" class="sync-close" aria-label="关闭备份窗口">×</button></div>
+    <p class="sync-description">备份仅保存在这台电脑。恢复会替换主页书签，并先备份当前版本；置顶和外观设置不受影响。</p>
+    <p id="backupStatus" class="sync-status" role="status"></p>
+    <div id="backupList" class="backup-list"></div>
+    <div id="backupConfirmPanel" class="backup-confirm-panel" hidden>
+      <p id="backupConfirmText"></p>
+      <div class="sync-actions"><button type="button" id="backupCancel">取消</button><button type="button" id="backupRestore" class="sync-confirm">确认恢复</button></div>
+    </div>
+  </dialog>
   <div class="layout">
     <div id="nav" class="nav-cols"></div>
-    <main id="main"></main>
+    <div class="bookmark-content">
+    <section id="pinnedShelf" class="pinned-shelf" aria-labelledby="pinnedTitle" hidden>
+        <div class="shelf-heading"><h2 id="pinnedTitle"><span aria-hidden="true">☆</span> 置顶常用 <small id="pinnedCount">0</small></h2><span>拖动或按 Alt+←/→ 调整顺序</span></div>
+        <div id="pinnedGrid" class="grid"></div>
+      </section>
+      <div class="library-toolbar">
+        <div class="library-heading"><h1 id="libraryTitle">我的书签</h1><span id="libraryCount"></span></div>
+        <div id="searchScope" class="search-scope" role="group" aria-label="搜索范围" hidden>
+          <button type="button" id="searchAll" aria-pressed="true">全部书签</button>
+          <button type="button" id="searchLocal" aria-pressed="false">当前分类</button>
+        </div>
+      </div>
+      <p id="libraryStatus" class="library-status" role="status"></p>
+      <main id="main"></main>
+    </div>
   </div>
   <script src="js/data-loader.js"></script>
   <script defer src="js/config.js"></script>
@@ -319,6 +348,7 @@
   <script defer src="js/bookmark-sync.js"></script>
   <script defer src="js/update.js"></script>
   <script defer src="js/effects.js"></script>
+  <script defer src="js/library.js"></script>
   <script defer src="js/app.js"></script>
 </body>
 </html>

@@ -9,6 +9,15 @@ const ITEMS = (window.BOOKMARKS || []).map((it) => {
   };
 });
 const folderNameTooltip = document.getElementById("folderNameTooltip");
+let pinnedUrls = [];
+try {
+  const saved = JSON.parse(localStorage.getItem("bm-pins") || "[]");
+  if (Array.isArray(saved)) pinnedUrls = [...new Set(saved.filter(url => typeof url === "string"))];
+} catch (e) {}
+
+function activeFolder() {
+  return state.q.trim() && !state.searchLocal ? "" : state.folder;
+}
 
 function hue(text) {
   let h = 0;
@@ -22,11 +31,11 @@ function inFolder(item) {
 function hitSearch(item) {
   const q = state.q.trim().toLowerCase();
   if (!q) return true;
-  return item.search.includes(q);
+  return q.split(/\s+/).every(word => item.search.includes(word));
 }
-function matches(item) { return inFolder(item) && hitSearch(item); }
+function matches(item) { return (!activeFolder() || inFolder(item)) && hitSearch(item); }
 function sectionKey(item) {
-  if (!state.folder) return item.group;
+  if (!activeFolder()) return item.group;
   if (item.path === state.folder) return item.path;
   const rest = item.path.startsWith(state.folder + "/")
     ? item.path.slice(state.folder.length + 1)
@@ -91,15 +100,18 @@ function sectionTitle(name) {
   const last = parts.pop();
   return (parts.length ? `<span class="section-parent">${escapeHtml(parts.join(" › "))} ›</span>` : "") + escapeHtml(last);
 }
-function cardHtml(item) {
+// Called as .map(cardHtml), so options must not be positional: the index arrives second.
+function cardHtml(item, { shelf = false } = {}) {
   const h = item.hue;
   const letter = (item.title || item.host || "?").trim().charAt(0).toUpperCase();
-  const sub = pathBelowSection(item);
+  // Pinned cards sit outside any section, where a section-relative tag would change with the folder.
+  const sub = shelf ? "" : pathBelowSection(item);
   const href = safeHref(item.href);
   const link = href
-    ? `href="${escapeHtml(href)}" target="_blank" rel="noreferrer" title="${escapeHtml(item.title)}"`
+    ? `href="${escapeHtml(href)}" target="_blank" rel="noreferrer" title="${escapeHtml(item.title)}"${shelf ? ' aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight"' : ""}`
     : 'aria-disabled="true" title="书签脚本不能在主页中运行"';
-  return `
+  const pinned = pinnedUrls.includes(item.href);
+  return `<div class="bookmark-item"${shelf ? ` draggable="true" data-pinned-url="${escapeHtml(item.href)}"` : ""}>
     <a class="card" style="--h:${h}" ${link} data-key="${escapeHtml(item.href)}">
       <div class="ico">
         <span>${escapeHtml(letter)}</span>
@@ -114,7 +126,9 @@ function cardHtml(item) {
         </div>
       </div>
       <i class="card-glow" aria-hidden="true"></i>
-    </a>`;
+    </a>
+    <button type="button" class="bookmark-pin" data-pin="${escapeHtml(item.href)}" aria-pressed="${pinned}" aria-label="${pinned ? "取消置顶" : "置顶"}：${escapeHtml(item.title)}" title="${pinned ? "取消置顶" : "置顶到常用"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/></svg></button>
+    </div>`;
 }
 // A few site icons make each category card recognisable at a glance on the overview.
 function peekHtml(items) {
@@ -122,7 +136,7 @@ function peekHtml(items) {
   return hosts.length ? `<span class="card-peek" aria-hidden="true">${hosts.map(faviconImg).join("")}</span>` : "";
 }
 function selectedInCol(itemPath) {
-  if (!state.folder) return itemPath === "";
+  if (!activeFolder()) return itemPath === "";
   if (itemPath === "") return false;
   return state.folder === itemPath || state.folder.startsWith(itemPath + "/");
 }
@@ -187,7 +201,7 @@ function render() {
   }
   const tree = buildTree(pathCounts);
   prepareLayoutState(tree);
-  const cols = openColumns(state.folder, tree);
+  const cols = openColumns(activeFolder(), tree);
 
   document.getElementById("nav").innerHTML = document.documentElement.dataset.layout === "tree"
     ? treeNavHtml(tree, searched.length)
@@ -213,7 +227,7 @@ function render() {
     }
     const nameWidth = folderNameWidth(items);
     const buttons = items.map((it) => {
-      const on = selectedInCol(it.path) || (it.path === "" && !state.folder);
+      const on = selectedInCol(it.path) || (it.path === "" && !activeFolder());
       const fullName = folderNameLength(it.name) > 4 ? ` data-full-name="${escapeHtml(it.name)}"` : "";
       return `<button class="folder ${it.hasKids ? "has-kids" : ""} ${on ? "on" : ""}" data-folder="${escapeHtml(it.path)}"${fullName} style="--h:${hue(it.path || it.name)}"><em class="dot"></em><b><span class="folder-name">${escapeHtml(it.name)}</span></b><span>${it.count}</span></button>`;
     }).join("");
@@ -222,10 +236,11 @@ function render() {
   updateFolderNameScroll();
 
   document.getElementById("stats").textContent = `${visible.length} / ${ITEMS.length}`;
+  renderLibraryChrome(visible.length);
 
   const main = document.getElementById("main");
   if (!visible.length) {
-    main.innerHTML = `<div class="empty">没有找到匹配的书签</div>`;
+    main.innerHTML = `<div class="empty"><strong>没有找到匹配的书签</strong><p>${activeFolder() ? "试试搜索全部分类，或换一个关键词。" : "试试网站名称、域名或分类名称。"}</p>${activeFolder() && state.q.trim() ? '<button type="button" class="library-button" data-search-all>搜索全部分类</button>' : ""}</div>`;
     return;
   }
   const sections = new Map();
@@ -285,6 +300,28 @@ function escapeHtml(s) {
 }
 
 function pickFolder(e) {
+  const pin = e.target.closest("[data-pin]");
+  if (pin) {
+    const url = pin.dataset.pin;
+    const next = pinnedUrls.includes(url) ? pinnedUrls.filter(item => item !== url) : [...pinnedUrls, url];
+    try { localStorage.setItem("bm-pins", JSON.stringify(next)); }
+    catch (error) {
+      setLibraryStatus("无法保存置顶，请检查浏览器是否允许本地存储。");
+      return;
+    }
+    pinnedUrls = next;
+    setLibraryStatus("");
+    render();
+    const target = [...document.querySelectorAll('[data-pin]')].find(button => button.dataset.pin === url && !button.closest('[hidden]'));
+    target?.focus({ preventScroll: true });
+    return;
+  }
+  if (e.target.closest("[data-search-all]")) {
+    state.searchLocal = false;
+    state.shown = PAGE;
+    render();
+    return;
+  }
   if (handleLayoutClick(e)) return;
   const more = e.target.closest("#moreBtn");
   if (more) {
@@ -303,6 +340,7 @@ function pickFolder(e) {
   if (!btn) return;
   const treeScroll = document.getElementById("nav").firstElementChild?.scrollTop || 0;
   state.folder = btn.getAttribute("data-folder");
+  if (state.q.trim()) state.searchLocal = !!state.folder;
   try { localStorage.setItem("bm-folder", state.folder); } catch (e) {}
   state.shown = PAGE;
   render();
@@ -315,6 +353,51 @@ function pickFolder(e) {
       selected.closest(".tree-nav").scrollTop = treeScroll;
     }
   }
+}
+
+function renderLibraryChrome(count) {
+  const title = document.getElementById("libraryTitle");
+  if (!title) return;
+  const searching = !!state.q.trim();
+  title.textContent = searching ? "搜索结果" : "我的书签";
+  document.getElementById("libraryCount").textContent = searching ? `${count} 个匹配` : `${count} 个书签`;
+  document.getElementById("searchScope").hidden = !searching;
+  document.getElementById("searchAll").setAttribute("aria-pressed", String(!state.searchLocal));
+  const local = document.getElementById("searchLocal");
+  local.disabled = !state.folder;
+  local.textContent = state.folder ? `仅 ${state.folder.split("/").pop()}` : "当前分类";
+  local.setAttribute("aria-pressed", String(state.searchLocal));
+  const shelf = document.getElementById("pinnedShelf");
+  const byUrl = new Map(ITEMS.map(item => [item.href, item]));
+  const pinned = pinnedUrls.map(url => byUrl.get(url)).filter(Boolean);
+  shelf.hidden = searching || pinned.length === 0;
+  document.getElementById("pinnedCount").textContent = String(pinned.length);
+  document.getElementById("pinnedGrid").innerHTML = pinned.map(item => cardHtml(item, { shelf: true })).join("");
+}
+
+let libraryStatusTimer = 0;
+// Errors stay until the next action; a confirmation fades so it does not linger above the list.
+function setLibraryStatus(text, transient = false) {
+  const status = document.getElementById("libraryStatus");
+  clearTimeout(libraryStatusTimer);
+  status.textContent = text;
+  if (transient) libraryStatusTimer = setTimeout(() => { if (status.textContent === text) status.textContent = ""; }, 2500);
+}
+
+function reorderPinnedBookmark(source, target, after) {
+  if (source === target || !pinnedUrls.includes(source) || !pinnedUrls.includes(target)) return false;
+  const next = pinnedUrls.filter(url => url !== source);
+  next.splice(next.indexOf(target) + (after ? 1 : 0), 0, source);
+  if (next.every((url, index) => url === pinnedUrls[index])) return false;
+  try { localStorage.setItem("bm-pins", JSON.stringify(next)); }
+  catch (error) {
+    setLibraryStatus("无法保存置顶顺序，请检查浏览器是否允许本地存储。");
+    return false;
+  }
+  pinnedUrls = next;
+  setLibraryStatus("置顶顺序已保存", true);
+  render();
+  return true;
 }
 
 function showFolderNameTooltip(button) {
@@ -369,6 +452,7 @@ function initBookmarks() {
   let searchTimer = 0;
   document.getElementById("q").addEventListener("input", (e) => {
     state.q = e.target.value;
+    if (!state.q.trim()) state.searchLocal = false;
     document.body.classList.toggle("searching", !!state.q.trim());
     state.shown = PAGE;
     clearTimeout(searchTimer);
