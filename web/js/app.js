@@ -1,6 +1,8 @@
 // 模块已按依赖顺序加载；事件绑定和启动操作统一在这里执行。
 initBookmarks();
 initLibrary();
+initCategoryArrangement();
+initBookmarkMenu();
 initWindowState();
 initPointerEffects();
 initAppearance();
@@ -10,6 +12,7 @@ initWeatherControls();
 initUpdate();
 initBookmarkSync();
 initEffects();
+initAppearancePresets();
 initClock();
 initWeatherRefresh();
 if (!ITEMS.length) {

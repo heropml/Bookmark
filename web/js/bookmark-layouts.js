@@ -39,7 +39,8 @@ function boardHtml(sections, order) {
     const shown = items.slice(0, boardLimits.get(name) || BOARD_PAGE);
     const remaining = items.length - shown.length;
     const shortName = name.split("/").pop();
-    return `<section class="board-column nav-col" data-board="${escapeHtml(name)}" style="--h:${hue(name)}">
+    return `<section class="board-column nav-col" data-board="${escapeHtml(name)}" ${categoryBlockAttrs(name)} style="--h:${hue(name)}">
+      ${categoryControlsHtml(name)}
       <h2 class="board-heading"><button type="button" data-folder="${escapeHtml(name)}" title="查看 ${escapeHtml(name)}">
         <em class="dot" aria-hidden="true"></em><span>${escapeHtml(shortName)}</span><b>${items.length}</b>
       </button></h2>
@@ -96,7 +97,8 @@ function accordionHtml(sections, order) {
     const remaining = items.length - shown.length;
     const expanded = !accordionCollapsed.has(name);
     const id = "accordion-" + encodeURIComponent(name);
-    return `<section class="accordion-group nav-col" data-board="${escapeHtml(name)}" style="--h:${hue(name)}">
+    return `<section class="accordion-group nav-col" data-board="${escapeHtml(name)}" ${categoryBlockAttrs(name)} style="--h:${hue(name)}">
+      ${categoryControlsHtml(name)}
       <h2><button type="button" class="accordion-toggle" data-accordion-toggle="${escapeHtml(name)}" aria-expanded="${expanded}" aria-controls="${id}">
         <span class="accordion-arrow" aria-hidden="true">›</span><span class="accordion-name">${sectionTitle(name)}</span><span class="accordion-count">${items.length} 个书签</span>
       </button></h2>
@@ -114,7 +116,8 @@ function collectionHtml(sections, order) {
     const items = sections.get(name);
     const shown = items.slice(0, boardLimits.get(name) || BOARD_PAGE);
     const remaining = items.length - shown.length;
-    return `<section class="collection-group" data-board="${escapeHtml(name)}" style="--h:${hue(name)}">
+    return `<section class="collection-group" data-board="${escapeHtml(name)}" ${categoryBlockAttrs(name)} style="--h:${hue(name)}">
+      ${categoryControlsHtml(name)}
       <h2 class="collection-heading"><button type="button" data-folder="${escapeHtml(name)}" title="查看 ${escapeHtml(name)}">${sectionTitle(name)}<small>${items.length}</small></button></h2>
       <div class="grid">${shown.map(cardHtml).join("")}</div>
       ${remaining ? `<button type="button" class="board-more" data-board-more="${escapeHtml(name)}">再显示 ${Math.min(BOARD_PAGE, remaining)} 个 <span>· 还有 ${remaining} 个</span></button>` : ""}

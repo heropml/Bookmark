@@ -128,6 +128,7 @@ function cardHtml(item, { shelf = false } = {}) {
       <i class="card-glow" aria-hidden="true"></i>
     </a>
     <button type="button" class="bookmark-pin" data-pin="${escapeHtml(item.href)}" aria-pressed="${pinned}" aria-label="${pinned ? "取消置顶" : "置顶"}：${escapeHtml(item.title)}" title="${pinned ? "取消置顶" : "置顶到常用"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/></svg></button>
+    ${typeof bookmarkMenuButtonHtml === "function" ? bookmarkMenuButtonHtml(item) : ""}
     </div>`;
 }
 // A few site icons make each category card recognisable at a glance on the overview.
@@ -240,6 +241,7 @@ function render() {
 
   const main = document.getElementById("main");
   if (!visible.length) {
+    prepareCategoryArrangement([]);
     main.innerHTML = `<div class="empty"><strong>没有找到匹配的书签</strong><p>${activeFolder() ? "试试搜索全部分类，或换一个关键词。" : "试试网站名称、域名或分类名称。"}</p>${activeFolder() && state.q.trim() ? '<button type="button" class="library-button" data-search-all>搜索全部分类</button>' : ""}</div>`;
     return;
   }
@@ -249,29 +251,34 @@ function render() {
     if (!sections.has(key)) sections.set(key, []);
     sections.get(key).push(item);
   }
-  const order = [...sections.keys()];
+  // Sort complete groups before applying any per-layout bookmark limit.
+  const order = prepareCategoryArrangement([...sections.keys()]);
   if (document.documentElement.dataset.layout === "accordion") {
     main.innerHTML = accordionHtml(sections, order);
+    updateCategoryArrangementDirection();
     applyFlips();
     return;
   }
   if (["board", "waterfall"].includes(document.documentElement.dataset.layout)) {
     main.innerHTML = boardHtml(sections, order);
+    updateCategoryArrangementDirection();
     applyFlips();
     return;
   }
   if (["shelves", "index", "text"].includes(document.documentElement.dataset.layout)) {
     main.innerHTML = collectionHtml(sections, order);
+    updateCategoryArrangementDirection();
     applyFlips();
     return;
   }
   if (document.documentElement.dataset.layout === "table") {
     main.innerHTML = tableHtml(visible);
+    updateCategoryArrangementDirection();
     applyFlips();
     return;
   }
   if (!state.folder && !state.q.trim() && !EXTRA_LAYOUTS.includes(document.documentElement.dataset.layout)) {
-    main.innerHTML = `<div class="grid">${order.map((name) => `
+    main.innerHTML = `<div class="grid">${order.map((name) => categoryOverviewHtml(name, `
       <button type="button" class="card" data-folder="${escapeHtml(name)}" data-key="folder:${escapeHtml(name)}" title="${escapeHtml(name)}" style="--h:${hue(name)}">
         <div class="ico"><span>${escapeHtml(name.charAt(0))}</span></div>
         <div>
@@ -280,7 +287,8 @@ function render() {
           ${peekHtml(sections.get(name))}
         </div>
         <i class="card-glow" aria-hidden="true"></i>
-      </button>`).join("")}</div>`;
+      </button>`)).join("")}</div>`;
+    updateCategoryArrangementDirection();
     applyFlips();
     return;
   }
@@ -288,19 +296,22 @@ function render() {
   const html = [];
   for (const name of order) {
     const all = sections.get(name);
-    if (used >= state.shown) break;
-    const shown = all.slice(0, state.shown - used);
+    if (!categoryArrangementActive && used >= state.shown) break;
+    const shown = all.slice(0, categoryArrangementActive ? (boardLimits.get(name) || BOARD_PAGE) : state.shown - used);
     used += shown.length;
+    const heading = `<h2 style="--h:${hue(name)}"><em class="dot"></em>${sectionTitle(name)}<span>${all.length}</span></h2>`;
     html.push(`
-    <section class="section">
-      <h2 style="--h:${hue(name)}"><em class="dot"></em>${sectionTitle(name)}<span>${all.length}</span></h2>
+    <section class="section" data-board="${escapeHtml(name)}" ${categoryBlockAttrs(name)}>
+      ${categoryArrangementActive ? `<div class="category-section-heading">${heading}${categoryControlsHtml(name)}</div>` : heading}
       <div class="grid">${shown.map(cardHtml).join("")}</div>
+      ${categoryArrangementActive && shown.length < all.length ? `<button type="button" class="board-more" data-board-more="${escapeHtml(name)}">再显示 ${Math.min(BOARD_PAGE, all.length - shown.length)} 个 <span>· 还有 ${all.length - shown.length} 个</span></button>` : ""}
     </section>`);
   }
-  if (used < visible.length) {
+  if (!categoryArrangementActive && used < visible.length) {
     html.push(`<button type="button" class="more" id="moreBtn">还有 ${visible.length - used} 个</button>`);
   }
   main.innerHTML = html.join("");
+  updateCategoryArrangementDirection();
   applyFlips();
 }
 function escapeHtml(s) {
@@ -310,6 +321,7 @@ function escapeHtml(s) {
 }
 
 function pickFolder(e) {
+  if (handleCategoryArrangementClick(e)) return;
   const pin = e.target.closest("[data-pin]");
   if (pin) {
     const url = pin.dataset.pin;

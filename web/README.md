@@ -17,6 +17,8 @@
 8. `layouts.css`：紧凑、列表、宫格、分组看板、目录树、顶部标签、居中起始页、分类折叠等布局。
 9. `motion.css`：图标动效、焦点、动态效果开关。
 10. `responsive.css`：小屏和减少动态效果设置。
+11. `library.css`：书签工具栏、置顶区和专注模式。
+12. `category-arrangement.css`、`appearance-presets.css`、`bookmark-menu.css`：分类整理、外观方案和书签快捷菜单。
 
 CSS 图片路径相对于 `css/`，例如 `../themes/shuimo.svg`。
 
@@ -32,9 +34,12 @@ CSS 图片路径相对于 `css/`，例如 `../themes/shuimo.svg`。
 | `js/utils.js` | 本地存储、请求等共用小工具 |
 | `js/bookmarks.js` | 书签数据整理、分类、搜索、渲染和快捷键 |
 | `js/bookmark-layouts.js` | 分组看板的独立分页、目录树导航与展开状态、横向分类和面包屑、分类面板折叠 |
+| `js/category-arrangement.js` | 分类区块整理模式、拖拽和按钮排序、本地顺序保存 |
+| `js/bookmark-menu.js` | 书签右键及更多菜单、复制网址和完整详情 |
 | `js/weather.js` | 城市、天气 API、图标与刷新机制 |
 | `js/clock.js` | 时钟、日期、问候语和焦点切换后的校时 |
 | `js/appearance.js` | 外观选项、弹框、设置保存和主题切换 |
+| `js/appearance-presets.js` | 保存、应用和管理命名外观方案 |
 | `js/window-state.js` | 本地窗口尺寸记录 |
 | `js/interactions.js` | 鼠标光效、拖尾和卡片倾斜交互 |
 | `js/bookmark-sync.js` | 当前浏览器识别、来源选择、确认同步与结果处理 |
@@ -65,6 +70,7 @@ node --test tests/weather.test.cjs
 node --test tests/layouts.test.cjs
 node --test tests/clock.test.cjs
 node --test tests/bookmark-sync.test.cjs
+node --test tests/category-arrangement.test.cjs tests/appearance-presets.test.cjs tests/bookmark-menu.test.cjs
 ```
 
 测试使用模拟网络、存储和页面元素，验证城市切换竞争、取消输入、零坐标、10 分钟刷新、跨标签页共用缓存、后台暂停及失败状态，不访问私人书签或快捷方式接口。

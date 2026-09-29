@@ -90,11 +90,14 @@ function choicePreview(key, id) {
   if (key === "sky") return '<span class="sky-swatch"></span>';
   return '<span class="fx-dot"></span>';
 }
+const appearanceChoices = {};
+let appearanceDensity = null;
 function setupChoice(list, key, containerId, resolve) {
   const root = document.documentElement;
   let stored = null;
   try { stored = localStorage.getItem("bm-" + key); } catch (e) {}
   let followsSystem = key === "fx" && stored === null;
+  let selectedId = null;
   const cur = stored && list.some((x) => x.id === stored)
     ? stored
     : root.dataset[key] || list[0].id;
@@ -105,6 +108,7 @@ function setupChoice(list, key, containerId, resolve) {
     </button>`).join("");
   const apply = (id, syncShortcut = false, persist = true) => {
     const item = list.find((x) => x.id === id) || list[0];
+    selectedId = item.id;
     root.dataset[key] = resolve ? resolve(item.id) : item.id;
     if (persist) {
       try { localStorage.setItem("bm-" + key, item.id); } catch (e) {}
@@ -124,6 +128,17 @@ function setupChoice(list, key, containerId, resolve) {
   };
   // Loading rewrites only a stored choice; defaults such as the reduced-motion one stay unset.
   apply(list.some((x) => x.id === cur) ? cur : list[0].id, false, stored !== null);
+  appearanceChoices[key] = {
+    value: () => selectedId,
+    followsSystem: () => followsSystem,
+    apply: (id, persist = true, system = false) => {
+      if (key === "fx") {
+        followsSystem = system;
+        if (system) id = matchMedia("(prefers-reduced-motion: reduce)").matches ? "off" : "on";
+      }
+      apply(id, key === "skin", persist);
+    }
+  };
   if (key === "fx") {
     matchMedia("(prefers-reduced-motion: reduce)").addEventListener("change", (event) => {
       if (followsSystem) apply(event.matches ? "off" : "on", false, false);
@@ -132,9 +147,8 @@ function setupChoice(list, key, containerId, resolve) {
   container.addEventListener("click", (event) => {
     const btn = event.target.closest(".choice");
     if (!btn) return;
-    if (key === "fx") followsSystem = false;
     const previous = root.dataset[key];
-    apply(btn.dataset.value, key === "skin");
+    appearanceChoices[key].apply(btn.dataset.value);
     if (key === "layout" && previous !== root.dataset.layout &&
         [previous, root.dataset.layout].some(id => ["board", "tree", "tabs", "start", "accordion", ...EXTRA_LAYOUTS].includes(id))) render();
   });
@@ -187,9 +201,7 @@ function initAppearance() {
   setupChoice(FX, "fx", "fxChoices");
   const colorSchemeMq = matchMedia("(prefers-color-scheme: light)");
   colorSchemeMq.addEventListener("change", () => {
-    let s = null;
-    try { s = localStorage.getItem("bm-skin"); } catch (e) {}
-    if ((s || "") === "auto") {
+    if (appearanceChoices.skin.value() === "auto") {
       const resolved = autoSkin();
       document.documentElement.dataset.skin = resolved;
       const fav = document.getElementById("fav");
@@ -243,7 +255,7 @@ function initLayoutDensity() {
   let stored = 100;
   try { stored = Number(localStorage.getItem("bm-card-density")) || 100; } catch (e) {}
   let value = sizes[stored] ? stored : 100;
-  const apply = (next) => {
+  const apply = (next, persist = true) => {
     value = Math.max(60, Math.min(120, next));
     const size = sizes[value];
     root.dataset.cardDensity = String(value);
@@ -270,8 +282,11 @@ function initLayoutDensity() {
     label.textContent = size.name;
     out.disabled = value === 60;
     increase.disabled = value === 120;
-    try { localStorage.setItem("bm-card-density", String(value)); } catch (e) {}
+    if (persist) {
+      try { localStorage.setItem("bm-card-density", String(value)); } catch (e) {}
+    }
   };
+  appearanceDensity = { value: () => value, apply };
   apply(value);
   out.addEventListener("click", () => apply(value - 10));
   increase.addEventListener("click", () => apply(value + 10));

@@ -27,7 +27,7 @@ function fixture({ layout = 'board', folder = '', items, pins = [] } = {}) {
     localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
     matchMedia: () => ({ matches: false }), setTimeout: callback => { callback(); return 1; }, clearTimeout() {}
   });
-  for (const file of ['config.js', 'bookmarks.js', 'bookmark-layouts.js']) {
+  for (const file of ['config.js', 'bookmarks.js', 'bookmark-layouts.js', 'category-arrangement.js']) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../web/js', file), 'utf8'), context, { filename: file });
   }
   const run = code => vm.runInContext(code, context);
