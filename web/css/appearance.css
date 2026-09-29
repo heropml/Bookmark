@@ -66,7 +66,7 @@
 .choice:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.28); }
 .choice[aria-pressed="true"] {
   color: var(--text);
-  border-color: rgba(125,211,252,0.62);
+  border-color: rgba(125,211,252,0.9);
   background: rgba(125,211,252,0.1);
   box-shadow: 0 0 18px rgba(56,189,248,0.14);
 }
@@ -618,7 +618,7 @@ html[data-fx="off"] .appearance-category .art-animated { animation: none; transi
 .appearance-detail .choice-grid,
 .appearance-detail #trailChoices { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .appearance-detail .fx-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.appearance-detail .layout-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.appearance-detail .layout-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .appearance-detail .choice { min-height: 100px; padding: 12px; border-radius: 12px; }
 .appearance-detail .choice b { margin-top: 10px; font-size: 14px; }
 .appearance-detail .skin-swatch,

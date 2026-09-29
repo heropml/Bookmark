@@ -47,8 +47,16 @@ const LAYOUTS = [
   { id: "tree", name: "目录树" },
   { id: "tabs", name: "顶部标签" },
   { id: "start", name: "居中起始页" },
-  { id: "accordion", name: "分类折叠" }
+  { id: "accordion", name: "分类折叠" },
+  { id: "waterfall", name: "分类瀑布流" },
+  { id: "shelves", name: "横向书架" },
+  { id: "index", name: "分类索引" },
+  { id: "table", name: "详细表格" },
+  { id: "tiles", name: "大小磁贴" },
+  { id: "split", name: "左右分屏" },
+  { id: "text", name: "极简文字" }
 ];
+const EXTRA_LAYOUTS = ["waterfall", "shelves", "index", "table", "tiles", "split", "text"];
 const MOTIONS = [
   { id: "float", name: "悬浮" },
   { id: "pulse", name: "呼吸" },

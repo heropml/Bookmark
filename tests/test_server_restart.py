@@ -118,7 +118,7 @@ class RestartHTTPTests(TestCase):
         self.assertEqual(result, {
             "version": manage.APP_VERSION, "instance": self.server.instance,
             "installation": manage.installation_id(),
-            "can_restart": manage.sys.platform == "darwin",
+            "can_restart": manage.sys.platform in ("win32", "darwin"),
         })
         with urlopen(self.base + "/__health", timeout=2) as response:
             self.assertEqual(response.read(), manage.HEALTH_RESPONSE)

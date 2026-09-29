@@ -51,7 +51,7 @@ html[data-focus="on"] .card, html[data-focus="on"] .ico, html[data-focus="on"] .
 html[data-focus="on"] .ico::after, html[data-focus="on"] .ico img, html[data-focus="on"] .ico span,
 html[data-focus="on"] .card::before { animation: none !important; transition: none !important; transform: none !important; }
 html[data-focus="on"] .card-glow, html[data-focus="on"] .card::before { display: none; }
-html[data-focus="on"] .card, html[data-focus="on"] .nav-col { background: var(--skin-panel, #111a2b); box-shadow: none; }
+html[data-focus="on"] .card, html[data-focus="on"] .nav-col { background: var(--skin-panel, var(--glass)); box-shadow: none; }
 html[data-focus="on"] .card:hover { border-color: var(--skin-accent, #7dd3fc); }
 @media (min-width: 601px) and (max-width: 1280px) {
   html:not([data-layout="start"]) header { grid-template-columns: minmax(0, 1fr) auto; }

@@ -103,7 +103,7 @@ class StaticRevalidationTests(ServiceTestCase):
             with self.subTest(platform=platform), patch.object(manage.sys, "platform", platform):
                 status, _, body = self.request("GET", "/__service")
                 self.assertEqual(status, 200)
-                self.assertEqual(json.loads(body)["can_restart"], platform == "darwin")
+                self.assertEqual(json.loads(body)["can_restart"], platform in ("win32", "darwin"))
 
     def test_service_replies_stay_uncached(self):
         status, headers, _ = self.request("GET", "/__service")

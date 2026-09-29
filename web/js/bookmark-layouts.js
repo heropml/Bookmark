@@ -108,6 +108,29 @@ function accordionHtml(sections, order) {
   }).join("");
 }
 
+// Compact collections keep each category reachable even when another contains hundreds of links.
+function collectionHtml(sections, order) {
+  return `<div class="collection-groups">${order.map(name => {
+    const items = sections.get(name);
+    const shown = items.slice(0, boardLimits.get(name) || BOARD_PAGE);
+    const remaining = items.length - shown.length;
+    return `<section class="collection-group" data-board="${escapeHtml(name)}" style="--h:${hue(name)}">
+      <h2 class="collection-heading"><button type="button" data-folder="${escapeHtml(name)}" title="查看 ${escapeHtml(name)}">${sectionTitle(name)}<small>${items.length}</small></button></h2>
+      <div class="grid">${shown.map(cardHtml).join("")}</div>
+      ${remaining ? `<button type="button" class="board-more" data-board-more="${escapeHtml(name)}">再显示 ${Math.min(BOARD_PAGE, remaining)} 个 <span>· 还有 ${remaining} 个</span></button>` : ""}
+    </section>`;
+  }).join("")}</div>`;
+}
+
+function tableHtml(items) {
+  const shown = items.slice(0, state.shown);
+  return `<div class="bookmark-table-wrap"><table class="bookmark-table">
+    <caption>书签明细</caption>
+    <thead><tr><th scope="col">网站名称</th><th scope="col">域名</th><th scope="col">所属分类</th></tr></thead>
+    <tbody>${shown.map(item => `<tr><td>${cardHtml(item)}</td><td>${escapeHtml(item.host || "—")}</td><td>${escapeHtml(item.path.split("/").join(" › "))}</td></tr>`).join("")}</tbody>
+  </table></div>${shown.length < items.length ? `<button type="button" class="more" id="moreBtn">还有 ${items.length - shown.length} 个</button>` : ""}`;
+}
+
 function handleLayoutClick(event) {
   const menu = event.target.closest("[data-tree-menu]");
   if (menu) {
@@ -145,6 +168,9 @@ function handleLayoutClick(event) {
   const column = [...document.querySelectorAll("[data-board]")].find(el => el.dataset.board === name);
   // Continue keyboard reading at the first newly revealed bookmark.
   const next = column?.querySelectorAll("a.card")[before];
-  if (next) next.focus({ preventScroll: true });
+  if (next) {
+    next.focus({ preventScroll: true });
+    if (document.documentElement.dataset.layout === "shelves") next.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
   return true;
 }

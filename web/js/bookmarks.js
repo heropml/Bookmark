@@ -205,7 +205,7 @@ function render() {
 
   document.getElementById("nav").innerHTML = document.documentElement.dataset.layout === "tree"
     ? treeNavHtml(tree, searched.length)
-    : ["tabs", "start", "accordion"].includes(document.documentElement.dataset.layout)
+    : ["tabs", "start", "accordion", ...EXTRA_LAYOUTS].includes(document.documentElement.dataset.layout)
     ? horizontalNavHtml(tree, searched.length)
     : cols.map((colPath) => {
     const node = nodeAt(tree, colPath);
@@ -255,12 +255,22 @@ function render() {
     applyFlips();
     return;
   }
-  if (document.documentElement.dataset.layout === "board") {
+  if (["board", "waterfall"].includes(document.documentElement.dataset.layout)) {
     main.innerHTML = boardHtml(sections, order);
     applyFlips();
     return;
   }
-  if (!state.folder && !state.q.trim()) {
+  if (["shelves", "index", "text"].includes(document.documentElement.dataset.layout)) {
+    main.innerHTML = collectionHtml(sections, order);
+    applyFlips();
+    return;
+  }
+  if (document.documentElement.dataset.layout === "table") {
+    main.innerHTML = tableHtml(visible);
+    applyFlips();
+    return;
+  }
+  if (!state.folder && !state.q.trim() && !EXTRA_LAYOUTS.includes(document.documentElement.dataset.layout)) {
     main.innerHTML = `<div class="grid">${order.map((name) => `
       <button type="button" class="card" data-folder="${escapeHtml(name)}" data-key="folder:${escapeHtml(name)}" title="${escapeHtml(name)}" style="--h:${hue(name)}">
         <div class="ico"><span>${escapeHtml(name.charAt(0))}</span></div>

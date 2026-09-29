@@ -318,9 +318,7 @@ class BookmarkSyncHTTPTests(TestCase):
         with response:
             return response.status, json.load(response)
 
-    def test_permission_restart_schedules_existing_mechanism_after_response(self):
-        sequence = []
-        scheduled = threading.Event()
+    def test_restart_schedules_existing_mechanism_after_response_on_windows_and_macos(self):
         send_json = manage.Handler.send_json
 
         def record_response(handler, status, data):
@@ -331,48 +329,59 @@ class BookmarkSyncHTTPTests(TestCase):
             sequence.append(("restart", manage.BOOKMARK_SYNC_LOCK.locked()))
             scheduled.set()
 
-        with patch.object(manage.sys, "platform", "darwin"), patch.object(
-            manage.Handler, "send_json", record_response
-        ), patch.object(self.server, "schedule_restart", side_effect=schedule) as restart:
-            status, data = self.post_restart()
-            self.assertTrue(scheduled.wait(timeout=1))
-        self.assertEqual(status, 200)
-        self.assertEqual(data, {"ok": True, "instance": self.server.instance})
-        self.assertEqual(sequence, ["response", ("restart", True)])
-        restart.assert_called_once_with()
+        for platform in ("win32", "darwin"):
+            with self.subTest(platform=platform):
+                sequence = []
+                scheduled = threading.Event()
+                with patch.object(manage.sys, "platform", platform), patch.object(
+                    manage.Handler, "send_json", record_response
+                ), patch.object(self.server, "schedule_restart", side_effect=schedule) as restart:
+                    status, data = self.post_restart()
+                    self.assertTrue(scheduled.wait(timeout=1))
+                    acquired = manage.BOOKMARK_SYNC_LOCK.acquire(timeout=1)
+                    self.assertTrue(acquired)
+                    if acquired:
+                        manage.BOOKMARK_SYNC_LOCK.release()
+                self.assertEqual(status, 200)
+                self.assertEqual(data, {"ok": True, "instance": self.server.instance})
+                self.assertEqual(sequence, ["response", ("restart", True)])
+                restart.assert_called_once_with()
         self.sync.assert_not_called()
 
-    def test_permission_restart_rejects_foreign_origins_and_missing_action_header(self):
-        with patch.object(manage.sys, "platform", "darwin"), patch.object(self.server, "schedule_restart") as restart:
-            for headers in (
-                {"Origin": "https://evil.example"}, {"Origin": "null"}, {"Origin": ""},
-                {"Host": "evil.example", "Origin": "http://evil.example"},
-                {"X-Bookmark-Sync": ""},
-            ):
-                with self.subTest(headers=headers):
-                    status, data = self.post_restart(headers)
-                    self.assertEqual(status, 403)
-                    self.assertFalse(data["ok"])
-        restart.assert_not_called()
+    def test_restart_rejects_foreign_origins_and_missing_action_header(self):
+        for platform in ("win32", "darwin"):
+            with self.subTest(platform=platform), patch.object(manage.sys, "platform", platform), patch.object(self.server, "schedule_restart") as restart:
+                for headers in (
+                    {"Origin": "https://evil.example"}, {"Origin": "null"}, {"Origin": ""},
+                    {"Host": "evil.example", "Origin": "http://evil.example"},
+                    {"X-Bookmark-Sync": ""},
+                ):
+                    with self.subTest(headers=headers):
+                        status, data = self.post_restart(headers)
+                        self.assertEqual(status, 403)
+                        self.assertFalse(data["ok"])
+                restart.assert_not_called()
 
-    def test_permission_restart_does_not_interrupt_sync_or_repeat_restart(self):
-        with patch.object(manage.sys, "platform", "darwin"), patch.object(self.server, "schedule_restart") as restart:
-            with manage.BOOKMARK_SYNC_LOCK:
+    def test_restart_does_not_interrupt_sync_or_repeat_restart(self):
+        for platform in ("win32", "darwin"):
+            with self.subTest(platform=platform), patch.object(manage.sys, "platform", platform), patch.object(self.server, "schedule_restart") as restart:
+                self.server.restarting = False
+                with manage.BOOKMARK_SYNC_LOCK:
+                    status, data = self.post_restart()
+                    self.assertEqual(status, 409)
+                    self.assertIn("同步正在进行", data["message"])
+                self.server.restarting = True
                 status, data = self.post_restart()
                 self.assertEqual(status, 409)
-                self.assertIn("同步正在进行", data["message"])
-            self.server.restarting = True
-            status, data = self.post_restart()
-            self.assertEqual(status, 409)
-            self.assertIn("正在重启", data["message"])
-        restart.assert_not_called()
-        acquired = manage.BOOKMARK_SYNC_LOCK.acquire(timeout=1)
-        self.assertTrue(acquired)
-        if acquired:
-            manage.BOOKMARK_SYNC_LOCK.release()
+                self.assertIn("正在重启", data["message"])
+                restart.assert_not_called()
+                acquired = manage.BOOKMARK_SYNC_LOCK.acquire(timeout=1)
+                self.assertTrue(acquired)
+                if acquired:
+                    manage.BOOKMARK_SYNC_LOCK.release()
 
-    def test_permission_restart_is_only_available_on_macos(self):
-        with patch.object(self.server, "schedule_restart") as restart:
+    def test_restart_is_not_available_on_unsupported_platform(self):
+        with patch.object(manage.sys, "platform", "linux"), patch.object(self.server, "schedule_restart") as restart:
             request = Request(self.base + "/__bookmarks/restart", method="POST",
                               headers={"Origin": self.base, "X-Bookmark-Sync": "1"})
             with self.assertRaises(HTTPError) as caught:

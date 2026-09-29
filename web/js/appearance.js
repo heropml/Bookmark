@@ -66,7 +66,17 @@ const MOTION_ART = {
     <rect x="35" y="20" width="5" height="16" rx="1.5" fill="#f1f5f9"/>
     <path d="M24 51h16" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>`
 };
+const EXTRA_LAYOUT_ART = {
+  waterfall: '<rect x="4" y="4" width="28" height="24" rx="3"/><rect x="40" y="4" width="28" height="15" rx="3"/><rect x="4" y="34" width="28" height="10" rx="3"/><rect x="40" y="25" width="28" height="19" rx="3"/>',
+  shelves: '<path d="M4 22h64M4 44h64"/><rect x="5" y="4" width="17" height="13" rx="2"/><rect x="28" y="4" width="17" height="13" rx="2"/><rect x="51" y="4" width="17" height="13" rx="2"/><rect x="5" y="27" width="17" height="12" rx="2"/><rect x="28" y="27" width="17" height="12" rx="2"/><path d="m56 28 8 6-8 6"/>',
+  index: '<path d="M22 4v40M3 16h66M3 32h66"/><path d="M5 8h10m14 0h13m7 0h15M5 24h10m14 0h13m7 0h15M5 40h10m14 0h13m7 0h15" stroke-width="3"/>',
+  table: '<rect x="3" y="4" width="66" height="40" rx="3"/><path d="M3 14h66M3 24h66M3 34h66M30 4v40M50 4v40"/>',
+  tiles: '<rect x="4" y="4" width="18" height="17" rx="3"/><rect x="27" y="4" width="18" height="17" rx="3"/><rect x="50" y="4" width="18" height="17" rx="3"/><rect x="4" y="27" width="18" height="17" rx="3"/><rect x="27" y="27" width="18" height="17" rx="3"/><rect x="50" y="27" width="18" height="17" rx="3"/>',
+  split: '<rect x="3" y="4" width="22" height="40" rx="3"/><rect x="32" y="4" width="37" height="40" rx="3"/><path d="M8 13h12M8 24h12M8 35h12M38 13h24M38 24h24M38 35h24"/>',
+  text: '<path d="M5 6h22M43 6h22" stroke-width="3"/><path d="M5 16h22M5 25h18M5 34h22M5 43h15M43 16h22M43 25h18M43 34h22M43 43h15"/>'
+};
 function choicePreview(key, id) {
+  if (key === "layout" && EXTRA_LAYOUT_ART[id]) return '<span class="layout-art" aria-hidden="true"><svg viewBox="0 0 72 48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + EXTRA_LAYOUT_ART[id] + '</svg></span>';
   if (key === "skin") return '<span class="skin-swatch"></span>';
   if (key === "icon") return '<span class="icon-swatch"><i>A</i></span>';
   if (key === "layout" && id === "board") return '<span class="layout-art" aria-hidden="true"><svg viewBox="0 0 72 48" fill="none"><g stroke="currentColor" stroke-width="1.4"><rect x="2" y="3" width="20" height="42" rx="4"/><rect x="26" y="3" width="20" height="42" rx="4"/><rect x="50" y="3" width="20" height="42" rx="4"/></g><path d="M7 10h10m14 0h10m14 0h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><g fill="currentColor" opacity=".3"><rect x="6" y="16" width="12" height="10" rx="2"/><rect x="6" y="29" width="12" height="10" rx="2"/><rect x="30" y="16" width="12" height="10" rx="2"/><rect x="54" y="16" width="12" height="10" rx="2"/><rect x="54" y="29" width="12" height="10" rx="2"/></g></svg></span>';
@@ -126,7 +136,7 @@ function setupChoice(list, key, containerId, resolve) {
     const previous = root.dataset[key];
     apply(btn.dataset.value, key === "skin");
     if (key === "layout" && previous !== root.dataset.layout &&
-        [previous, root.dataset.layout].some(id => ["board", "tree", "tabs", "start", "accordion"].includes(id))) render();
+        [previous, root.dataset.layout].some(id => ["board", "tree", "tabs", "start", "accordion", ...EXTRA_LAYOUTS].includes(id))) render();
   });
 }
 

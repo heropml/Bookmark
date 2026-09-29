@@ -183,3 +183,78 @@ html[data-layout="start"] .card p, html[data-layout="start"] .card .meta, html[d
 .accordion-count { flex-shrink: 0; color: var(--muted); font-size: 12px; }
 .accordion-body { padding: 0 16px 16px; }
 .accordion-body[hidden] { display: none; }
+
+/* The additional layouts use a full-width category bar, leaving room for their own structure. */
+html:is([data-layout="waterfall"], [data-layout="shelves"], [data-layout="index"], [data-layout="table"], [data-layout="tiles"], [data-layout="split"], [data-layout="text"]) .layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+html:is([data-layout="waterfall"], [data-layout="shelves"], [data-layout="index"], [data-layout="table"], [data-layout="tiles"], [data-layout="split"], [data-layout="text"]) .nav-cols { position: static; flex-direction: column; min-width: 0; gap: 10px; }
+
+/* Category panels flow down each column instead of sharing the board's row height. */
+html[data-layout="waterfall"] .board-columns { display: block; columns: 280px; column-gap: 16px; }
+html[data-layout="waterfall"] .board-column { display: inline-block; width: 100%; margin-bottom: 16px; break-inside: avoid; }
+
+.collection-group { min-width: 0; margin: 0 8px 24px; padding-bottom: 20px; border-bottom: 1px solid var(--stroke); }
+.collection-heading { margin: 0 0 12px; font-size: 15px; }
+.collection-heading button { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; max-width: 100%; padding: 4px 0; border: 0; color: var(--text); background: none; font: inherit; font-weight: 650; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
+.collection-heading small { color: var(--muted); font-size: 12px; font-weight: 400; }
+.collection-heading button:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+html[data-layout="shelves"] #main .grid { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(160px, var(--bookmark-card-min, 210px)); align-items: stretch; overflow-x: auto; padding: 8px 4px 14px; scroll-snap-type: x proximity; scrollbar-width: thin; scrollbar-color: var(--muted) transparent; }
+html[data-layout="shelves"] #main .grid::-webkit-scrollbar { display: block; height: 6px; }
+html[data-layout="shelves"] #main .grid::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 6px; }
+html[data-layout="shelves"] #main .bookmark-item { scroll-snap-align: start; }
+html[data-layout="shelves"] .collection-group > .board-more { width: auto; min-width: 180px; padding-inline: 16px; }
+
+/* Index and text views retain the same links and pin controls, with no card ornament. */
+html:is([data-layout="index"], [data-layout="text"]) #main .card,
+html[data-layout="table"] #main .card { min-height: 40px; padding: 10px 30px 10px 8px; align-items: center; border: 0; border-radius: 6px; background: none; box-shadow: none; clip-path: none; transform: none; }
+html:is([data-layout="index"], [data-layout="text"], [data-layout="table"]) #main .card:hover { background: var(--glass); }
+html:is([data-layout="index"], [data-layout="text"], [data-layout="table"]) #main .card::before,
+html:is([data-layout="index"], [data-layout="text"], [data-layout="table"]) #main .card::after,
+html:is([data-layout="index"], [data-layout="text"], [data-layout="table"]) #main :is(.card-glow, .card .meta, .card p) { display: none; }
+html:is([data-layout="index"], [data-layout="text"], [data-layout="table"]) #main .card h3 { margin: 0; padding-right: 0; font-size: var(--bookmark-card-title, 14px); }
+html:is([data-layout="index"], [data-layout="text"], [data-layout="table"]) #main .bookmark-pin { top: 50%; right: 2px; transform: translateY(-50%); }
+html[data-layout="index"] .collection-group { display: grid; grid-template-columns: minmax(100px, 160px) minmax(0, 1fr); gap: 10px 20px; align-items: start; padding-block: 14px; margin-bottom: 0; }
+html[data-layout="index"] .collection-heading { margin: 4px 0 0; border-left: 3px solid var(--stroke); padding-left: 12px; }
+html[data-layout="index"] #main .grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--bookmark-compact-min, 170px)), 1fr)); gap: 4px 16px; }
+html[data-layout="index"] #main .ico { width: 20px; height: 20px; flex-basis: 20px; font-size: 12px; }
+html[data-layout="index"] #main .ico img { width: 16px; height: 16px; }
+html[data-layout="index"] .collection-group > .board-more { grid-column: 2; width: auto; justify-self: start; padding: 6px 12px; }
+html[data-layout="text"] .collection-groups { columns: 250px; column-gap: 32px; padding-inline: 8px; }
+html[data-layout="text"] .collection-group { display: inline-block; width: 100%; break-inside: avoid; margin-inline: 0; }
+html[data-layout="text"] #main .grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
+html[data-layout="text"] #main .ico { display: none; }
+html[data-layout="text"] #main .card { padding-left: 0; }
+html[data-layout="text"] .collection-group > .board-more { text-align: left; border: 0; padding-left: 0; margin-top: 4px; color: var(--muted); }
+
+.bookmark-table-wrap { margin-inline: 8px; overflow-x: auto; scrollbar-width: thin; }
+.bookmark-table { width: 100%; min-width: 520px; table-layout: fixed; border-collapse: collapse; font-size: 13px; }
+.bookmark-table caption { text-align: left; padding: 0 0 12px; color: var(--muted); font-size: 12px; }
+.bookmark-table th { padding: 12px 10px; color: var(--muted); background: var(--glass); text-align: left; font-weight: 600; border-bottom: 1px solid var(--stroke); }
+.bookmark-table th:first-child { width: 42%; }
+.bookmark-table th:nth-child(2) { width: 26%; }
+.bookmark-table td { padding: 4px 10px; border-bottom: 1px solid var(--stroke); overflow-wrap: anywhere; color: var(--muted); }
+.bookmark-table td:first-child { color: var(--text); padding-left: 0; }
+.bookmark-table tr:hover td { background: var(--glass); }
+html[data-layout="table"] #main .ico { width: 26px; height: 26px; flex-basis: 26px; }
+html[data-layout="table"] #main .ico img { width: 20px; height: 20px; }
+
+/* All tiles share the same dimensions and follow the density setting. */
+html[data-layout="tiles"] #main .grid,
+html[data-layout="tiles"] #pinnedGrid { grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(var(--bookmark-start-min, 112px) * 1.2)), 1fr)); grid-auto-rows: minmax(calc(var(--bookmark-card-height, 88px) + 16px), auto); gap: var(--bookmark-grid-gap, 12px); }
+html[data-layout="tiles"] :is(#main, #pinnedGrid) .card { height: 100%; min-height: 0; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: calc(var(--bookmark-card-gap, 12px) / 2); }
+html[data-layout="tiles"] :is(#main, #pinnedGrid) .card > div:not(.ico) { flex: 0 1 auto; width: 100%; }
+html[data-layout="tiles"] :is(#main, #pinnedGrid) .card h3 { margin: 0; padding-inline: 4px; }
+html[data-layout="tiles"] :is(#main, #pinnedGrid) :is(.card p, .card .meta) { display: none; }
+
+@media (min-width: 901px) {
+  html[data-layout="split"] .bookmark-content:has(.pinned-shelf:not([hidden])) { display: grid; grid-template-columns: minmax(230px, 300px) minmax(0, 1fr); grid-template-rows: auto auto 1fr; gap: 0 24px; align-items: start; }
+  html[data-layout="split"] .pinned-shelf:not([hidden]) { grid-column: 1; grid-row: 1 / 4; position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; margin: 0; padding: 0 18px 16px 0; border-bottom: 0; border-right: 1px solid var(--stroke); }
+  html[data-layout="split"] .shelf-heading { align-items: flex-start; flex-direction: column; gap: 8px; }
+  html[data-layout="split"] .shelf-heading > span { font-size: 11px; color: var(--muted); }
+  html[data-layout="split"] #pinnedGrid { grid-template-columns: minmax(0, 1fr); }
+  html[data-layout="split"] .library-toolbar, html[data-layout="split"] .library-status, html[data-layout="split"] #main { grid-column: 2; }
+}
+@media (max-width: 600px) {
+  html[data-layout="index"] .collection-group { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  html[data-layout="index"] .collection-group > .board-more { grid-column: 1; }
+  html[data-layout="tiles"] #main .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

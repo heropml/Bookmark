@@ -47,9 +47,84 @@ function fixture({ layout = 'board', folder = '', items, pins = [] } = {}) {
 }
 const cardCount = html => (html.match(/<a class="card"/g) || []).length;
 
-test('九种布局选项保留已有布局并追加分类折叠', () => {
+test('十六种布局保留原九种顺序并追加七种结构', () => {
   const app = fixture();
-  assert.equal(app.run('LAYOUTS.map(x => x.id).join(",")'), 'classic,compact,list,icons,board,tree,tabs,start,accordion');
+  assert.equal(app.run('LAYOUTS.map(x => x.id).join(",")'), 'classic,compact,list,icons,board,tree,tabs,start,accordion,waterfall,shelves,index,table,tiles,split,text');
+});
+
+for (const layout of ['waterfall', 'shelves', 'index', 'text']) {
+  test(layout + ' 按分类显示链接，独立加载更多，支持深层分类和跨分类搜索', () => {
+    const app = fixture({ layout });
+    assert.equal(cardCount(app.html()), 16);
+    assert.match(app.elements.get('nav').innerHTML, /horizontal-tabs/);
+    app.more('工具');
+    assert.equal(cardCount(app.html()), 24);
+    app.choose('工具/开发');
+    assert.equal(cardCount(app.html()), 8);
+    assert.match(app.html(), /data-board="工具\/开发\/前端"/);
+    app.search('办公 example.org');
+    assert.equal(cardCount(app.html()), 8);
+    assert.equal(app.run('state.folder'), '工具/开发');
+    app.more('公司');
+    assert.equal(cardCount(app.html()), 10);
+    app.search('不存在的书签');
+    assert.match(app.html(), /没有找到匹配的书签/);
+  });
+}
+
+for (const layout of ['table', 'tiles', 'split']) {
+  test(layout + ' 总览显示实际链接，全局分页和搜索范围保持一致', () => {
+    const app = fixture({ layout });
+    assert.equal(cardCount(app.html()), 36);
+    assert.doesNotMatch(app.html(), /data-key="folder:/);
+    app.context.event = { target: { closest: selector => selector === '#moreBtn' ? {} : null } };
+    app.run('pickFolder(event)');
+    assert.equal(cardCount(app.html()), 55);
+    app.choose('公司');
+    assert.equal(cardCount(app.html()), 10);
+    app.search('工具 4');
+    assert.equal(cardCount(app.html()), 9);
+    app.run('state.searchLocal = true; render()');
+    assert.match(app.html(), /没有找到匹配的书签/);
+    app.search('');
+    assert.equal(cardCount(app.html()), 10);
+  });
+}
+
+test('详细表格显示完整分类路径，长文本和危险链接沿用现有转义保护', () => {
+  const app = fixture({ layout: 'table', items: [
+    { title: '<测试>', href: 'javascript:alert(1)', host: '', path: '根/子<类>', group: '根' }
+  ] });
+  assert.match(app.html(), /<th scope="col">域名<\/th>/);
+  assert.match(app.html(), /根 › 子&lt;类&gt;/);
+  assert.match(app.html(), /&lt;测试&gt;/);
+  assert.match(app.html(), /aria-disabled="true"/);
+  assert.doesNotMatch(app.html(), /href="javascript:/);
+});
+
+test('磁贴置顶只改变星标，不添加放大标记，保持原有书签顺序', () => {
+  const url = 'https://example.com/tool/1';
+  const app = fixture({ layout: 'tiles', folder: '工具', pins: [url] });
+  assert.doesNotMatch(app.html(), /data-featured/);
+  const keys = html => [...html.matchAll(/data-key="([^"]+)"/g)].map(m => m[1]);
+  const original = keys(app.html());
+  assert.doesNotMatch(app.elements.get('pinnedGrid').innerHTML, /data-featured/);
+  app.context.event = { target: { closest: selector => selector === '[data-pin]' ? { dataset: { pin: url } } : null } };
+  app.run('pickFolder(event)');
+  assert.doesNotMatch(app.html(), /data-featured/);
+  assert.deepEqual(keys(app.html()), original);
+});
+
+test('左右分屏的置顶可跨分类使用，搜索时收起，空置顶不占用侧栏', () => {
+  const app = fixture({ layout: 'split', pins: ['https://example.com/tool/0'] });
+  app.choose('公司');
+  assert.equal(app.elements.get('pinnedShelf').hidden, false);
+  assert.match(app.elements.get('pinnedGrid').innerHTML, /工具 0/);
+  app.search('办公');
+  assert.equal(app.elements.get('pinnedShelf').hidden, true);
+  app.search('');
+  assert.equal(app.elements.get('pinnedShelf').hidden, false);
+  assert.equal(fixture({ layout: 'split' }).elements.get('pinnedShelf').hidden, true);
 });
 
 test('看板在全部分类中展示实际书签，每组独立限制，不受全局 36 条截断', () => {

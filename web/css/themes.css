@@ -394,10 +394,12 @@ html[data-skin="celadon"] .choice {
 html[data-skin="snow"] .choice[aria-pressed="true"],
 html[data-skin="sakura"] .choice[aria-pressed="true"],
 html[data-skin="celadon"] .choice[aria-pressed="true"] {
-  border-color: var(--glow);
   background: rgba(255, 255, 255, 0.75);
   box-shadow: 0 0 18px var(--glow);
 }
+html[data-skin="snow"] .choice[aria-pressed="true"] { border-color: rgba(96,136,196,0.85); }
+html[data-skin="sakura"] .choice[aria-pressed="true"] { border-color: rgba(226,120,165,0.85); }
+html[data-skin="celadon"] .choice[aria-pressed="true"] { border-color: rgba(70,175,140,0.85); }
 html[data-skin="snow"] .appearance-trigger svg,
 html[data-skin="sakura"] .appearance-trigger svg,
 html[data-skin="celadon"] .appearance-trigger svg { color: var(--muted); }
@@ -842,7 +844,7 @@ html[data-skin="paper"] .appearance-panel {
   box-shadow: 0 24px 60px rgba(90,60,20,0.18), inset 0 1px 0 rgba(255,255,255,0.8);
 }
 html[data-skin="paper"] .choice { border-color: rgba(90,70,40,0.14); background: rgba(255,255,255,0.28); }
-html[data-skin="paper"] .choice[aria-pressed="true"] { border-color: rgba(138,90,50,0.55); background: rgba(180,120,50,0.12); }
+html[data-skin="paper"] .choice[aria-pressed="true"] { border-color: rgba(138,90,50,0.85); background: rgba(180,120,50,0.12); }
 
 html[data-skin="nebula"] .card {
   background:
@@ -929,7 +931,7 @@ html[data-skin="prism"] .nav-col { background: linear-gradient(180deg, rgba(34,2
 html[data-skin="obsidian"] .nav-col { background: linear-gradient(180deg, rgba(246,215,142,.09), rgba(18,15,11,.68)); }
 html[data-skin="abyss"] .nav-col { background: linear-gradient(180deg, rgba(94,234,212,.1), rgba(3,20,30,.64)); }
 html[data-skin="obsidian"] .choice[aria-pressed="true"] {
-  border-color: rgba(246,215,142,.58);
+  border-color: rgba(246,215,142,.9);
   background: rgba(185,130,52,.13);
   box-shadow: 0 0 18px rgba(185,130,52,.13);
 }
