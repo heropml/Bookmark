@@ -73,25 +73,27 @@ function initAppearancePresets() {
   const trigger = document.createElement("button");
   trigger.type = "button";
   trigger.id = "appearancePresetsBtn";
-  trigger.className = "appearance-presets-trigger";
-  trigger.textContent = "外观方案";
-  trigger.setAttribute("aria-haspopup", "dialog");
-  trigger.setAttribute("aria-controls", "appearancePresetsDialog");
-  appearanceMenu.append(trigger);
-  const dialog = document.createElement("dialog");
-  dialog.id = "appearancePresetsDialog";
-  dialog.className = "sync-dialog appearance-presets-dialog";
-  dialog.setAttribute("aria-labelledby", "appearancePresetsTitle");
-  dialog.setAttribute("aria-describedby", "appearancePresetsDescription");
-  dialog.innerHTML = `<div class="sync-head"><h2 id="appearancePresetsTitle">外观方案</h2><button type="button" class="sync-close" aria-label="关闭外观方案">×</button></div>
-    <p id="appearancePresetsDescription" class="sync-description">保存当前主题、布局、密度、动效和专注状态，仅保存在此浏览器。</p>
-    <form class="appearance-preset-form"><label for="appearancePresetName">方案名称</label><div><input id="appearancePresetName" type="text" maxlength="40" autocomplete="off" placeholder="例如：日常使用" required><button class="appearance-preset-save" type="submit">保存当前外观</button></div></form>
+  trigger.className = "appearance-category appearance-presets-trigger";
+  trigger.innerHTML = `<span class="appearance-art" aria-hidden="true"><svg viewBox="0 0 52 48" fill="none"><rect x="7" y="8" width="30" height="32" rx="6" fill="currentColor" opacity=".15" transform="rotate(-12 22 24)"/><g class="art-animated art-card"><rect x="15" y="7" width="30" height="34" rx="6" fill="currentColor" fill-opacity=".12" stroke="currentColor" stroke-opacity=".65"/><path d="M25 7v16l5-3 5 3V7" fill="currentColor" fill-opacity=".65"/><path d="M23 30h14M23 35h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></g></svg></span>
+    <span class="appearance-category-copy"><b>外观方案</b><small>保存与切换外观</small></span>
+    <span class="appearance-category-arrow" aria-hidden="true"><svg viewBox="0 0 12 12" fill="none"><path d="m4.5 3 3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
+  trigger.dataset.setting = "presets";
+  trigger.setAttribute("aria-expanded", "false");
+  trigger.setAttribute("aria-controls", "appearancePanel");
+  appearanceCategories.append(trigger);
+  const section = document.createElement("section");
+  section.className = "appearance-group appearance-presets-section";
+  section.dataset.settingPanel = "presets";
+  section.dataset.title = "外观方案";
+  section.dataset.description = "保存当前主题、布局、密度、动效和专注状态，仅保存在此浏览器。";
+  section.hidden = true;
+  section.innerHTML = `<form class="appearance-preset-form"><label for="appearancePresetName">方案名称</label><div><input id="appearancePresetName" type="text" maxlength="40" autocomplete="off" placeholder="例如：日常使用" required><button class="appearance-preset-save" type="submit">保存当前外观</button></div></form>
     <p class="sync-status" role="status" aria-live="polite"></p><ul class="appearance-presets-list" aria-label="已保存的外观方案"></ul>`;
-  document.body.append(dialog);
-  const form = dialog.querySelector("form");
-  const input = dialog.querySelector("input");
-  const list = dialog.querySelector("ul");
-  const status = dialog.querySelector(".sync-status");
+  appearancePanel.querySelector(".appearance-body").append(section);
+  const form = section.querySelector("form");
+  const input = section.querySelector("input");
+  const list = section.querySelector("ul");
+  const status = section.querySelector(".sync-status");
   let presets = [];
   let readable = true;
   const showStatus = (message, error = false) => {
@@ -157,8 +159,7 @@ function initAppearancePresets() {
       list.append(row);
     }
   };
-  trigger.addEventListener("click", () => {
-    setAppearanceOpen(false, false);
+  const load = () => {
     input.value = "";
     showStatus("");
     readable = true;
@@ -171,8 +172,10 @@ function initAppearancePresets() {
       showStatus("无法读取已存方案，请检查浏览器存储；原数据未更改。", true);
     }
     draw();
-    dialog.showModal();
-    input.focus();
+  };
+  trigger.addEventListener("click", load);
+  trigger.addEventListener("pointerover", event => {
+    if (event.pointerType === "mouse" && !trigger.contains(event.relatedTarget) && appearanceSection !== "presets") load();
   });
   form.addEventListener("submit", event => {
     event.preventDefault();
@@ -185,6 +188,4 @@ function initAppearancePresets() {
       showStatus("已保存「" + name + "」。");
     }
   });
-  dialog.querySelector(".sync-close").addEventListener("click", () => dialog.close());
-  dialog.addEventListener("close", () => appearanceBtn.focus({ preventScroll: true }));
 }

@@ -23,8 +23,8 @@ function fixture(stored = {}) {
     }
     set innerHTML(html) {
       this._html = html;
-      if (this.tagName === 'DIALOG') {
-        for (const selector of ['form', 'input', 'ul', '.sync-status', '.sync-close']) this.queries[selector] = new Element(selector);
+      if (this.className.includes('appearance-presets-section')) {
+        for (const selector of ['form', 'input', 'ul', '.sync-status']) this.queries[selector] = new Element(selector);
         this.queries.form.queries.button = new Element('button');
       } else {
         this.children = [...html.matchAll(/data-value="([^"]+)"/g)].map(match => {
@@ -37,17 +37,21 @@ function fixture(stored = {}) {
     replaceChildren(...children) { this.children = children; }
     setAttribute(key, value) { this.attributes[key] = value; }
     getAttribute(key) { return this.attributes[key] ?? null; }
-    querySelector(selector) { return this.queries[selector] || null; }
+    querySelector(selector) {
+      const setting = selector.match(/^\[data-setting(-panel)?="([^"]+)"\]$/);
+      if (setting) return this.querySelectorAll(setting[1] ? '[data-setting-panel]' : '[data-setting]').find(child => child.dataset[setting[1] ? 'settingPanel' : 'setting'] === setting[2]) || null;
+      return this.queries[selector] || this.querySelectorAll(selector)[0] || null;
+    }
     querySelectorAll(selector) {
       if (selector === '.choice') return this.children;
-      return this.children.flatMap(child => [...(child.tagName.toLowerCase() === selector ? [child] : []), ...child.querySelectorAll(selector)]);
+      return this.children.flatMap(child => [...(child.tagName.toLowerCase() === selector || (selector === '[data-setting]' && child.dataset.setting) || (selector === '[data-setting-panel]' && child.dataset.settingPanel) ? [child] : []), ...child.querySelectorAll(selector)]);
     }
+    closest(selector) { return selector === '[data-setting]' && this.dataset.setting ? this : null; }
+    contains(child) { return child === this || this.children.some(item => item.contains(child)); }
     addEventListener(type, listener) { (this.listeners[type] ||= []).push(listener); }
     fire(type, event = {}) { for (const listener of this.listeners[type] || []) listener({ preventDefault() {}, ...event }); }
     focus() { activeElement = this; }
     click() { this.fire('click'); }
-    showModal() { this.open = true; }
-    close() { this.open = false; this.fire('close'); }
   }
   const element = id => {
     if (!elements.has(id)) elements.set(id, new Element());
@@ -56,6 +60,9 @@ function fixture(stored = {}) {
   const root = new Element();
   root.dataset = { skin: 'aurora', icon: 'logo', layout: 'classic', motion: 'float', trail: 'stardust', sky: 'auto', fx: 'on', focus: 'off' };
   const body = new Element('body');
+  const appearanceBody = new Element();
+  element('appearancePanel').append(appearanceBody);
+  element('appearancePanel').queries['.appearance-body'] = appearanceBody;
   const localStorage = {
     getItem: key => { if (storageFails) throw new Error('unavailable'); return storage.get(key) ?? null; },
     setItem: (key, value) => { if (storageFails) throw new Error('quota'); storage.set(key, String(value)); },
@@ -91,17 +98,20 @@ function fixture(stored = {}) {
     element('focusPreset').setAttribute('aria-pressed', String(root.dataset.focus === 'on'));
     try { localStorage.setItem('bm-focus', root.dataset.focus); } catch {}
   });
-  const dialog = body.children[0];
-  const input = dialog.querySelector('input');
-  const form = dialog.querySelector('form');
-  const list = dialog.querySelector('ul');
-  const status = dialog.querySelector('.sync-status');
+  const section = appearanceBody.children[0];
+  const input = section.querySelector('input');
+  const form = section.querySelector('form');
+  const list = section.querySelector('ul');
+  const status = section.querySelector('.sync-status');
+  const trigger = element('appearanceCategories').children.at(-1);
   const open = () => {
-    element('appearanceMenu').children.at(-1).click();
+    run('setAppearanceOpen(true)');
+    trigger.click();
+    element('appearanceCategories').fire('click', { target: trigger });
   };
   const save = name => { input.value = name; form.fire('submit'); };
   return {
-    run, root, storage, events, elements, dialog, list, input, form, status, open, save,
+    run, root, storage, events, elements, section, trigger, list, input, form, status, open, save,
     snapshot: () => JSON.parse(run('JSON.stringify(captureAppearanceSnapshot())')),
     setSnapshot: value => { context.nextSnapshot = value; return run('applyAppearanceSnapshot(nextSnapshot)'); },
     action: (row, index) => list.children[row].children[1].children[index].click(),
@@ -111,6 +121,37 @@ function fixture(stored = {}) {
     renderCount: () => renderCount, populationCount: () => populationCount
   };
 }
+
+test('外观方案复用设置面板，悬停不抢焦点，点击聚焦输入，关闭返回入口', () => {
+  const app = fixture();
+  const panel = app.elements.get('appearancePanel');
+  const categories = app.elements.get('appearanceCategories');
+  app.run('setAppearanceOpen(true)');
+  const focusBeforeHover = app.activeElement();
+  const event = { target: app.trigger, pointerType: 'mouse', relatedTarget: null };
+  app.trigger.fire('pointerover', event);
+  categories.fire('pointerover', event);
+  assert.equal(panel.hidden, false);
+  assert.equal(app.section.hidden, false);
+  assert.equal(app.section.tagName, 'SECTION');
+  assert.equal(app.trigger.getAttribute('aria-controls'), 'appearancePanel');
+  assert.equal(app.trigger.getAttribute('aria-expanded'), 'true');
+  assert.equal(app.elements.get('appearanceTitle').textContent, '外观方案');
+  assert.equal(app.activeElement(), focusBeforeHover);
+  app.trigger.click();
+  categories.fire('click', { target: app.trigger });
+  assert.equal(app.activeElement(), app.input);
+  app.elements.get('appearanceClose').click();
+  assert.equal(panel.hidden, true);
+  assert.equal(app.section.hidden, true);
+  assert.equal(app.trigger.getAttribute('aria-expanded'), 'false');
+  assert.equal(app.elements.get('appearanceMenu').hidden, false);
+  assert.equal(app.activeElement(), app.trigger);
+  app.open();
+  app.run('setAppearanceOpen(false)');
+  assert.equal(panel.hidden, true);
+  assert.equal(app.elements.get('appearanceMenu').hidden, true);
+});
 
 test('外观方案保存自动主题原值并保留系统动态效果偏好，仅读取外观字段', () => {
   const app = fixture({ 'bm-skin': 'auto', 'bm-pins': '["private"]', 'bm-folder': '私人分类' });
@@ -163,7 +204,7 @@ test('方案可以恢复自动配色和系统动态效果跟随，之后手动�
 test('打开和取消不改变外观，名称始终作为纯文本，同名保存不覆盖方案', () => {
   const app = fixture();
   const original = app.snapshot();
-  app.open(); app.input.value = '未保存'; app.dialog.close();
+  app.open(); app.input.value = '未保存'; app.elements.get('appearanceClose').click();
   assert.deepEqual(app.snapshot(), original);
   assert.equal(app.storage.has('bm-appearance-presets'), false);
   app.open(); app.save('<img src=x onerror=alert(1)>');

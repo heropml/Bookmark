@@ -177,7 +177,7 @@ function showAppearanceSection(key, focusTarget = true) {
   }
   if (!appearanceMenu.hidden && focusTarget) {
     const target = section
-      ? section.querySelector('.choice[aria-pressed="true"]')
+      ? section.querySelector('.choice[aria-pressed="true"]') || section.querySelector("input")
       : appearanceCategories.querySelector('[data-setting="' + (previous || "skin") + '"]');
     if (target) target.focus({ preventScroll: true });
   }
