@@ -1,0 +1,9 @@
+# Bug-finding checks only; style is left to the surrounding code.
+target-version = "py311"  # oldest interpreter that runs the scripts (macOS build)
+extend-exclude = ["runtime", "build_macos", "dist", "installer"]
+
+[lint]
+# Pyflakes (undefined/unused names), syntax errors, bugbear and pylint errors.
+select = ["F", "E9", "B", "PLE"]
+# zip(strict=) is a style choice here; the zipped sequences always come from one source.
+ignore = ["B905"]

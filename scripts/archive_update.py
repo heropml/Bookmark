@@ -316,7 +316,8 @@ def install(root, version, progress=None):
             for index, (path, item) in enumerate(changes.items(), 1):
                 _report(progress, "fetching", f"下载并校验程序文件 {index}/{len(changes)}：{path}", source)
 
-                def download(candidate):
+                # Bound now so the helper can never see a later file's name or hash.
+                def download(candidate, path=path, item=item):
                     data = read_url(candidate, _raw(candidate, status["target"], path), item["size"], deadline)
                     if len(data) != item["size"] or blob_hash(data) != item["sha"]:
                         raise ArchiveUpdateError("下载文件校验失败，未应用更新")

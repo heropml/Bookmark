@@ -185,7 +185,6 @@ function skyFrame(ts) {
     const weatherRain = !weatherScene.hidden;
     const layers = weatherRain ? 3 : 1;
     for (let layer = 0; layer < layers; layer++) {
-      const depth = weatherRain ? .62 + layer * .46 : 1;
       const slant = skyType === "storm" ? .38 : weatherRain ? .21 : .12;
       const alpha = weatherRain ? [.12, .22, .38][layer] : .3;
       fxCtx.strokeStyle = "rgba(" + skyInk + ", " + alpha + ")";

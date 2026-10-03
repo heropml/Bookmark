@@ -30,3 +30,19 @@ jobs:
         run: node --test "tests/*.test.cjs"
       - name: Python tests
         run: python -B -m unittest discover -s tests -p "test_*.py"
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      # Versions are pinned so a new release cannot turn an unchanged commit red.
+      - name: Python checks (ruff)
+        run: pipx run ruff==0.16.10 check .
+      - name: JavaScript checks (eslint)
+        run: npx --yes eslint@10.12.0 .

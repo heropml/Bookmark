@@ -94,7 +94,7 @@ def main():
                 break
             except OSError:
                 if service.poll() is not None:
-                    raise RuntimeError("Installed service exited before startup")
+                    raise RuntimeError("Installed service exited before startup") from None
                 time.sleep(.1)
         else:
             raise RuntimeError("Installed service did not become ready")
@@ -125,7 +125,7 @@ def main():
                 break
             except OSError:
                 if service.poll() is not None:
-                    raise RuntimeError("Reinstalled service exited before startup")
+                    raise RuntimeError("Reinstalled service exited before startup") from None
                 time.sleep(.1)
         else:
             raise RuntimeError("Reinstalled service did not become ready")
