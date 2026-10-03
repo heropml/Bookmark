@@ -11,12 +11,7 @@ function initLibrary() {
   const pins = document.getElementById("pinnedGrid");
   initPinnedSort(pins);
   pins.addEventListener("click", pickFolder);
-  pins.addEventListener("error", (event) => {
-    const img = event.target;
-    if (img.tagName !== "IMG" || !img.dataset.fallback) return;
-    if (img.dataset.fb) img.remove();
-    else { img.dataset.fb = "1"; img.src = img.dataset.fallback; }
-  }, true);
+  pins.addEventListener("error", handleIconError, true);
   document.addEventListener("keydown", (event) => {
     // Enter and Esc also pick or cancel IME candidates; they must not open or clear results.
     if (event.isComposing || event.keyCode === 229) return;

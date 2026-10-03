@@ -28,6 +28,7 @@ function fixture() {
     PAGE: 36,
     render: () => renders.push(true),
     pickFolder() {},
+    handleIconError() {},
     reorderPinnedBookmark: (...args) => reordered.push(args),
     appearanceMenu: { hidden: true },
     localStorage: { getItem: () => null, setItem() {} },

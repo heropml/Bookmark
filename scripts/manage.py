@@ -5,6 +5,7 @@ from __future__ import annotations
 import html
 import hashlib
 import io
+import ipaddress
 import json
 import math
 import os
@@ -62,6 +63,22 @@ BOOKMARK_BACKUP_LIMIT = 20
 WEATHER_CACHE_SECONDS = 5 * 60
 WEATHER_CACHE: dict[tuple, tuple[float, bytes, str]] = {}
 WEATHER_CACHE_LOCK = threading.Lock()
+# Site icons are fetched once per host and kept here, so opening the page sends no bookmark
+# domains to icon services and icons still show offline.
+SITE_ICON_DIR = DATA_DIR / ".site-icons"
+SITE_ICON_SOURCES = (
+    "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL"
+    "&url=https://{host}&size=64",
+    "https://icons.duckduckgo.com/ip3/{host}.ico",
+)
+SITE_ICON_REFRESH_SECONDS = 30 * 24 * 3600
+SITE_ICON_MISS_SECONDS = 7 * 24 * 3600  # a site without an icon is asked again after this
+SITE_ICON_LIMIT = 256 * 1024
+SITE_ICON_HOST_RE = re.compile(r"(?:[a-z0-9-]{1,63}\.)+[a-z0-9-]{1,63}(?::\d{1,5})?")
+# A first visit asks for many icons at once; a few upstream requests at a time is enough.
+SITE_ICON_FETCHES = threading.BoundedSemaphore(6)
+SITE_ICON_LOCKS: dict[str, threading.Lock] = {}
+SITE_ICON_LOCKS_LOCK = threading.Lock()
 # Page assets referenced from index.html; stamped URLs may be cached until the file changes.
 ASSET_REF_RE = re.compile(r'\b(href|src)="((?:css|js)/[^"?#]+)"')
 IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
@@ -474,6 +491,102 @@ def weather_from_open_meteo(
     if not math.isfinite(temperature):
         raise ValueError("invalid Open-Meteo weather response")
     return temperature, code, weather_description(code)
+
+
+def site_icon_host(value: str) -> str | None:
+    """The icon services' form of a bookmark host, or None for hosts they cannot know."""
+    host, _, port = value.strip().lower().partition(":")
+    try:
+        host = host.encode("idna").decode("ascii")
+    except UnicodeError:
+        return None
+    try:
+        ipaddress.ip_address(host)
+        return None  # routers and other addresses only reachable from this network
+    except ValueError:
+        pass
+    if host.endswith((".local", ".lan", ".home", ".internal", ".localhost")):
+        return None
+    host = host + (":" + port if port else "")
+    return host if len(host) <= 260 and SITE_ICON_HOST_RE.fullmatch(host) else None
+
+
+def site_icon_type(data: bytes) -> str | None:
+    """Raster formats only: an SVG opened directly from this origin could run script."""
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if data.startswith(b"\x00\x00\x01\x00"):
+        return "image/x-icon"
+    if data.startswith((b"GIF87a", b"GIF89a")):
+        return "image/gif"
+    if data.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+def fetch_site_icon(host: str) -> bytes | None:
+    """Ask each icon service in turn; None when they answer without an icon, OSError when unreachable."""
+    from urllib.error import HTTPError
+    from urllib.request import Request, urlopen
+
+    answered = False
+    for source in SITE_ICON_SOURCES:
+        request = Request(source.format(host=host), headers={"User-Agent": "Bookmark/1.0"})
+        try:
+            with SITE_ICON_FETCHES, urlopen(request, timeout=5) as response:
+                data = response.read(SITE_ICON_LIMIT + 1)
+        except HTTPError as error:
+            # Both services answer 404 with a generic picture when a site has no icon.
+            answered = answered or error.code == 404
+            continue
+        except (OSError, ValueError):
+            continue
+        answered = True
+        if len(data) <= SITE_ICON_LIMIT and site_icon_type(data):
+            return data
+    if not answered:
+        raise OSError("icon services unreachable")
+    return None
+
+
+def _recent(path: Path, seconds: float) -> bool:
+    try:
+        return time.time() - path.stat().st_mtime < seconds
+    except OSError:
+        return False
+
+
+def site_icon(host: str) -> Path | None:
+    """The cached icon for a host, fetched on first use; None when the site has none."""
+    key = hashlib.sha256(host.encode("ascii")).hexdigest()[:40]
+    icon = SITE_ICON_DIR / key
+    miss = SITE_ICON_DIR / (key + ".miss")
+    with SITE_ICON_LOCKS_LOCK:
+        lock = SITE_ICON_LOCKS.setdefault(key, threading.Lock())
+    # Cards for the same site share one lookup.
+    with lock:
+        if _recent(icon, SITE_ICON_REFRESH_SECONDS):
+            return icon
+        if _recent(miss, SITE_ICON_MISS_SECONDS):
+            return None
+        try:
+            data = fetch_site_icon(host)
+        except OSError:
+            if icon.is_file():
+                return icon  # offline: an old icon beats none
+            raise
+        SITE_ICON_DIR.mkdir(parents=True, exist_ok=True)
+        if data is not None:
+            write_atomic(icon, data)
+            miss.unlink(missing_ok=True)
+            return icon
+        if icon.is_file():
+            os.utime(icon)  # keep the icon it had rather than drop to a letter
+            return icon
+        miss.write_bytes(b"")
+        return None
 
 
 def host_of(href: str) -> str:
@@ -1263,6 +1376,9 @@ class Handler(SimpleHTTPRequestHandler):
                 WEATHER_CACHE[key] = (now, data, source)
             self.send_weather(data, source)
             return
+        if parsed.path == "/__siteicon":
+            self.send_site_icon(site_icon_host((parse_qs(parsed.query).get("host") or [""])[0]))
+            return
         if parsed.path == "/__favicon":
             skin = (parse_qs(parsed.query).get("skin") or [""])[0]
             try:
@@ -1289,6 +1405,37 @@ class Handler(SimpleHTTPRequestHandler):
                 self.send_error(404)
             return
         return super().do_GET()
+
+    def send_site_icon(self, host: str | None) -> None:
+        # An error makes the page keep the card's letter.
+        if host is None:
+            self.send_error(404)
+            return
+        try:
+            icon = site_icon(host)
+            if icon is None:
+                self.send_error(404)
+                return
+            etag = f'"{file_stamp(icon)}"'
+            data = None if etag in self.headers.get("If-None-Match", "") else icon.read_bytes()
+        except OSError:
+            self.send_error(502)
+            return
+        kind = site_icon_type(data) if data is not None else None
+        if data is not None and kind is None:
+            self.send_error(404)
+            return
+        self.send_response(304 if data is None else 200)
+        if data is not None:
+            self.send_header("Content-Type", kind)
+            self.send_header("Content-Length", str(len(data)))
+        # Icons rarely change; a day without asking keeps hundreds of cards from revalidating.
+        self.send_header("Cache-Control", "max-age=86400")
+        self.send_header("ETag", etag)
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        if data is not None:
+            self.wfile.write(data)
 
     def send_weather(self, data: bytes, source: str) -> None:
         self.send_response(200)

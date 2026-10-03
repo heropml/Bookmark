@@ -313,6 +313,103 @@ class ShortcutIconTests(ServiceTestCase):
         self.assertEqual(changed, ["cyber", "cyber"])
 
 
+PNG = b"\x89PNG\r\n\x1a\n" + b"icon"
+
+
+class SiteIconTests(ServiceTestCase):
+    def setUp(self):
+        super().setUp()
+        self.icons = self.web.parent / "site-icons"
+        patcher = patch.object(manage, "SITE_ICON_DIR", self.icons)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def get(self, host, headers=None):
+        return self.request("GET", f"/__siteicon?host={host}", headers)
+
+    def test_icon_is_fetched_once_then_served_from_disk(self):
+        with patch.object(manage, "fetch_site_icon", return_value=PNG) as fetch:
+            status, headers, body = self.get("github.com")
+            again, _, _ = self.get("github.com")
+        self.assertEqual((status, again, body), (200, 200, PNG))
+        self.assertEqual(headers["Content-Type"], "image/png")
+        self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
+        self.assertIn("max-age", headers["Cache-Control"])
+        fetch.assert_called_once_with("github.com")
+        with patch.object(manage, "fetch_site_icon", side_effect=OSError("offline")):
+            status, _, body = self.get("github.com")
+            self.assertEqual((status, body), (200, PNG), "cached icons show offline")
+            self.assertEqual(self.get("github.com", {"If-None-Match": headers["ETag"]})[0], 304)
+
+    def test_sites_without_icons_keep_their_letter_and_are_not_asked_again_soon(self):
+        with patch.object(manage, "fetch_site_icon", return_value=None) as fetch:
+            self.assertEqual(self.get("no-icon.example")[0], 404)
+            self.assertEqual(self.get("no-icon.example")[0], 404)
+        fetch.assert_called_once()
+
+    def test_unreachable_services_are_retried_next_time(self):
+        with patch.object(manage, "fetch_site_icon", side_effect=OSError("offline")):
+            self.assertEqual(self.get("example.com")[0], 502)
+        with patch.object(manage, "fetch_site_icon", return_value=PNG):
+            self.assertEqual(self.get("example.com")[0], 200)
+
+    def test_stale_icon_is_refreshed_and_kept_when_the_refresh_fails(self):
+        with patch.object(manage, "fetch_site_icon", return_value=PNG):
+            self.get("example.com")
+        icon = next(self.icons.iterdir())
+        os.utime(icon, (1, 1))
+        newer = PNG + b"2"
+        with patch.object(manage, "fetch_site_icon", return_value=newer):
+            self.assertEqual(self.get("example.com")[2], newer)
+        os.utime(icon, (1, 1))
+        with patch.object(manage, "fetch_site_icon", return_value=None):
+            self.assertEqual(self.get("example.com")[2], newer)
+
+    def test_local_addresses_and_odd_names_never_reach_icon_services(self):
+        with patch.object(manage, "fetch_site_icon") as fetch:
+            for host in ("192.168.1.1", "10.0.0.2:8080", "%5B%3A%3A1%5D", "nas.local", "router", "",
+                         "a%2Fb.example", "x.example%20y", "printer.lan"):
+                with self.subTest(host=host):
+                    self.assertEqual(self.get(host)[0], 404)
+        fetch.assert_not_called()
+
+    def test_international_and_port_hosts_are_normalized(self):
+        self.assertEqual(manage.site_icon_host("例子.测试"), "xn--fsqu00a.xn--0zwm56d")
+        self.assertEqual(manage.site_icon_host("Example.COM:8443"), "example.com:8443")
+
+    def test_only_raster_images_are_kept(self):
+        self.assertIsNone(manage.site_icon_type(b"<svg onload='alert(1)'/>"))
+        self.assertIsNone(manage.site_icon_type(b"<!doctype html>"))
+        self.assertEqual(manage.site_icon_type(b"\x00\x00\x01\x00rest"), "image/x-icon")
+
+    def test_fetch_tries_the_second_service_and_tells_no_icon_from_offline(self):
+        from urllib.error import HTTPError, URLError
+
+        def missing(request, timeout):
+            raise HTTPError(request.full_url, 404, "Not Found", {}, None)
+
+        with patch("urllib.request.urlopen", side_effect=missing):
+            self.assertIsNone(manage.fetch_site_icon("example.com"))
+        with patch("urllib.request.urlopen", side_effect=URLError("offline")):
+            with self.assertRaises(OSError):
+                manage.fetch_site_icon("example.com")
+
+        class Response:
+            def __init__(self, data):
+                self.data = data
+            def __enter__(self):
+                return self
+            def __exit__(self, *exc):
+                return False
+            def read(self, limit):
+                return self.data[:limit]
+
+        answers = iter([Response(b"<svg/>"), Response(PNG)])
+        with patch("urllib.request.urlopen", side_effect=lambda request, timeout: next(answers)) as urlopen:
+            self.assertEqual(manage.fetch_site_icon("example.com"), PNG)
+        self.assertIn("duckduckgo", urlopen.call_args.args[0].full_url)
+
+
 class StartupTests(TestCase):
     def test_starting_the_service_does_not_wait_for_reverse_dns(self):
         # Reverse DNS for 127.0.0.1 can take many seconds; the service must listen without it.

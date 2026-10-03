@@ -94,11 +94,26 @@ function safeHref(href) {
   const scheme = /^([a-z][a-z\d+.-]*):/i.exec(String(href).replace(/[\x00-\x20]/g, ""));
   return scheme && /^(javascript|vbscript|data)$/i.test(scheme[1]) ? "" : href;
 }
+// The local service fetches each site's icon once and keeps it, so domains are not sent out on
+// every visit; a copy opened without the service (e.g. the online demo) asks the icon services.
+const LOCAL_SITE_ICONS = globalThis.location?.protocol === "http:" && ["127.0.0.1", "localhost"].includes(globalThis.location.hostname);
 // Bookmarks without a host (scripts, local files) keep their letter instead of a doomed lookup.
 function faviconImg(host) {
   if (!host) return "";
   const encoded = encodeURIComponent(host);
+  // An empty data-fallback means no second source: a failed icon leaves the letter.
+  if (LOCAL_SITE_ICONS) return `<img src="/__siteicon?host=${encoded}" data-fallback="" alt="" loading="lazy">`;
   return `<img src="https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${encoded}&size=64" data-fallback="https://icons.duckduckgo.com/ip3/${encoded}.ico" alt="" loading="lazy">`;
+}
+// Image errors do not bubble: try the second icon source once, then keep the letter.
+function handleIconError(event) {
+  const img = event.target;
+  if (img.tagName !== "IMG" || img.dataset.fallback === undefined) return;
+  if (img.dataset.fb || !img.dataset.fallback) img.remove();
+  else {
+    img.dataset.fb = "1";
+    img.src = img.dataset.fallback;
+  }
 }
 // The section heading already names the folder, so a tag only shows the path below it.
 function pathBelowSection(item) {
@@ -483,16 +498,7 @@ function initBookmarks() {
   nav.addEventListener("focusout", hideFolderNameTooltip);
   const main = document.getElementById("main");
   main.addEventListener("click", pickFolder);
-  // Image errors do not bubble: try the second icon service once, then keep the letter.
-  main.addEventListener("error", (event) => {
-    const img = event.target;
-    if (img.tagName !== "IMG" || !img.dataset.fallback) return;
-    if (img.dataset.fb) img.remove();
-    else {
-      img.dataset.fb = "1";
-      img.src = img.dataset.fallback;
-    }
-  }, true);
+  main.addEventListener("error", handleIconError, true);
   let searchTimer = 0;
   document.getElementById("q").addEventListener("input", (e) => {
     state.q = e.target.value;
