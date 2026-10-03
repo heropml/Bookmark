@@ -4,6 +4,7 @@ import json
 import os
 import tempfile
 import threading
+import time
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import TestCase
@@ -320,12 +321,18 @@ class SiteIconTests(ServiceTestCase):
     def setUp(self):
         super().setUp()
         self.icons = self.web.parent / "site-icons"
-        patcher = patch.object(manage, "SITE_ICON_DIR", self.icons)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        for name, value in (("SITE_ICON_DIR", self.icons), ("SITE_ICON_PAUSED_UNTIL", 0.0), ("SITE_ICON_FAILURES", 0)):
+            patcher = patch.object(manage, name, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.addCleanup(self.finish_lookups)
 
     def get(self, host, headers=None):
         return self.request("GET", f"/__siteicon?host={host}", headers)
+
+    def finish_lookups(self):
+        for lookup in list(manage.SITE_ICON_PENDING.values()):
+            lookup.join(3)
 
     def test_icon_is_fetched_once_then_served_from_disk(self):
         with patch.object(manage, "fetch_site_icon", return_value=PNG) as fetch:
@@ -347,10 +354,53 @@ class SiteIconTests(ServiceTestCase):
             self.assertEqual(self.get("no-icon.example")[0], 404)
         fetch.assert_called_once()
 
-    def test_unreachable_services_are_retried_next_time(self):
-        with patch.object(manage, "fetch_site_icon", side_effect=OSError("offline")):
-            self.assertEqual(self.get("example.com")[0], 502)
+    def test_one_slow_site_does_not_pause_the_others(self):
+        with patch.object(manage, "fetch_site_icon", side_effect=OSError("timed out")):
+            self.assertEqual(self.get("slow.example")[0], 502)
         with patch.object(manage, "fetch_site_icon", return_value=PNG):
+            self.assertEqual(self.get("other.example")[0], 200)
+
+    def test_unreachable_services_are_left_alone_for_a_while(self):
+        with patch.object(manage, "fetch_site_icon", side_effect=OSError("offline")):
+            for host in ("a.example", "b.example", "example.com"):
+                self.assertEqual(self.get(host)[0], 502)
+        with patch.object(manage, "fetch_site_icon", return_value=PNG) as fetch:
+            # Blocked networks must not make every later card wait for timeouts again.
+            self.assertEqual(self.get("example.com")[0], 502)
+            self.assertEqual(self.get("other.example")[0], 502)
+            fetch.assert_not_called()
+            manage.SITE_ICON_PAUSED_UNTIL = 0.0  # the pause is over
+            self.assertEqual(self.get("example.com")[0], 200)
+
+    def test_slow_lookup_keeps_the_letter_now_and_shows_the_icon_next_time(self):
+        def slow(host):
+            time.sleep(0.5)
+            return PNG
+
+        with patch.object(manage, "SITE_ICON_WAIT_SECONDS", 0.05), \
+                patch.object(manage, "fetch_site_icon", side_effect=slow) as fetch:
+            started = time.monotonic()
+            status, _, _ = self.get("example.com")
+            self.assertEqual(status, 502)
+            self.assertLess(time.monotonic() - started, 0.4, "the connection is not held for the lookup")
+            self.assertEqual(self.get("example.com")[0], 502)
+            self.finish_lookups()
+            self.assertEqual(self.get("example.com")[2], PNG)
+        fetch.assert_called_once()
+
+    def test_only_a_few_requests_wait_so_other_requests_are_not_held_up(self):
+        def slow(host):
+            time.sleep(0.5)
+            return PNG
+
+        waiters = threading.BoundedSemaphore(1)
+        waiters.acquire()  # another icon request is already waiting
+        with patch.object(manage, "SITE_ICON_WAITERS", waiters), patch.object(manage, "SITE_ICON_WAIT_SECONDS", 5), \
+                patch.object(manage, "fetch_site_icon", side_effect=slow):
+            started = time.monotonic()
+            self.assertEqual(self.get("example.com")[0], 502)
+            self.assertLess(time.monotonic() - started, 0.4)
+            self.finish_lookups()
             self.assertEqual(self.get("example.com")[0], 200)
 
     def test_stale_icon_is_refreshed_and_kept_when_the_refresh_fails(self):
@@ -360,10 +410,17 @@ class SiteIconTests(ServiceTestCase):
         os.utime(icon, (1, 1))
         newer = PNG + b"2"
         with patch.object(manage, "fetch_site_icon", return_value=newer):
+            self.assertEqual(self.get("example.com")[2], PNG, "the old icon shows while refreshing")
+            self.finish_lookups()
             self.assertEqual(self.get("example.com")[2], newer)
         os.utime(icon, (1, 1))
         with patch.object(manage, "fetch_site_icon", return_value=None):
             self.assertEqual(self.get("example.com")[2], newer)
+            self.finish_lookups()
+        self.assertEqual(self.get("example.com")[2], newer)
+        os.utime(icon, (1, 1))
+        with patch.object(manage, "fetch_site_icon", side_effect=OSError("offline")):
+            self.assertEqual(self.get("example.com")[2], newer, "offline keeps the old icon")
 
     def test_local_addresses_and_odd_names_never_reach_icon_services(self):
         with patch.object(manage, "fetch_site_icon") as fetch:
@@ -376,6 +433,7 @@ class SiteIconTests(ServiceTestCase):
     def test_international_and_port_hosts_are_normalized(self):
         self.assertEqual(manage.site_icon_host("例子.测试"), "xn--fsqu00a.xn--0zwm56d")
         self.assertEqual(manage.site_icon_host("Example.COM:8443"), "example.com:8443")
+        self.assertEqual(manage.site_icon_host("example.com."), "example.com")
 
     def test_only_raster_images_are_kept(self):
         self.assertIsNone(manage.site_icon_type(b"<svg onload='alert(1)'/>"))

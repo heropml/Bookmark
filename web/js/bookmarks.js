@@ -106,10 +106,19 @@ function faviconImg(host) {
   return `<img src="https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${encoded}&size=64" data-fallback="https://icons.duckduckgo.com/ip3/${encoded}.ico" alt="" loading="lazy">`;
 }
 // Image errors do not bubble: try the second icon source once, then keep the letter.
+// The local service answers at once while a first lookup is still running, so its icons are asked
+// for again a little later; a site without an icon simply keeps its letter after the last try.
+const SITE_ICON_RETRY_MS = [3000, 10000];
 function handleIconError(event) {
   const img = event.target;
   if (img.tagName !== "IMG" || img.dataset.fallback === undefined) return;
-  if (img.dataset.fb || !img.dataset.fallback) img.remove();
+  if (!img.dataset.fallback) {
+    const tries = Number(img.dataset.tries || 0);
+    if (tries >= SITE_ICON_RETRY_MS.length) { img.remove(); return; }
+    img.dataset.tries = String(tries + 1);
+    const src = img.getAttribute("src").replace(/&retry=\d+$/, "");
+    setTimeout(() => { img.src = src + "&retry=" + (tries + 1); }, SITE_ICON_RETRY_MS[tries]);
+  } else if (img.dataset.fb) img.remove();
   else {
     img.dataset.fb = "1";
     img.src = img.dataset.fallback;

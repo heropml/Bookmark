@@ -43,6 +43,8 @@ jobs:
           python-version: "3.13"
       # Versions are pinned so a new release cannot turn an unchanged commit red.
       - name: Python checks (ruff)
-        run: pipx run ruff==0.16.10 check .
+        run: |
+          python -m pip install ruff==0.16.10
+          ruff check .
       - name: JavaScript checks (eslint)
         run: npx --yes eslint@10.12.0 .

@@ -389,7 +389,7 @@ test('书签地址转义后才写入页面，脚本地址保持不可点击', ()
   assert.match(html, /href="obsidian:\/\/open\?vault=notes"/, '其他应用的链接保留可点击');
 });
 
-test('本地服务打开时网站图标从本服务取，失败直接保留首字母', () => {
+test('本地服务打开时网站图标从本服务取，稍后重取两次，仍失败则保留首字母', () => {
   const app = fixture({ layout: 'classic', folder: '工作', location: { protocol: 'http:', hostname: '127.0.0.1' }, items: [
     work('Router', 'http://admin:secret@192.168.1.1/', "admin:secret@192.168.1.1"),
     work('Wiki', 'https://zh.wikipedia.org/', 'zh.wikipedia.org')
@@ -398,10 +398,15 @@ test('本地服务打开时网站图标从本服务取，失败直接保留首�
   assert.match(html, /<img src="\/__siteicon\?host=zh\.wikipedia\.org" data-fallback=""/);
   assert.doesNotMatch(html, /<img[^>]*(gstatic|duckduckgo|secret)/);
   let removed = false;
-  const img = { tagName: 'IMG', src: 'local', dataset: { fallback: '' }, remove() { removed = true; } };
+  const img = { tagName: 'IMG', src: '/__siteicon?host=a.example', dataset: { fallback: '' },
+    getAttribute() { return this.src; }, remove() { removed = true; } };
+  app.handlers.get('main:error')({ target: img });
+  assert.equal(img.src, '/__siteicon?host=a.example&retry=1', '仍在获取的图标稍后再取');
+  app.handlers.get('main:error')({ target: img });
+  assert.equal(img.src, '/__siteicon?host=a.example&retry=2');
+  assert.equal(removed, false);
   app.handlers.get('main:error')({ target: img });
   assert.equal(removed, true);
-  assert.equal(img.src, 'local');
 });
 
 test('网站图标不含内联脚本和账号密码，失败时先换备用源再保留首字母', () => {
