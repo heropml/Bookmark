@@ -29,7 +29,6 @@ CSS 图片路径相对于 `css/`，例如 `../themes/shuimo.svg`。
 | 文件 | 职责 |
 | --- | --- |
 | `js/bootstrap.js` | 在页面绘制前恢复主题、窗口状态及页面图标 |
-| `js/data-loader.js` | 先加载公开示例，再加载可选的本地私人书签 |
 | `js/config.js` | 设置选项、默认值和共享状态 |
 | `js/utils.js` | 本地存储、请求等共用小工具 |
 | `js/bookmarks.js` | 书签数据整理、分类、搜索、渲染和快捷键 |
@@ -49,7 +48,7 @@ CSS 图片路径相对于 `css/`，例如 `../themes/shuimo.svg`。
 
 本地服务输出 `index.html` 时会给 `css/`、`js/` 下的每个资源地址加上 `?v=<修改时间-大小>`，带当前版本号的资源可长期缓存，文件一变地址就变；页面本身和书签数据每次打开仍会重新验证。直接打开 HTML 文件或演示页时地址保持不变。
 
-`bootstrap.js` 位于页头；`data-loader.js` 在页面底部同步加载数据，不能加 `defer`（内部使用 `document.write`）。其余脚本使用 `defer`，由最后的 `app.js` 统一启动。
+`bootstrap.js` 位于页头；页面底部先同步加载 `data.example.js`，再加载可选的本地私人书签 `data.js`，两者不能加 `defer`，必须在其余脚本之前执行。本地服务对 `data.js` 每次重新验证，同步后刷新页面即可读到新书签。其余脚本使用 `defer`，由最后的 `app.js` 统一启动。
 
 ## 天气行为
 

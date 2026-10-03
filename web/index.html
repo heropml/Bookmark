@@ -339,7 +339,9 @@
       <main id="main"></main>
     </div>
   </div>
-  <script src="js/data-loader.js"></script>
+  <!-- Public sample first; the optional private data.js replaces it. Both load before the deferred scripts. -->
+  <script src="data.example.js"></script>
+  <script src="data.js"></script>
   <script defer src="js/config.js"></script>
   <script defer src="js/utils.js"></script>
   <script defer src="js/bookmark-menu.js"></script>
