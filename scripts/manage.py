@@ -39,7 +39,7 @@ EXAMPLE_SRC = DATA_DIR / "bookmarks.example.html"
 DATA_JS = WEB_ROOT / "data.js"
 WINDOW_STATE = DATA_DIR / ".window-state.json"
 PORT = 8765
-APP_VERSION = "v1.1.5"
+APP_VERSION = "v1.1.6"
 HEALTH_RESPONSE = b"bookmark-weather-v3\n"
 UPDATE_SOURCES = (
     ("Gitee", "https://gitee.com/heropml/Bookmark.git"),
@@ -549,16 +549,20 @@ def fetch_site_icon(host: str) -> bytes | None:
     answered = False
     for source in SITE_ICON_SOURCES:
         request = Request(source.format(host=host), headers={"User-Agent": "Bookmark/1.0"})
-        try:
-            with SITE_ICON_FETCHES, urlopen(request, timeout=SITE_ICON_TIMEOUT) as response:
-                data = response.read(SITE_ICON_LIMIT + 1)
-        except HTTPError as error:
-            error.close()
-            # Both services answer 404 with a generic picture when a site has no icon.
-            answered = answered or error.code == 404
-            continue
-        except (OSError, ValueError):
-            continue
+        with SITE_ICON_FETCHES:
+            # A queued lookup (including a fallback) may get its slot after another host paused us.
+            if time.monotonic() < SITE_ICON_PAUSED_UNTIL:
+                raise OSError("icon services were unreachable a moment ago")
+            try:
+                with urlopen(request, timeout=SITE_ICON_TIMEOUT) as response:
+                    data = response.read(SITE_ICON_LIMIT + 1)
+            except HTTPError as error:
+                error.close()
+                # Both services answer 404 with a generic picture when a site has no icon.
+                answered = answered or error.code == 404
+                continue
+            except (OSError, ValueError):
+                continue
         answered = True
         if len(data) <= SITE_ICON_LIMIT and site_icon_type(data):
             return data
@@ -582,10 +586,12 @@ def _store_site_icon(host: str, key: str, icon: Path, miss: Path) -> None:
             data = fetch_site_icon(host)
         except OSError:
             with SITE_ICON_LOCK:
-                SITE_ICON_FAILURES += 1
-                if SITE_ICON_FAILURES >= SITE_ICON_FAILURES_TO_PAUSE:
-                    SITE_ICON_FAILURES = 0
-                    SITE_ICON_PAUSED_UNTIL = time.monotonic() + SITE_ICON_PAUSE_SECONDS
+                # Cancelled queued lookups must not count as new failures or extend the pause.
+                if time.monotonic() >= SITE_ICON_PAUSED_UNTIL:
+                    SITE_ICON_FAILURES += 1
+                    if SITE_ICON_FAILURES >= SITE_ICON_FAILURES_TO_PAUSE:
+                        SITE_ICON_FAILURES = 0
+                        SITE_ICON_PAUSED_UNTIL = time.monotonic() + SITE_ICON_PAUSE_SECONDS
             return
         with SITE_ICON_LOCK:
             SITE_ICON_FAILURES = 0

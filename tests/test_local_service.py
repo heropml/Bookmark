@@ -388,6 +388,51 @@ class SiteIconTests(ServiceTestCase):
             self.assertEqual(self.get("example.com")[2], PNG)
         fetch.assert_called_once()
 
+    def test_queued_lookup_stops_when_services_pause_and_can_retry_later(self):
+        queued = threading.Event()
+        released = threading.Event()
+        waiters = threading.BoundedSemaphore(1)
+        waiters.acquire()
+
+        def wait_for_slot():
+            queued.set()
+            released.wait(3)
+
+        with patch.object(manage, "SITE_ICON_WAITERS", waiters), \
+                patch.object(manage, "SITE_ICON_FETCHES") as slots, \
+                patch("urllib.request.urlopen", side_effect=OSError("offline")) as urlopen:
+            slots.__enter__.side_effect = wait_for_slot
+            try:
+                self.assertEqual(self.get("queued.example")[0], 502)
+                self.assertTrue(queued.wait(1), "the lookup is waiting for an upstream slot")
+                paused_until = time.monotonic() + manage.SITE_ICON_PAUSE_SECONDS
+                manage.SITE_ICON_PAUSED_UNTIL = paused_until
+            finally:
+                released.set()
+                self.finish_lookups()
+            urlopen.assert_not_called()
+            self.assertFalse(manage.SITE_ICON_PENDING)
+            self.assertEqual(manage.SITE_ICON_FAILURES, 0, "a cancelled lookup is not another network failure")
+            self.assertEqual(manage.SITE_ICON_PAUSED_UNTIL, paused_until)
+            self.assertFalse(self.icons.exists(), "a pause must not cache a missing icon")
+
+        manage.SITE_ICON_PAUSED_UNTIL = 0.0
+        with patch.object(manage, "fetch_site_icon", return_value=PNG) as fetch:
+            self.assertEqual(self.get("queued.example")[0], 200)
+        fetch.assert_called_once_with("queued.example")
+
+    def test_pause_also_stops_a_lookup_before_its_fallback_source(self):
+        from urllib.error import URLError
+
+        def pause(request, timeout):
+            manage.SITE_ICON_PAUSED_UNTIL = time.monotonic() + manage.SITE_ICON_PAUSE_SECONDS
+            raise URLError("offline")
+
+        with patch("urllib.request.urlopen", side_effect=pause) as urlopen:
+            with self.assertRaises(OSError):
+                manage.fetch_site_icon("example.com")
+        self.assertEqual(urlopen.call_count, 1, "the fallback must respect the pause too")
+
     def test_only_a_few_requests_wait_so_other_requests_are_not_held_up(self):
         def slow(host):
             time.sleep(0.5)
