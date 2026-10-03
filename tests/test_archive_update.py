@@ -368,21 +368,23 @@ class LaunchZIPTests(TestCase):
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             )
             service = None
+            last_error = None
             # A cold interpreter start can take several seconds on a busy machine.
             deadline = time.monotonic() + 15
             try:
-                while time.monotonic() < deadline:
-                    if process.poll() is not None:
-                        self.fail(process.communicate()[1].decode("utf-8", errors="replace"))
+                while time.monotonic() < deadline and process.poll() is None:
                     try:
                         with urlopen(f"http://127.0.0.1:{port}/__service", timeout=0.2) as response:
                             service = json.load(response)
                         break
-                    except OSError:
+                    except OSError as error:
+                        last_error = error
                         time.sleep(0.1)
-                self.assertIsNotNone(service, "ZIP 服务应能加载本地升级模块并启动")
-                self.assertTrue(service["instance"])
             finally:
                 if process.poll() is None:
                     process.terminate()
-                process.communicate(timeout=5)
+                stdout, stderr = process.communicate(timeout=5)
+            # Whether the service exited or never answered, its own output says why.
+            log = (stderr + stdout).decode("utf-8", errors="replace")[-4000:]
+            self.assertIsNotNone(service, f"ZIP 服务应能加载本地升级模块并启动；最后一次请求：{last_error!r}\n{log}")
+            self.assertTrue(service["instance"])
