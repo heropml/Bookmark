@@ -1190,11 +1190,13 @@ class Handler(SimpleHTTPRequestHandler):
                 if PACKAGED_APP:
                     self.send_json(200, self.server.update_status(refresh))
                 elif self.server.restarting or installed_version() != APP_VERSION:
+                    # The restart waits a moment before stopping, so the reply below still goes out;
+                    # a kept-alive client may act on the reply before this handler returns.
+                    self.server.schedule_restart()
                     self.send_json(200, {
                         "available": False, "can_update": False, "restarting": True,
                         "version": APP_VERSION, "instance": self.server.instance,
                     })
-                    self.server.schedule_restart()
                 else:
                     self.send_json(200, self.server.update_status(refresh))
             except (UpdateError, OSError) as error:
