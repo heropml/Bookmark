@@ -18,19 +18,25 @@ function validateAppearanceSnapshot(value) {
   return { ...result, fxFollowsSystem: value.fxFollowsSystem, focus: value.focus, density: value.density };
 }
 
+// An entry this version cannot apply (e.g. saved by a version with another theme list) is hidden
+// but written back unchanged, so one such entry no longer makes every other preset unreadable.
 function readAppearancePresets() {
   const raw = localStorage.getItem(APPEARANCE_PRESETS_KEY);
-  if (raw === null) return [];
+  if (raw === null) return { presets: [], incompatible: [] };
   const value = JSON.parse(raw);
   if (!Array.isArray(value)) throw new Error("外观方案数据无效，无法读取。");
   const names = new Set();
-  return value.map(item => {
+  const presets = [];
+  const incompatible = [];
+  for (const item of value) {
     const settings = validateAppearanceSnapshot(item?.settings);
     const name = typeof item?.name === "string" ? item.name.trim() : "";
-    if (!settings || !name || name.length > 40 || names.has(name)) throw new Error("外观方案数据无效，无法读取。");
-    names.add(name);
-    return { name, settings };
-  });
+    if (settings && name && name.length <= 40 && !names.has(name)) {
+      names.add(name);
+      presets.push({ name, settings });
+    } else incompatible.push(item);
+  }
+  return { presets, incompatible };
 }
 
 function captureAppearanceSnapshot() {
@@ -95,6 +101,7 @@ function initAppearancePresets() {
   const list = section.querySelector("ul");
   const status = section.querySelector(".sync-status");
   let presets = [];
+  let incompatible = [];
   let readable = true;
   const showStatus = (message, error = false) => {
     status.textContent = message;
@@ -105,7 +112,7 @@ function initAppearancePresets() {
     (button || input).focus();
   };
   const save = next => {
-    try { localStorage.setItem(APPEARANCE_PRESETS_KEY, JSON.stringify(next)); }
+    try { localStorage.setItem(APPEARANCE_PRESETS_KEY, JSON.stringify([...next, ...incompatible])); }
     catch (e) { showStatus("无法保存到此浏览器，方案未更改。请检查浏览器存储权限或空间。", true); return false; }
     presets = next;
     draw();
@@ -164,9 +171,13 @@ function initAppearancePresets() {
     showStatus("");
     readable = true;
     form.querySelector("button").disabled = false;
-    try { presets = readAppearancePresets(); }
+    try {
+      ({ presets, incompatible } = readAppearancePresets());
+      if (incompatible.length) showStatus(`有 ${incompatible.length} 个方案无法在此版本使用，已隐藏并原样保留。`);
+    }
     catch (e) {
       presets = [];
+      incompatible = [];
       readable = false;
       form.querySelector("button").disabled = true;
       showStatus("无法读取已存方案，请检查浏览器存储；原数据未更改。", true);

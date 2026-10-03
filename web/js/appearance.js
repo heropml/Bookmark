@@ -92,6 +92,14 @@ function choicePreview(key, id) {
 }
 const appearanceChoices = {};
 let appearanceDensity = null;
+let shortcutIconTimer = 0;
+// Previewing skins clicks through several in a row; Windows rewrites the shortcut once they settle.
+function syncShortcutIcon(skin) {
+  clearTimeout(shortcutIconTimer);
+  shortcutIconTimer = setTimeout(() => {
+    fetch("/__icon?skin=" + encodeURIComponent(skin), { method: "POST" }).catch(() => {});
+  }, 800);
+}
 function setupChoice(list, key, containerId, resolve) {
   const root = document.documentElement;
   let stored = null;
@@ -122,7 +130,7 @@ function setupChoice(list, key, containerId, resolve) {
       const fav = document.getElementById("fav");
       if (fav) fav.href = "/__favicon?skin=" + encodeURIComponent(root.dataset.skin);
       document.getElementById("appearanceLabel").textContent = "外观 · " + item.name;
-      if (syncShortcut) fetch("/__icon?skin=" + encodeURIComponent(root.dataset.skin), { method: "POST" }).catch(() => {});
+      if (syncShortcut) syncShortcutIcon(root.dataset.skin);
     }
     if (key === "fx" || key === "sky") window.dispatchEvent(new Event("bm-fx"));
   };
@@ -206,7 +214,7 @@ function initAppearance() {
       document.documentElement.dataset.skin = resolved;
       const fav = document.getElementById("fav");
       if (fav) fav.href = "/__favicon?skin=" + encodeURIComponent(resolved);
-      fetch("/__icon?skin=" + encodeURIComponent(resolved), { method: "POST" }).catch(() => {});
+      syncShortcutIcon(resolved);
     }
   });
 

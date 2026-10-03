@@ -20,6 +20,8 @@ function initLibrary() {
   document.addEventListener("keydown", (event) => {
     // Enter and Esc also pick or cancel IME candidates; they must not open or clear results.
     if (event.isComposing || event.keyCode === 229) return;
+    // Every key press arrives here; only these keys need the dialog check and the card list.
+    if (!["Escape", "Enter", "ArrowDown", "ArrowUp"].includes(event.key)) return;
     if (document.querySelector("dialog[open]") || !appearanceMenu.hidden) return;
     const input = event.target === search;
     const links = [...document.querySelectorAll('#main a.card[href]')];

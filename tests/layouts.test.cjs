@@ -606,3 +606,21 @@ test('“置顶顺序已保存”约 2.5 秒后自动消失，错误提示保留
   assert.match(status.textContent, /无法保存置顶顺序/);
   assert.equal(timers.length, pending, '错误提示不设自动清除');
 });
+
+test('只有切换分类或布局时卡片播放入场动画，搜索和加载更多保持静止', () => {
+  const app = fixture({ layout: 'classic', folder: '工具' });
+  const entering = () => [app.elements.get('main').attributes['data-enter'], app.elements.get('pinnedGrid').attributes['data-enter']];
+  assert.deepEqual(entering(), ['on', 'on']);
+  app.search('工具 1');
+  assert.deepEqual(entering(), ['off', 'off']);
+  app.search('');
+  app.context.event = { target: { closest: selector => selector === '#moreBtn' ? {} : null } };
+  app.run('pickFolder(event)');
+  assert.deepEqual(entering(), ['off', 'off']);
+  app.choose('公司');
+  assert.deepEqual(entering(), ['on', 'on']);
+  app.run("document.documentElement.dataset.layout = 'board'; render()");
+  assert.deepEqual(entering(), ['on', 'on']);
+  const css = fs.readFileSync(path.join(__dirname, '../web/css/bookmarks.css'), 'utf8');
+  assert.match(css, /:is\(#main, #pinnedGrid\)\[data-enter="off"\] \.card \{ animation: none; \}/);
+});

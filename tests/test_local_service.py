@@ -5,6 +5,7 @@ import os
 import tempfile
 import threading
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -159,3 +160,138 @@ class UpdateCheckCacheTests(ServiceTestCase):
         self.assertEqual(status, 200)
         self.check_update()
         self.assertEqual(self.check.call_count, 2)
+
+
+class CrossSiteTests(ServiceTestCase):
+    def test_every_reply_forbids_embedding_by_other_sites(self):
+        # <script src="http://127.0.0.1:8765/data.js"> on another site would otherwise read bookmarks.
+        for path in ("/data.js", "/index.html", "/js/app.js", "/__service", "/missing.js"):
+            with self.subTest(path=path):
+                _, headers, _ = self.request("GET", path)
+                self.assertEqual(headers["Cross-Origin-Resource-Policy"], "same-origin")
+
+    def test_other_sites_cannot_fetch_or_embed_but_may_link_to_the_page(self):
+        for site in ("cross-site", "same-site"):
+            for path in ("/data.js", "/__service", "/__bookmarks/backups"):
+                with self.subTest(site=site, path=path):
+                    status, _, body = self.request("GET", path, {"Sec-Fetch-Site": site, "Sec-Fetch-Mode": "no-cors"})
+                    self.assertEqual(status, 403)
+                    self.assertNotIn(b"private", body)
+            status, _, _ = self.request("HEAD", "/data.js", {"Sec-Fetch-Site": site, "Sec-Fetch-Mode": "no-cors"})
+            self.assertEqual(status, 403)
+        status, _, _ = self.request("GET", "/index.html", {"Sec-Fetch-Site": "cross-site", "Sec-Fetch-Mode": "navigate"})
+        self.assertEqual(status, 200)
+        for site in ("same-origin", "none"):
+            status, _, body = self.request("GET", "/data.js", {"Sec-Fetch-Site": site})
+            self.assertEqual(status, 200)
+            self.assertIn(b"private", body)
+
+
+class AssetCacheTests(ServiceTestCase):
+    def setUp(self):
+        super().setUp()
+        (self.web / "css").mkdir()
+        (self.web / "css/base.css").write_text("body{}", encoding="utf-8")
+        (self.web / "index.html").write_text(
+            '<html><link rel="stylesheet" href="css/base.css" /><script defer src="js/app.js"></script>'
+            '<script src="js/missing.js"></script><img src="https://example.com/a.png"></html>', encoding="utf-8")
+
+    def test_page_names_each_asset_by_its_current_version(self):
+        status, headers, body = self.request("GET", "/")
+        page = body.decode("utf-8")
+        self.assertEqual(status, 200)
+        self.assertEqual(headers["Cache-Control"], "no-cache")
+        self.assertEqual(int(headers["Content-Length"]), len(body))
+        stamp = manage.file_stamp(self.web / "js/app.js")
+        self.assertIn(f'src="js/app.js?v={stamp}"', page)
+        self.assertIn('href="css/base.css?v=', page)
+        self.assertIn('src="js/missing.js"', page, "不存在的文件保持原地址")
+        self.assertIn('src="https://example.com/a.png"', page)
+        status, _, body = self.request("GET", "/", {"If-None-Match": headers["ETag"]})
+        self.assertEqual((status, body), (304, b""))
+
+    def test_stamped_assets_are_cached_for_good_and_changes_get_new_addresses(self):
+        _, _, body = self.request("GET", "/index.html")
+        stamp = manage.file_stamp(self.web / "js/app.js")
+        status, headers, _ = self.request("GET", f"/js/app.js?v={stamp}")
+        self.assertEqual(status, 200)
+        self.assertEqual(headers["Cache-Control"], manage.IMMUTABLE_CACHE)
+        for query in ("", "?v=old", "?v=" + stamp + "x"):
+            with self.subTest(query=query):
+                _, headers, _ = self.request("GET", "/js/app.js" + query)
+                self.assertEqual(headers["Cache-Control"], "no-cache")
+        _, before, _ = self.request("GET", "/index.html")
+        (self.web / "js/app.js").write_text("changed();", encoding="utf-8")
+        status, after, body = self.request("GET", "/index.html", {"If-None-Match": before["ETag"]})
+        self.assertEqual(status, 200, "资源变化后页面也必须重新下载")
+        self.assertIn(f'js/app.js?v={manage.file_stamp(self.web / "js/app.js")}', body.decode("utf-8"))
+
+    def test_one_connection_serves_a_whole_page_load(self):
+        connection = http.client.HTTPConnection("127.0.0.1", self.port, timeout=3)
+        self.addCleanup(connection.close)
+        for path in ("/index.html", "/css/base.css", "/js/app.js", "/data.js", "/__service"):
+            with self.subTest(path=path):
+                connection.request("GET", path, headers={"Host": f"127.0.0.1:{self.port}"})
+                response = connection.getresponse()
+                response.read()
+                self.assertEqual(response.status, 200)
+                self.assertFalse(response.will_close, "静态文件和接口应保持连接")
+
+    def test_posts_close_their_connection(self):
+        status, headers, _ = self.request("POST", "/__window_state", {"Origin": "https://evil.example"}, "x" * 50)
+        self.assertEqual(status, 403)
+        self.assertEqual(headers.get("Connection"), "close")
+
+
+class FaviconTests(ServiceTestCase):
+    def test_favicon_is_revalidated_instead_of_resent(self):
+        icon = self.web / "icon.ico"
+        icon.write_bytes(b"\0" * 2048)
+        icons = SimpleNamespace(icon_path=lambda skin: icon)
+        with patch.dict("sys.modules", {"shortcut": icons}):
+            status, headers, body = self.request("GET", "/__favicon?skin=aurora")
+            self.assertEqual((status, len(body)), (200, 2048))
+            self.assertEqual(headers["Cache-Control"], "no-cache")
+            status, _, body = self.request("GET", "/__favicon?skin=aurora", {"If-None-Match": headers["ETag"]})
+        self.assertEqual((status, body), (304, b""))
+
+
+class WeatherCacheTests(ServiceTestCase):
+    def setUp(self):
+        super().setUp()
+        manage.WEATHER_CACHE.clear()
+        self.addCleanup(manage.WEATHER_CACHE.clear)
+
+    def test_tabs_opened_together_share_one_upstream_lookup(self):
+        with patch.object(manage, "weather_from_uapis", return_value=(21.5, 0, "晴")) as upstream:
+            for _ in range(3):
+                status, headers, body = self.request("GET", "/__weather?city=%E6%9D%AD%E5%B7%9E")
+                self.assertEqual(status, 200)
+                self.assertEqual(json.loads(body)["current"], {"temperature_2m": 21.5, "weather_code": 0})
+                self.assertEqual(headers["X-Weather-Source"], "uapis")
+            self.assertEqual(upstream.call_count, 1)
+            self.request("GET", "/__weather?city=%E5%AE%81%E6%B3%A2")
+            self.assertEqual(upstream.call_count, 2, "不同城市各自查询")
+            with patch.object(manage, "WEATHER_CACHE_SECONDS", 0):
+                self.request("GET", "/__weather?city=%E6%9D%AD%E5%B7%9E")
+            self.assertEqual(upstream.call_count, 3, "过期后重新查询")
+
+    def test_failures_are_not_cached(self):
+        with patch.object(manage, "weather_from_uapis", side_effect=OSError), \
+                patch.object(manage, "weather_from_open_meteo", side_effect=OSError) as fallback:
+            for _ in range(2):
+                status, _, _ = self.request("GET", "/__weather?city=x")
+                self.assertEqual(status, 502)
+        self.assertEqual(fallback.call_count, 2)
+
+
+class ShortcutIconTests(ServiceTestCase):
+    def test_repeating_the_same_skin_does_not_rewrite_the_shortcut(self):
+        changed = []
+        icons = SimpleNamespace(set_icon=changed.append)
+        page = {"Origin": self.page}
+        with patch.object(manage.sys, "platform", "win32"), patch.dict("sys.modules", {"shortcut": icons}):
+            for skin in ("cyber", "cyber", "snow", "snow", "cyber"):
+                status, _, _ = self.request("POST", f"/__icon?skin={skin}", page)
+                self.assertEqual(status, 204)
+        self.assertEqual(changed, ["cyber", "snow", "cyber"])

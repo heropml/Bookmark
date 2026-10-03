@@ -218,6 +218,8 @@ html[data-fx="off"] .card-glow { display: none; }
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: none; }
 }
+/* Only a newly opened view rises in; searching, pinning or showing more keeps cards still. */
+:is(#main, #pinnedGrid)[data-enter="off"] .card { animation: none; }
 .grid .card:nth-child(2), .grid .bookmark-item:nth-child(2) > .card { animation-delay: 0.03s; }
 .grid .card:nth-child(3), .grid .bookmark-item:nth-child(3) > .card { animation-delay: 0.06s; }
 .grid .card:nth-child(4), .grid .bookmark-item:nth-child(4) > .card { animation-delay: 0.09s; }

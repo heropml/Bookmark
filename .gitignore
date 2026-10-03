@@ -8,6 +8,7 @@ data/.update-backups/
 data/.bookmark-backups/
 data/.update-stage-*/
 data/bookmarks.html
+data/.data-build.json
 web/data.js
 .claude/
 installer/

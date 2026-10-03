@@ -26,6 +26,8 @@ MAX_TOTAL = 128 * 1024 * 1024
 TIMEOUT = 15
 DOWNLOAD_SECONDS = 180
 REQUIRED = {"scripts/manage.py", "scripts/archive_update.py", "web/index.html", "web/js/update.js"}
+# Successful upgrades keep this many program backups; older ones only take disk space.
+BACKUP_KEEP = 5
 
 
 class ArchiveUpdateError(RuntimeError):
@@ -271,6 +273,15 @@ def _apply(root, stage, changes, originals, progress, source):
     return str(backup)
 
 
+def prune_backups(backup_root, keep=BACKUP_KEEP):
+    """Drop the oldest upgrade backups; a failed upgrade never reaches this point."""
+    folders = [path for path in Path(backup_root).glob("backup-*")
+               if path.is_dir() and not path.is_symlink()]
+    folders.sort(key=lambda path: path.stat().st_mtime, reverse=True)
+    for old in folders[keep:]:
+        shutil.rmtree(old, ignore_errors=True)
+
+
 def install(root, version, progress=None):
     root = Path(root).resolve()
     status = update_status(version, progress)
@@ -321,6 +332,7 @@ def install(root, version, progress=None):
                 raise ArchiveUpdateError("下载的版本与已确认版本不一致")
             _report(progress, "applying", "备份现有程序，准备应用新版文件", source)
             backup = _apply(root, stage, changes, originals, progress, source)
+        prune_backups(root / "data/.update-backups")
     except OSError as error:
         raise ArchiveUpdateError("程序文件无法读写或磁盘空间不足，升级未完成") from error
     return {"ok": True, "updated": True, "mode": "archive", "previous": version,

@@ -134,3 +134,14 @@ test('选中置顶卡片后 Alt+←/→ 移动一位并保持焦点；其他按�
   assert.equal(press(items[1], 'ArrowUp').prevented, false);
   assert.equal(app.reordered.length, 2);
 });
+
+test('普通按键不扫描卡片列表，方向键仍在结果间移动', () => {
+  const app = fixture();
+  let scans = 0;
+  const all = app.context.document.querySelectorAll;
+  app.context.document.querySelectorAll = selector => { if (selector === '#main a.card[href]') scans++; return all(selector); };
+  for (const key of ['a', 'b', 'Shift', 'Backspace']) app.press(key);
+  assert.equal(scans, 0);
+  assert.equal(app.press('ArrowDown').prevented, true);
+  assert.equal(scans, 1);
+});

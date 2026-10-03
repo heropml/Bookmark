@@ -165,8 +165,10 @@ function handleCategoryArrangementClick(event) {
   return true;
 }
 
-function clearCategoryDrop() {
-  for (const block of document.querySelectorAll("[data-category-block]")) block.classList.remove("category-drop-before", "category-drop-after", "category-is-dragging");
+// While dragging only the drop marker moves; the dragged block stays dimmed until the drag ends.
+function clearCategoryDrop(dragEnded = true) {
+  const classes = dragEnded ? ["category-drop-before", "category-drop-after", "category-is-dragging"] : ["category-drop-before", "category-drop-after"];
+  for (const block of document.querySelectorAll("[data-category-block]")) block.classList.remove(...classes);
 }
 
 function categoryDropTarget(event) {
@@ -224,7 +226,7 @@ function initCategoryArrangement() {
     if (!target) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
-    clearCategoryDrop();
+    clearCategoryDrop(false);
     target.block.classList.add(target.after ? "category-drop-after" : "category-drop-before");
   });
   main.addEventListener("drop", event => {

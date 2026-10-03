@@ -5,10 +5,13 @@ const LUNAR_DAYS = [
   "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十",
   "廿一", "廿二", "廿三", "廿四", "廿五", "廿六", "廿七", "廿八", "廿九", "三十"
 ];
+// Built once: creating a Chinese-calendar formatter every second costs more than formatting.
+const LUNAR_FORMAT = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", { year: "numeric", month: "long", day: "numeric" });
+const SOLAR_FORMAT = new Intl.DateTimeFormat("zh-CN", { year: "numeric", weekday: "long", month: "long", day: "numeric" });
+let clockDateShown = "";
+let clockMinuteShown = "";
 function lunarDateText(date) {
-  const parts = new Intl.DateTimeFormat("zh-CN-u-ca-chinese", {
-    year: "numeric", month: "long", day: "numeric"
-  }).formatToParts(date);
+  const parts = LUNAR_FORMAT.formatToParts(date);
   const fields = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
   return fields.yearName + "年" + fields.month + LUNAR_DAYS[Number(fields.day) - 1];
 }
@@ -25,12 +28,20 @@ function tick() {
   const mm = String(now.getMinutes()).padStart(2, "0");
   const ss = String(now.getSeconds()).padStart(2, "0");
   setClock(hh + ":" + mm + ":" + ss);
-  const dateStr = now.toLocaleDateString("zh-CN", { year: "numeric", weekday: "long", month: "long", day: "numeric" });
-  document.getElementById("bgTime").textContent = hh + ":" + mm;
-  const h = now.getHours();
-  const greet = h < 5 ? "夜深了" : h < 11 ? "早上好" : h < 14 ? "中午好" : h < 18 ? "下午好" : h < 22 ? "晚上好" : "夜深了";
-  document.getElementById("greet").textContent = dateStr.replace(/星期/, " 星期");
-  document.getElementById("lunarDate").textContent = lunarDateText(now) + " · " + greet;
+  // The seconds change every tick; the dates and greeting only when the minute does.
+  if (clockMinuteShown !== hh + ":" + mm) {
+    clockMinuteShown = hh + ":" + mm;
+    document.getElementById("bgTime").textContent = clockMinuteShown;
+    const h = now.getHours();
+    const greet = h < 5 ? "夜深了" : h < 11 ? "早上好" : h < 14 ? "中午好" : h < 18 ? "下午好" : h < 22 ? "晚上好" : "夜深了";
+    const dates = SOLAR_FORMAT.format(now).replace(/星期/, " 星期") + "\n" + lunarDateText(now) + " · " + greet;
+    if (dates !== clockDateShown) {
+      clockDateShown = dates;
+      const [solar, lunar] = dates.split("\n");
+      document.getElementById("greet").textContent = solar;
+      document.getElementById("lunarDate").textContent = lunar;
+    }
+  }
   if (weatherScene.dataset.period !== weatherPeriod()) syncParticles();
 }
 

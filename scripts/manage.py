@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import hashlib
+import io
 import json
 import math
 import os
@@ -16,6 +17,7 @@ import time
 import uuid
 import webbrowser
 from collections import Counter
+from html.parser import HTMLParser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -37,9 +39,8 @@ WINDOW_STATE = DATA_DIR / ".window-state.json"
 PORT = 8765
 APP_VERSION = "v1.1.5"
 HEALTH_RESPONSE = b"bookmark-weather-v3\n"
-HREF_RE = re.compile(r'<A HREF="([^"]+)"', re.I)
-# Browsers mark their toolbar folder in exports; its localized name is not a category.
-TOOLBAR_FOLDER_RE = re.compile(r'\bPERSONAL_TOOLBAR_FOLDER\s*=\s*"true"', re.I)
+# Counts links in a backup without parsing the whole tree; snapshots never change once written.
+BACKUP_LINK_RE = re.compile(rb"<a\b[^>]*\bhref\s*=", re.I)
 UPDATE_SOURCES = (
     ("Gitee", "https://gitee.com/heropml/Bookmark.git"),
     ("GitHub", "https://github.com/heropml/Bookmark.git"),
@@ -58,6 +59,13 @@ UPDATE_LOCK = threading.RLock()
 BOOKMARK_SYNC_LOCK = threading.Lock()
 # Enough history to undo several imports without letting repeated syncs fill the disk.
 BOOKMARK_BACKUP_LIMIT = 20
+# Several tabs opening together share one upstream weather lookup.
+WEATHER_CACHE_SECONDS = 5 * 60
+WEATHER_CACHE: dict[tuple, tuple[float, bytes, str]] = {}
+WEATHER_CACHE_LOCK = threading.Lock()
+# Page assets referenced from index.html; stamped URLs may be cached until the file changes.
+ASSET_REF_RE = re.compile(r'\b(href|src)="((?:css|js)/[^"?#]+)"')
+IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
 PACKAGED_APP = os.environ.get("BOOKMARK_PACKAGED") == "1"
 WINDOWS_CHROMIUM_BROWSERS = {
     "brave": ("Brave", "LOCALAPPDATA", (("BraveSoftware", "Brave-Browser", "User Data"),)),
@@ -296,6 +304,11 @@ def restart_after_update(server: ThreadingHTTPServer) -> None:
     server.shutdown()
 
 
+def file_stamp(path) -> str:
+    stat = os.stat(path)
+    return f"{stat.st_mtime_ns:x}-{stat.st_size:x}"
+
+
 class BookmarkServer(ThreadingHTTPServer):
     # A page load opens several connections at once; the default backlog of 5 resets some of them.
     request_queue_size = 64
@@ -306,6 +319,7 @@ class BookmarkServer(ThreadingHTTPServer):
         self.restarting = False
         self.restart_lock = threading.Lock()
         self.update_check = None  # (checked_at, status or UpdateError)
+        self.icon_skin = None  # shortcut icon applied by this service, so repeats cost nothing
 
     def update_status(self, refresh: bool = False) -> dict[str, object]:
         """Reuse this service's recent update check; retry a failed one sooner."""
@@ -474,35 +488,93 @@ def norm_url(href: str) -> str:
     return f"{p.scheme.lower()}://{host}{path}{params}{query}{fragment}"
 
 
+class _NetscapeBookmarkParser(HTMLParser):
+    """Read a Netscape bookmark export by tags, so line breaks and attribute order do not matter."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.items: list[dict] = []
+        # One entry per open <DL>: the folder name it belongs to, "" when it adds no category.
+        self.stack: list[str] = []
+        self.pending: str | None = None  # folder named by the last <H3>, waiting for its <DL>
+        self.folder: dict | None = None  # <H3> being read
+        self.link: dict | None = None  # <A> being read
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ("a", "h3", "dt", "dl"):
+            self.finish_link()
+        if tag == "h3":
+            self.pending = None
+            # Browsers mark their toolbar folder in exports; its localized name is not a category.
+            self.folder = {"toolbar": any(
+                (name or "").lower() == "personal_toolbar_folder" and (value or "").lower() == "true"
+                for name, value in attrs), "text": []}
+        elif tag == "a":
+            self.pending = None
+            href = next((value for name, value in attrs if (name or "").lower() == "href"), None)
+            self.link = {"href": href, "text": []} if href and href.strip() else None
+        elif tag == "dl":
+            self.stack.append(self.pending or "")
+            self.pending = None
+
+    def handle_endtag(self, tag):
+        if tag == "a":
+            self.finish_link()
+        elif tag == "h3" and self.folder is not None:
+            name = "".join(self.folder["text"]).strip()
+            # An empty name keeps </DL> nesting balanced but leaves the toolbar out of paths.
+            self.pending = "" if self.folder["toolbar"] else name
+            self.folder = None
+        elif tag == "dl":
+            self.finish_link()
+            self.pending = None
+            if self.stack:
+                self.stack.pop()
+
+    def handle_data(self, data):
+        if self.link is not None:
+            self.link["text"].append(data)
+        elif self.folder is not None:
+            self.folder["text"].append(data)
+
+    def finish_link(self):
+        link, self.link = self.link, None
+        if link is None:
+            return
+        href = link["href"].strip()
+        title = "".join(link["text"]).strip()
+        parts = [name for name in self.stack if name and name != "\u4e66\u7b7e\u680f"]
+        other = "\u5176\u4ed6"
+        self.items.append({
+            "title": title or host_of(href),
+            "href": href,
+            "path": "/".join(parts) or other,
+            "group": parts[0] if parts else other,
+            "host": host_of(href),
+        })
+
+    def close(self):
+        super().close()
+        self.finish_link()
+
+
 def parse_html(text: str) -> list[dict]:
-    stack = []
-    items = []
-    bar = "\u4e66\u7b7e\u680f"
-    other = "\u5176\u4ed6"
-    for line in text.splitlines():
-        h3 = re.search(r"<H3\b([^>]*)>(.*?)</H3>", line, re.I)
-        a = re.search(r'<A HREF="([^"]+)"[^>]*>(.*?)</A>', line, re.I)
-        if h3:
-            name = html.unescape(re.sub(r"<[^>]+>", "", h3.group(2))).strip()
-            # An empty entry keeps </DL> nesting balanced but leaves the toolbar out of paths.
-            stack.append("" if TOOLBAR_FOLDER_RE.search(h3.group(1)) else name)
-        elif a:
-            href = html.unescape(a.group(1))
-            title = html.unescape(re.sub(r"<[^>]+>", "", a.group(2))).strip()
-            parts = [x for x in stack if x and x != bar]
-            path = "/".join(parts) or other
-            items.append(
-                {
-                    "title": title or host_of(href),
-                    "href": href,
-                    "path": path,
-                    "group": parts[0] if parts else other,
-                    "host": host_of(href),
-                }
-            )
-        if re.search(r"</DL>", line, re.I) and stack:
-            stack.pop()
-    return items
+    parser = _NetscapeBookmarkParser()
+    parser.feed(text)
+    parser.close()
+    return parser.items
+
+
+def dedupe_items(items: list[dict]) -> tuple[list[dict], int]:
+    """Keep the first copy of each address; the source file itself is never rewritten."""
+    seen: set[str] = set()
+    kept = []
+    for item in items:
+        key = norm_url(item["href"])
+        if key not in seen:
+            seen.add(key)
+            kept.append(item)
+    return kept, len(items) - len(kept)
 
 
 def environment_path(variable: str) -> Path:
@@ -743,10 +815,39 @@ def backup_bookmarks() -> None:
         old.unlink(missing_ok=True)
 
 
+_BACKUP_COUNTS: dict[tuple[str, int], int] = {}
+
+
+def backup_link_count(path: Path) -> int:
+    """Snapshots are written once, so a count stays valid for the file's size and mtime."""
+    stat = path.stat()
+    key = (path.name, stat.st_mtime_ns)
+    if key not in _BACKUP_COUNTS:
+        _BACKUP_COUNTS[key] = len(BACKUP_LINK_RE.findall(path.read_bytes()))
+    return _BACKUP_COUNTS[key]
+
+
 def bookmark_backups() -> list[dict]:
-    return [{"id": path.stem, "created": path.stat().st_mtime,
-             "count": len(parse_html(path.read_text(encoding="utf-8")))}
+    return [{"id": path.stem, "created": path.stat().st_mtime, "count": backup_link_count(path)}
             for path in backup_files()]
+
+
+def write_atomic(path: Path, data: bytes) -> None:
+    """Readers see the old or the new file, never half of one."""
+    tmp = path.with_name(f".{path.name}.{uuid.uuid4().hex[:8]}.tmp")
+    try:
+        tmp.write_bytes(data)
+        for attempt in range(10):
+            try:
+                os.replace(tmp, path)
+                return
+            except PermissionError:
+                # Windows refuses to replace a file another thread is still sending.
+                if attempt == 9:
+                    raise
+                time.sleep(0.05)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def replace_bookmark_source(text: str) -> None:
@@ -768,7 +869,7 @@ def restore_bookmarks(snapshot_id: str) -> list[dict]:
     text = path.read_text(encoding="utf-8")
     items = parse_html(text)
     replace_bookmark_source(text)
-    return write_data(items, SRC.name)
+    return write_data(dedupe_items(items)[0], SRC.name)
 
 
 def write_bookmarks_html(items: list[dict]) -> None:
@@ -776,28 +877,25 @@ def write_bookmarks_html(items: list[dict]) -> None:
     print(f"wrote {SRC.name}: {len(items)}")
 
 
-def dedupe_html(text: str) -> tuple[str, int]:
-    seen: set[str] = set()
-    dropped = 0
-    out = []
-    for line in text.splitlines(keepends=True):
-        m = HREF_RE.search(line)
-        if m:
-            key = norm_url(m.group(1))
-            if key in seen:
-                dropped += 1
-                continue
-            seen.add(key)
-        out.append(line)
-    new = "".join(out)
-    if text.endswith("\n") and not new.endswith("\n"):
-        new += "\n"
-    return new, dropped
-
-
 def pick_html() -> Path | None:
-    import tkinter as tk
-    from tkinter import filedialog
+    if sys.platform == "darwin":
+        # AppKit windows must be created on the main thread, but the service asks from a worker;
+        # osascript shows the native picker in its own process instead.
+        script = ('activate\n'
+                  'POSIX path of (choose file with prompt "\u9009\u62e9\u4e66\u7b7e HTML" '
+                  'of type {"public.html"})')
+        try:
+            result = subprocess.run(["osascript", "-e", script], text=True, check=False,
+                                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        except OSError as error:
+            raise SystemExit("file picker unavailable") from error
+        path = result.stdout.strip()
+        return Path(path) if result.returncode == 0 and path else None
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+    except ImportError as error:
+        raise SystemExit("file picker unavailable") from error
 
     root = tk.Tk()
     root.withdraw()
@@ -812,6 +910,9 @@ def pick_html() -> Path | None:
 
 def replace_src(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
+    # A file that yields no links is the wrong file or an unreadable format; keep the current page.
+    if not parse_html(text):
+        raise SystemExit(f"no bookmarks found in {path.name}")
     if path.resolve() != SRC.resolve():
         replace_bookmark_source(text)
         print(f"copied {path} -> {SRC.name}")
@@ -821,13 +922,32 @@ def src_file() -> Path:
     return SRC if SRC.is_file() else EXAMPLE_SRC
 
 
+def build_stamp_file() -> Path:
+    return SRC.with_name(".data-build.json")
+
+
+def build_stamp(path: Path) -> dict[str, object]:
+    """What data.js was generated from: the source file and the code that read it."""
+    stat = path.stat()
+    try:
+        script = Path(__file__).stat().st_mtime_ns
+    except OSError:
+        script = 0  # packaged builds have no script file; their version still changes
+    return {"source": str(path.resolve()), "mtime_ns": stat.st_mtime_ns, "size": stat.st_size,
+            "version": APP_VERSION, "script": script}
+
+
 def write_data(items: list[dict], source_name: str):
-    DATA_JS.write_text(
-        "window.BOOKMARKS = " + json.dumps(items, ensure_ascii=False) + ";\n",
-        encoding="utf-8",
-    )
+    data = ("window.BOOKMARKS = " + json.dumps(items, ensure_ascii=False) + ";\n").encode("utf-8")
+    try:
+        unchanged = DATA_JS.read_bytes() == data
+    except OSError:
+        unchanged = False
+    # Rewriting identical data would only change its ETag and make open pages download it again.
+    if not unchanged:
+        write_atomic(DATA_JS, data)
     groups = Counter(x["group"] for x in items)
-    print(f"wrote {DATA_JS.name}: {len(items)} from {source_name}")
+    print(f"{'kept' if unchanged else 'wrote'} {DATA_JS.name}: {len(items)} from {source_name}")
     for name, n in groups.most_common():
         print(f"  {n:3d}  {name}")
     return items
@@ -840,12 +960,28 @@ def build():
             print(f"using existing {DATA_JS.name}")
             return None
         raise SystemExit(f"not found: {SRC.name}")
-    text = path.read_text(encoding="utf-8")
-    text, dropped = dedupe_html(text)
+    stamp = build_stamp(path)
+    items, dropped = dedupe_items(parse_html(path.read_text(encoding="utf-8")))
     if dropped:
-        path.write_text(text, encoding="utf-8", newline="\n")
-        print(f"removed {dropped} duplicates from {path.name}")
-    return write_data(parse_html(text), path.name)
+        print(f"skipped {dropped} duplicates from {path.name}")
+    write_data(items, path.name)
+    try:
+        write_atomic(build_stamp_file(), json.dumps(stamp).encode("utf-8"))
+    except OSError:
+        pass  # only an optimisation: the next launch simply rebuilds
+    return items
+
+
+def build_if_stale():
+    """Launchers call this: rebuild only when the source or the reading code changed."""
+    path = src_file()
+    if path.is_file() and DATA_JS.is_file():
+        try:
+            if json.loads(build_stamp_file().read_text(encoding="utf-8")) == build_stamp(path):
+                return None
+        except (OSError, ValueError):
+            pass
+    return build()
 
 
 def sync_chrome(profile: str | None = None):
@@ -889,13 +1025,24 @@ def sync_html():
 class Handler(SimpleHTTPRequestHandler):
     # Windows registry mappings can label SVGs as image/svg, which browsers reject.
     extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".svg": "image/svg+xml"}
+    # Keep-alive lets one page load reuse a few connections instead of opening one per file.
+    protocol_version = "HTTP/1.1"
+    timeout = 30  # an idle kept-alive connection releases its thread
     etag = None  # set by send_head for the response being written
+    immutable = False  # set by send_head for a stamped asset URL
+    connection_header = False  # whether this response already says how the connection ends
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(WEB_ROOT), **kwargs)
 
     def log_message(self, fmt, *args):
         print("[%s] %s" % (self.log_date_time_string(), fmt % args))
+
+    def log_error(self, fmt, *args):
+        # Browsers keep idle connections open; closing them after `timeout` is routine.
+        if fmt.startswith("Request timed out"):
+            return
+        super().log_error(fmt, *args)
 
     def send_json(self, status: int, payload: dict[str, object]) -> None:
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -917,6 +1064,11 @@ class Handler(SimpleHTTPRequestHandler):
         host = self.local_host()
         return host is not None and self.headers.get("Origin") == f"http://{host}"
 
+    def cross_site_subresource(self) -> bool:
+        """Another site embedding or fetching from this service; following a link to it is fine."""
+        return (self.headers.get("Sec-Fetch-Site") in ("cross-site", "same-site")
+                and self.headers.get("Sec-Fetch-Mode") != "navigate")
+
     def revalidated(self) -> bool:
         path = urlparse(getattr(self, "path", "")).path
         return (
@@ -924,33 +1076,72 @@ class Handler(SimpleHTTPRequestHandler):
             or path.startswith(("/js/", "/css/", "/weather/"))
         )
 
+    def stamped_index(self, path: str) -> bytes:
+        """index.html with each script and stylesheet addressed by its current version."""
+        def stamp(match):
+            asset = os.path.join(self.directory, *match.group(2).split("/"))
+            if not os.path.isfile(asset):
+                return match.group(0)
+            return f'{match.group(1)}="{match.group(2)}?v={file_stamp(asset)}"'
+
+        with open(path, encoding="utf-8") as stream:
+            return ASSET_REF_RE.sub(stamp, stream.read()).encode("utf-8")
+
     def send_head(self):
         path = self.translate_path(self.path)
         if os.path.isdir(path):
             path = os.path.join(path, "index.html")
         if self.revalidated() and os.path.isfile(path):
+            parsed = urlparse(self.path)
+            if parsed.path in ("/", "/index.html"):
+                body = self.stamped_index(path)
+                # The page changes whenever any asset it names changes, so hash what is sent.
+                self.etag = '"%s"' % hashlib.sha1(body).hexdigest()[:24]
+                if self.etag in self.headers.get("If-None-Match", ""):
+                    self.send_response(304)
+                    self.end_headers()
+                    return None
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                return io.BytesIO(body)
             # Size plus nanosecond mtime changes whenever an upgrade, installer or sync rewrites
             # a file, even when the new copy carries an older timestamp.
-            stat = os.stat(path)
-            self.etag = f'"{stat.st_mtime_ns:x}-{stat.st_size:x}"'
+            current = file_stamp(path)
+            self.etag = f'"{current}"'
+            # Only the address index.html hands out may be cached for good; any other stays fresh.
+            self.immutable = parse_qs(parsed.query).get("v") == [current]
             if self.etag in self.headers.get("If-None-Match", ""):
                 self.send_response(304)
                 self.end_headers()
                 return None
         return super().send_head()
 
+    def send_header(self, keyword, value):
+        if keyword.lower() == "connection":
+            self.connection_header = True
+        super().send_header(keyword, value)
+
     def end_headers(self):
         etag, self.etag = self.etag, None
+        immutable, self.immutable = self.immutable, False
+        if self.command == "POST" and not self.connection_header:
+            # Rejected requests leave their body unread; never parse it as the next request.
+            self.send_header("Connection", "close")
+        self.connection_header = False
+        # Other sites may not embed these files, e.g. <script src=".../data.js"> to read bookmarks.
+        self.send_header("Cross-Origin-Resource-Policy", "same-origin")
         if self.revalidated():
             # Revalidate on every load so upgrades and syncs show at once; unchanged files answer
-            # 304 and keep the browser's compiled script cache.
-            self.send_header("Cache-Control", "no-cache")
+            # 304 and keep the browser's compiled script cache. Stamped assets need no check.
+            self.send_header("Cache-Control", IMMUTABLE_CACHE if immutable else "no-cache")
             if etag:
                 self.send_header("ETag", etag)
         super().end_headers()
 
     def do_HEAD(self):
-        if not self.local_host():
+        if not self.local_host() or self.cross_site_subresource():
             self.send_error(403)
             return
         super().do_HEAD()
@@ -958,6 +1149,9 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if not self.local_host():
             self.send_error(403)
+            return
+        if self.cross_site_subresource():
+            self.send_json(403, {"ok": False, "message": "请从本地书签主页打开。"})
             return
         parsed = urlparse(self.path)
         if parsed.path == "/__health":
@@ -1016,6 +1210,12 @@ class Handler(SimpleHTTPRequestHandler):
             except ValueError:
                 latitude = longitude = None
 
+            key = (city, latitude, longitude)
+            with WEATHER_CACHE_LOCK:
+                cached = WEATHER_CACHE.get(key)
+            if cached and time.monotonic() - cached[0] < WEATHER_CACHE_SECONDS:
+                self.send_weather(cached[1], cached[2])
+                return
             source = "uapis"
             try:
                 temperature, code, description = weather_from_uapis(city)
@@ -1035,30 +1235,48 @@ class Handler(SimpleHTTPRequestHandler):
                 },
                 ensure_ascii=False,
             ).encode("utf-8")
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.send_header("Content-Length", str(len(data)))
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("X-Weather-Source", source)
-            self.end_headers()
-            self.wfile.write(data)
+            with WEATHER_CACHE_LOCK:
+                now = time.monotonic()
+                for stale in [k for k, v in WEATHER_CACHE.items() if now - v[0] >= WEATHER_CACHE_SECONDS]:
+                    del WEATHER_CACHE[stale]
+                WEATHER_CACHE[key] = (now, data, source)
+            self.send_weather(data, source)
             return
         if parsed.path == "/__favicon":
             skin = (parse_qs(parsed.query).get("skin") or [""])[0]
             try:
                 from shortcut import icon_path
 
-                data = icon_path(skin).read_bytes()
+                icon = icon_path(skin)
+                # Each skin has its own address; revalidate instead of resending ~100 KB each load.
+                etag = f'"{file_stamp(icon)}"'
+                if etag in self.headers.get("If-None-Match", ""):
+                    self.send_response(304)
+                    self.send_header("Cache-Control", "no-cache")
+                    self.send_header("ETag", etag)
+                    self.end_headers()
+                    return
+                data = icon.read_bytes()
                 self.send_response(200)
                 self.send_header("Content-Type", "image/x-icon")
                 self.send_header("Content-Length", str(len(data)))
-                self.send_header("Cache-Control", "no-store")
+                self.send_header("Cache-Control", "no-cache")
+                self.send_header("ETag", etag)
                 self.end_headers()
                 self.wfile.write(data)
             except OSError:
                 self.send_error(404)
             return
         return super().do_GET()
+
+    def send_weather(self, data: bytes, source: str) -> None:
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Weather-Source", source)
+        self.end_headers()
+        self.wfile.write(data)
 
     def stream_update(self):
         """Report actual upgrade stages; older clients keep the JSON endpoint."""
@@ -1146,9 +1364,12 @@ class Handler(SimpleHTTPRequestHandler):
                 return
             skin = (parse_qs(parsed.query).get("skin") or [""])[0]
             try:
-                from shortcut import set_icon
+                # Rewriting the shortcut starts cscript; the same icon again changes nothing.
+                if skin != self.server.icon_skin:
+                    from shortcut import set_icon
 
-                set_icon(skin)
+                    set_icon(skin)
+                    self.server.icon_skin = skin
                 self.send_response(204)
                 self.end_headers()
             except (Exception, SystemExit):
@@ -1166,9 +1387,10 @@ class Handler(SimpleHTTPRequestHandler):
                 return
             finally:
                 self.server.update_check = None
-            self.send_json(200, {**result, "instance": self.server.instance})
+            # The restart waits a moment before stopping, so the reply below still goes out.
             if result.get("updated"):
                 self.server.schedule_restart()
+            self.send_json(200, {**result, "instance": self.server.instance})
             return
         if path != "/__window_state":
             self.send_error(404)
@@ -1396,8 +1618,10 @@ def main():
         sync_edge(profile)
     elif "--sync-safari" in args:
         sync_safari()
-    else:
+    elif "--build" in args:
         build()
+    else:
+        build_if_stale()
     if "--build" in args:
         return
     webbrowser.open(local_url())

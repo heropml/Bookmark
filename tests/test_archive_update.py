@@ -213,6 +213,21 @@ class ArchiveTests(TestCase):
         self.assert_original()
         self.assertEqual(len(list((self.root / "data/.update-backups").glob("backup-*"))), 1)
 
+    def test_successful_upgrade_keeps_only_recent_program_backups(self):
+        backups = self.root / "data/.update-backups"
+        for index in range(updater.BACKUP_KEEP + 2):
+            folder = backups / f"backup-old{index}"
+            folder.mkdir(parents=True)
+            os.utime(folder, (1_000 + index, 1_000 + index))
+        (backups / "notes.txt").write_text("not a backup", encoding="utf-8")
+        with patch.object(updater, "read_url", side_effect=self.remote):
+            result = self.install()
+        kept = sorted(path.name for path in backups.glob("backup-*"))
+        self.assertEqual(len(kept), updater.BACKUP_KEEP)
+        self.assertIn(Path(result["backup"]).name, kept, "本次升级的备份必须保留")
+        self.assertNotIn("backup-old0", kept)
+        self.assertTrue((backups / "notes.txt").is_file())
+
     def test_edit_during_download_is_preserved_and_upgrade_is_cancelled(self):
         def editing(source, url, *args):
             if url.endswith("web/js/new.js"):

@@ -72,6 +72,7 @@ function fixture(stored = {}) {
     console, Event: class { constructor(type) { this.type = type; } },
     localStorage,
     fetch: () => Promise.resolve(),
+    setTimeout: callback => { callback(); return 1; }, clearTimeout() {},
     window: { dispatchEvent: event => events.push(event.type) },
     document: {
       documentElement: root, body, getElementById: element, createElement: tag => new Element(tag), addEventListener() {},
@@ -269,4 +270,18 @@ test('无效持久数据不被覆盖，无效设置不产生页面副作用', ()
     assert.deepEqual(app.snapshot(), original);
   }
   assert.equal(app.renderCount(), 0);
+});
+
+test('与当前版本不兼容的方案被隐藏但原样保留，其余方案仍可使用', () => {
+  const valid = fixture().snapshot();
+  const foreign = { name: '旧版方案', settings: { ...valid, skin: 'removed-theme' } };
+  const app = fixture({ 'bm-appearance-presets': JSON.stringify([{ name: '日常', settings: valid }, foreign]) });
+  app.open();
+  assert.equal(app.list.children.length, 1);
+  assert.match(app.status.textContent, /1 个方案无法在此版本使用/);
+  assert.equal(app.form.querySelector('button').disabled, false);
+  app.save('新方案');
+  const stored = JSON.parse(app.storage.get('bm-appearance-presets'));
+  assert.deepEqual(stored.map(item => item.name), ['日常', '新方案', '旧版方案']);
+  assert.deepEqual(stored[2], foreign);
 });

@@ -1,18 +1,23 @@
 """PyInstaller entry point for the self-contained macOS application."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
 import sys
+import uuid
 import webbrowser
 from pathlib import Path
 
 BUNDLE_TREES = ("web", "assets", "data")
 # Records what the previous app bundle installed, so only our own files are pruned.
 BUNDLE_MANIFEST = "data/.bundle-files.json"
+# Fingerprint of the bundle last copied; an unchanged app skips copying on every launch.
+BUNDLE_STAMP = "data/.bundle-stamp"
 # Never shipped in a bundle, so never pruned even if a manifest claims otherwise.
-PRIVATE_FILES = frozenset({"web/data.js", "data/bookmarks.html", "data/.window-state.json", BUNDLE_MANIFEST})
+PRIVATE_FILES = frozenset({"web/data.js", "data/bookmarks.html", "data/.window-state.json",
+                           "data/.data-build.json", BUNDLE_MANIFEST, BUNDLE_STAMP})
 PRIVATE_TREES = ("data/.update-backups/", "data/.update-stage-")
 
 
@@ -39,11 +44,25 @@ def bundle_files(bundle: Path) -> list[str]:
     return sorted(names)
 
 
+def bundle_fingerprint(bundle: Path, names: list[str]) -> str:
+    digest = hashlib.sha256()
+    for name in names:
+        stat = (bundle / name).stat()
+        digest.update(f"{name}\0{stat.st_size}\0{stat.st_mtime_ns}\n".encode("utf-8"))
+    return digest.hexdigest()
+
+
 def copy_resources(bundle: Path, root: Path, names: list[str]) -> None:
     for name in names:
         target = root / name
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(bundle / name, target)
+        # A running service may be sending this file; swap it in whole rather than overwrite it.
+        temporary = target.with_name(f".{target.name}.{uuid.uuid4().hex[:8]}.tmp")
+        try:
+            shutil.copy2(bundle / name, temporary)
+            os.replace(temporary, target)
+        finally:
+            temporary.unlink(missing_ok=True)
 
 
 def installed_files(root: Path) -> list[str]:
@@ -86,17 +105,28 @@ def prepare_runtime() -> Path:
     root = user_root()
     bundle = bundle_root()
     names = bundle_files(bundle)
+    fingerprint = bundle_fingerprint(bundle, names)
+    stamp = root / BUNDLE_STAMP
+    try:
+        current = stamp.read_text(encoding="utf-8") == fingerprint
+    except OSError:
+        current = False
+    # Both the launcher and its background service start here; copy only when the app changed
+    # or a public file went missing.
+    if current and all((root / name).is_file() for name in names):
+        return root
     previous = installed_files(root)
     copy_resources(bundle, root, names)
     prune_removed_files(root, previous, set(names))
     manifest = root / BUNDLE_MANIFEST
     manifest.parent.mkdir(parents=True, exist_ok=True)
     manifest.write_text(json.dumps(names, ensure_ascii=False, indent=2), encoding="utf-8")
+    stamp.write_text(fingerprint, encoding="utf-8")
     return root
 
 
 def open_page(manage) -> None:
-    manage.build()
+    manage.build_if_stale()
     webbrowser.open(manage.local_url())
 
 

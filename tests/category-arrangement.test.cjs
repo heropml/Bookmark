@@ -346,3 +346,23 @@ test('横向拖拽按左右半区插入，纵向按上下半区插入，另一�
     assert.deepEqual(app.saved()[''].order, after ? ['B', 'C', 'A'] : ['C', 'A', 'B']);
   }
 });
+
+test('拖动过程中被拖分类保持半透明，放下后才恢复', () => {
+  const app = fixture();
+  const view = directionElements(app, { display: 'grid', gridTemplateColumns: '200px 200px 200px' });
+  app.edit();
+  const [source, , target] = view.blocks;
+  const transfer = { setData() {} };
+  app.handlers.get('main:dragstart')({ target: { closest: selector => selector === '[data-category-drag]' ? source.handle : null }, dataTransfer: transfer });
+  assert.equal(source.classes.has('category-is-dragging'), true);
+  const rect = target.getBoundingClientRect();
+  const event = { target: { closest: selector => selector === '[data-category-block]' ? target : null }, dataTransfer: transfer,
+    clientX: rect.left + rect.width * .75, clientY: rect.top + 10, preventDefault() {} };
+  app.handlers.get('main:dragover')(event);
+  app.handlers.get('main:dragover')(event);
+  assert.equal(source.classes.has('category-is-dragging'), true, '经过其他分类时仍标记正在拖动');
+  assert.equal(target.classes.has('category-drop-after'), true);
+  app.handlers.get('main:dragend')();
+  assert.equal(source.classes.has('category-is-dragging'), false);
+  assert.equal(target.classes.has('category-drop-after'), false);
+});

@@ -87,6 +87,8 @@ const WEATHER_REFRESH_MS = 10 * 60 * 1000;
 const WEATHER_TICK_MS = 60 * 1000;
 const WEATHER_PRIMARY_TIMEOUT_MS = 4000;
 const WEATHER_FALLBACK_TIMEOUT_MS = 7000;
+// 主源超过这个时间仍无结果时，再并行请求本地备用源。
+const WEATHER_HEDGE_MS = 1500;
 const WEATHER_RETRY_COUNT = 3;
 const WEATHER_RETRY_DELAY_MS = 1000;
 let weatherRequest = null;
@@ -119,16 +121,54 @@ async function fetchWeatherResponse(url, timeout, signal) {
   }
 }
 
-async function fetchWeather(city, signal) {
+function fetchWeather(city, signal) {
   const fallback = localWeatherUrl(city);
-  const sources = [fetchWeatherResponse(fallback, WEATHER_FALLBACK_TIMEOUT_MS, signal)];
-  if (Number.isFinite(city.lat) && Number.isFinite(city.lon)) {
-    const primary = "https://api.open-meteo.com/v1/forecast?latitude=" + city.lat +
-      "&longitude=" + city.lon +
-      "&current=temperature_2m,weather_code&timezone=auto";
-    sources.unshift(fetchWeatherResponse(primary, WEATHER_PRIMARY_TIMEOUT_MS, signal));
+  if (!Number.isFinite(city.lat) || !Number.isFinite(city.lon)) {
+    return fetchWeatherResponse(fallback, WEATHER_FALLBACK_TIMEOUT_MS, signal);
   }
-  return Promise.any(sources);
+  const primary = "https://api.open-meteo.com/v1/forecast?latitude=" + city.lat +
+    "&longitude=" + city.lon +
+    "&current=temperature_2m,weather_code&timezone=auto";
+  // 主源通常更快：它失败或迟迟没有结果时才请求本地备用源；任一成功后立即取消其余请求。
+  const race = new AbortController();
+  const abortRace = () => race.abort();
+  signal.addEventListener("abort", abortRace, { once: true });
+  let timer = 0;
+  return new Promise((resolve, reject) => {
+    const errors = [];
+    let pending = 0;
+    let fallbackStarted = false;
+    let done = false;
+    const startFallback = () => {
+      if (fallbackStarted || done || race.signal.aborted) return;
+      fallbackStarted = true;
+      clearTimeout(timer);
+      run(fallback, WEATHER_FALLBACK_TIMEOUT_MS);
+    };
+    const run = (url, timeout) => {
+      pending++;
+      fetchWeatherResponse(url, timeout, race.signal).then((data) => {
+        if (done) return;
+        done = true;
+        resolve(data);
+        race.abort();
+      }, (error) => {
+        pending--;
+        if (done) return;
+        errors.push(error);
+        if (!fallbackStarted && !race.signal.aborted) startFallback();
+        else if (!pending) {
+          done = true;
+          reject(new AggregateError(errors, "weather sources failed"));
+        }
+      });
+    };
+    run(primary, WEATHER_PRIMARY_TIMEOUT_MS);
+    if (!done) timer = setTimeout(startFallback, WEATHER_HEDGE_MS);
+  }).finally(() => {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", abortRace);
+  });
 }
 
 function waitForWeatherRetry(signal) {
@@ -240,7 +280,7 @@ function initWeatherControls() {
       return;
     }
     writeJson("bm-city", city);
-    localStorage.removeItem("bm-weather");
+    try { localStorage.removeItem("bm-weather"); } catch (e) {}
     setWeatherUI("天气加载中…", null);
     loadWeather(false, true);
   });

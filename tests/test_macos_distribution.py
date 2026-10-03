@@ -37,6 +37,25 @@ class MacOSDistributionTests(TestCase):
             self.assertEqual((runtime / "web/data.js").read_text(encoding="utf-8"), "private data")
             self.assertEqual((runtime / "data/bookmarks.html").read_text(encoding="utf-8"), "private bookmarks")
 
+    def test_unchanged_app_launches_without_copying_its_files_again(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            bundle, runtime = root / "bundle", root / "runtime"
+            (bundle / "web").mkdir(parents=True)
+            (bundle / "web/index.html").write_text("page", encoding="utf-8")
+            with patch.object(macos_app, "bundle_root", return_value=bundle), patch.object(macos_app, "user_root", return_value=runtime):
+                macos_app.prepare_runtime()
+                with patch.object(macos_app.shutil, "copy2", side_effect=AssertionError("copied again")):
+                    macos_app.prepare_runtime()
+                # A public file that went missing is restored even when the app did not change.
+                (runtime / "web/index.html").unlink()
+                macos_app.prepare_runtime()
+                self.assertEqual((runtime / "web/index.html").read_text(encoding="utf-8"), "page")
+                (bundle / "web/index.html").write_text("new page!", encoding="utf-8")
+                macos_app.prepare_runtime()
+            self.assertEqual((runtime / "web/index.html").read_text(encoding="utf-8"), "new page!")
+            self.assertEqual(list(runtime.rglob("*.tmp")), [])
+
     def packaged_manage(self):
         spec = importlib.util.spec_from_file_location("bookmark_packaged_manage", ROOT / "scripts" / "manage.py")
         manage = importlib.util.module_from_spec(spec)
@@ -182,7 +201,7 @@ class MacOSDistributionTests(TestCase):
     def test_open_page_uses_the_default_browser(self):
         steps = []
         manage = SimpleNamespace(
-            build=lambda: steps.append("build"),
+            build_if_stale=lambda: steps.append("build"),
             local_url=lambda: steps.append("url") or "http://127.0.0.1:8765/index.html?v=1-2",
         )
         with patch.object(macos_app.webbrowser, "open") as browser:

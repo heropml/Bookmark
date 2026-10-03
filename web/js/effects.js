@@ -154,9 +154,27 @@ function fxInk() {
   if (sk === "celadon") return "70, 140, 115";
   return LIGHT_SKINS.has(sk) ? "96, 76, 44" : "185, 216, 255";
 }
+// The page often stays open all day: draw at most 60 frames a second even on 120/144 Hz screens,
+// and 30 for slow ambient skies or while the window is in the background. Motion uses real time.
+const SKY_FRAME_MS = 1000 / 60;
+const SKY_AMBIENT_FRAME_MS = 1000 / 30;
+const AMBIENT_SKIES = new Set(["stars", "fireflies", "aurora", "nebula", "beams"]);
+function skyFrameInterval() {
+  if (starTrail.length && document.hasFocus?.() !== false) return SKY_FRAME_MS;
+  return AMBIENT_SKIES.has(skyType) || document.hasFocus?.() === false ? SKY_AMBIENT_FRAME_MS : SKY_FRAME_MS;
+}
+let skyNextFrame = 0;
 function skyFrame(ts) {
   skyRaf = 0;
   if (!skyRunning) return;
+  // Frames are due on a fixed schedule; a little tolerance keeps a 60 Hz screen from skipping
+  // frames because of timer jitter.
+  if (skyLast && ts < skyNextFrame - 2) {
+    skyRaf = requestAnimationFrame(skyFrame);
+    return;
+  }
+  const interval = skyFrameInterval();
+  skyNextFrame = skyLast && ts - skyNextFrame < interval ? skyNextFrame + interval : ts + interval;
   const dt = Math.min(ts - skyLast || 16.7, 50) / 16.7;
   skyLast = ts;
   fxCtx.clearRect(0, 0, innerWidth, innerHeight);
@@ -372,7 +390,12 @@ function skyFrame(ts) {
   for (let i = starTrail.length - 1; i >= 0; i--) {
     const p = starTrail[i];
     p.life -= p.decay * dt;
-    if (p.life <= 0) { starTrail.splice(i, 1); continue; }
+    if (p.life <= 0) {
+      // Order does not matter when drawing; moving the last particle here avoids shifting the array.
+      starTrail[i] = starTrail[starTrail.length - 1];
+      starTrail.pop();
+      continue;
+    }
     if (p.kind === "comet") {
       fxCtx.fillStyle = "hsla(" + p.hue.toFixed(0) + ", 90%, 76%, " + (p.life * 0.85).toFixed(3) + ")";
       fxCtx.beginPath();
@@ -413,9 +436,12 @@ function skyFrame(ts) {
       fxCtx.save();
       fxCtx.translate(p.x, p.y);
       fxCtx.rotate(p.rot);
+      // A translucent halo instead of shadowBlur, which re-blurs every particle on every frame.
+      fxCtx.fillStyle = "rgba(251, 191, 36, " + (p.life * 0.18).toFixed(3) + ")";
+      fxCtx.beginPath();
+      fxCtx.arc(0, 0, radius * 0.9, 0, 6.29);
+      fxCtx.fill();
       fxCtx.fillStyle = "rgba(" + gold + ", " + (p.life * 0.9).toFixed(3) + ")";
-      fxCtx.shadowColor = "rgba(251, 191, 36, 0.55)";
-      fxCtx.shadowBlur = radius;
       fxCtx.beginPath();
       for (let point = 0; point < 8; point++) {
         const angle = point * Math.PI / 4 - Math.PI / 2;
@@ -500,6 +526,7 @@ function startSky() {
   if (skyRunning) return;
   skyRunning = true;
   skyLast = 0;
+  skyNextFrame = 0;
   skyRaf = requestAnimationFrame(skyFrame);
 }
 function syncParticles() {
@@ -560,8 +587,13 @@ function setSkyCount(v, save) {
   }
 }
 
+let fxResizeRaf = 0;
 function initEffects() {
-  window.addEventListener("resize", fxResize);
+  // Dragging a window edge fires resize continuously; reallocate the canvas once per frame.
+  window.addEventListener("resize", () => {
+    if (fxResizeRaf) return;
+    fxResizeRaf = requestAnimationFrame(() => { fxResizeRaf = 0; fxResize(); });
+  });
   fxResize();
   syncParticles();
   window.addEventListener("bm-fx", syncParticles);

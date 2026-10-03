@@ -47,11 +47,13 @@ CSS 图片路径相对于 `css/`，例如 `../themes/shuimo.svg`。
 | `js/effects.js` | 背景天气、粒子、画布与动画调度 |
 | `js/app.js` | 按顺序绑定事件、启动时钟天气并渲染书签 |
 
+本地服务输出 `index.html` 时会给 `css/`、`js/` 下的每个资源地址加上 `?v=<修改时间-大小>`，带当前版本号的资源可长期缓存，文件一变地址就变；页面本身和书签数据每次打开仍会重新验证。直接打开 HTML 文件或演示页时地址保持不变。
+
 `bootstrap.js` 位于页头；`data-loader.js` 在页面底部同步加载数据，不能加 `defer`（内部使用 `document.write`）。其余脚本使用 `defer`，由最后的 `app.js` 统一启动。
 
 ## 天气行为
 
-打开或刷新网页时，先显示有效缓存，同时请求最新天气；之后每分钟检查一次 `bm-weather` 缓存，满 10 分钟才请求。缓存由各标签页共用，其他页面刚刷新过时直接显示其结果；页面在后台时不请求，切回页面时补上过期天气；定时检查不会中断正在进行的手动刷新。天气旁的刷新按钮可立即重新获取，天气文字用于切换城市。刷新失败不会写入新的缓存时间，已有天气会保留，按钮提示重试。后台休眠可能使定时执行延后。
+打开或刷新网页时，先显示有效缓存，同时请求最新天气（主源失败或 `WEATHER_HEDGE_MS` 即 1.5 秒内没有结果时才请求本地备用源，任一成功后取消其余请求）；之后每分钟检查一次 `bm-weather` 缓存，满 10 分钟才请求。缓存由各标签页共用，其他页面刚刷新过时直接显示其结果；页面在后台时不请求，切回页面时补上过期天气；定时检查不会中断正在进行的手动刷新。天气旁的刷新按钮可立即重新获取，天气文字用于切换城市。刷新失败不会写入新的缓存时间，已有天气会保留，按钮提示重试。后台休眠可能使定时执行延后。
 
 刷新周期集中在 `js/weather.js` 的 `WEATHER_REFRESH_MS`（10 分钟），检查间隔为 `WEATHER_TICK_MS`（1 分钟）。天气更新会同步“跟随天气”的背景特效。
 
@@ -63,15 +65,14 @@ CSS 图片路径相对于 `css/`，例如 `../themes/shuimo.svg`。
 
 ## 回归检查
 
-安装 Node.js 的开发环境可在项目根目录运行以下命令，无需安装 npm 依赖：
+安装 Node.js 22 的开发环境可在项目根目录运行全部前端测试，无需安装 npm 依赖；Python 测试使用标准库：
 
 ```powershell
-node --test tests/weather.test.cjs
-node --test tests/layouts.test.cjs
-node --test tests/clock.test.cjs
-node --test tests/bookmark-sync.test.cjs
-node --test tests/category-arrangement.test.cjs tests/appearance-presets.test.cjs tests/bookmark-menu.test.cjs
+node --test "tests/*.test.cjs"
+python -B -m unittest discover -s tests -p "test_*.py"
 ```
+
+推送到 `main` 或提交 PR 时，`.github/workflows/tests.yml` 会在 Ubuntu、Windows 和 macOS 上运行同样的测试。
 
 测试使用模拟网络、存储和页面元素，验证城市切换竞争、取消输入、零坐标、10 分钟刷新、跨标签页共用缓存、后台暂停及失败状态，不访问私人书签或快捷方式接口。
 

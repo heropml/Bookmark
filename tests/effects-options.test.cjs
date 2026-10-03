@@ -10,8 +10,9 @@ const NEW_SKYS = ['aurora', 'bubbles', 'fireworks', 'matrix', 'nebula', 'ripples
 
 function effectsFixture({ reduceMotion = false } = {}) {
   const gradient = { addColorStop() {} };
+  let draws = 0;
   const ctx = {
-    setTransform() {}, clearRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, fill() {},
+    setTransform() {}, clearRect() { draws++; }, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, fill() {},
     arc() {}, ellipse() {}, save() {}, restore() {}, translate() {}, rotate() {}, scale() {}, fillRect() {},
     closePath() {}, quadraticCurveTo() {}, bezierCurveTo() {}, fillText() {},
     createLinearGradient: () => gradient, createRadialGradient: () => gradient
@@ -37,7 +38,7 @@ function effectsFixture({ reduceMotion = false } = {}) {
   const js = file => fs.readFileSync(path.join(__dirname, '../web/js', file), 'utf8');
   vm.runInContext(js('config.js'), context, { filename: 'config.js' });
   vm.runInContext(js('effects.js'), context, { filename: 'effects.js' });
-  return { run: code => vm.runInContext(code, context), root };
+  return { run: code => vm.runInContext(code, context), root, draws: () => draws, context };
 }
 
 test('三类特效各新增八项并保留关闭选项', () => {
@@ -157,4 +158,18 @@ test('加载时不把默认值写入本地存储，系统设置变化后仍能�
   app.setReducedMotion(true);
   assert.equal(app.root.dataset.fx, 'on', '手动选择后不再受系统设置变化影响');
   assert.equal(fxChoice({ stored: 'broken' }).storage.get('bm-fx'), 'on', '无效的保存值会被纠正');
+});
+
+test('高刷屏幕上背景最多每秒绘制 60 帧，慢速环境特效和后台窗口 30 帧', () => {
+  const frames = (sky, focused, hz) => {
+    const app = effectsFixture();
+    app.context.document.hasFocus = () => focused;
+    app.run(`skyType = ${JSON.stringify(sky)}; skyPopulate(); skyRunning = true; skyLast = 0`);
+    for (let i = 1; i <= hz; i++) app.run(`skyFrame(${(i * 1000 / hz).toFixed(3)})`);
+    return app.draws();
+  };
+  assert.ok(Math.abs(frames('rain', true, 144) - 60) <= 2, 'rain at 144 Hz: ' + frames('rain', true, 144));
+  assert.ok(Math.abs(frames('rain', true, 60) - 60) <= 1, '60 Hz 屏幕不丢帧');
+  assert.ok(Math.abs(frames('stars', true, 120) - 30) <= 2);
+  assert.ok(Math.abs(frames('rain', false, 120) - 30) <= 2);
 });

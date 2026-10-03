@@ -153,8 +153,28 @@ test('打开和手动刷新仍绕过新鲜缓存', async () => {
   await app.settled();
   await app.run('loadWeather(false, true)');
   assert.equal(app.requests.filter(r => r.url.startsWith('https://api.open-meteo.com/')).length, 2);
-  assert.equal(app.requests.filter(r => r.url.startsWith('/__weather?')).length, 2);
+  // 主源及时返回时不再请求本地备用源。
+  assert.equal(app.requests.filter(r => r.url.startsWith('/__weather?')).length, 0);
   assert.match(app.elements.get('weatherTxt').textContent, /22° · 杭州/);
+});
+
+test('主源迟迟没有结果时才请求备用源，任一成功后取消其余请求', async () => {
+  let primarySignal = null;
+  const app = fixture({ route: (url, options) => {
+    if (url.startsWith('https://api.open-meteo.com/')) {
+      primarySignal = options.signal;
+      return new Promise((resolve, reject) => options.signal.addEventListener('abort', () => reject(new Error('aborted'))));
+    }
+    if (url.startsWith('/__weather?')) {
+      return response({ current: { weather_code: 2, temperature_2m: 27 }, description: '多云' });
+    }
+  } });
+  const started = Date.now();
+  await app.run('loadWeather(false, true)');
+  assert.ok(Date.now() - started >= 1400, '备用源应在主源超过等待时间后才启动');
+  assert.equal(app.requests.filter(r => r.url.startsWith('/__weather?')).length, 1);
+  assert.match(app.elements.get('weatherTxt').textContent, /多云 27° · 杭州/);
+  assert.equal(primarySignal.aborted, true, '备用源成功后应取消仍在进行的主源请求');
 });
 
 const weatherCache = (text, age) => JSON.stringify({ text, code: 0, at: Date.now() - age });
@@ -237,7 +257,8 @@ test('天气异常时每秒重试三次，成功后立即停止', async () => {
   } });
   await app.run('loadWeather(false, true)');
   assert.equal(primaryAttempts, 4);
-  assert.equal(fallbackAttempts, 4);
+  // 前三次主源失败才启用备用源；第四次主源成功，不再请求备用源。
+  assert.equal(fallbackAttempts, 3);
   assert.deepEqual(app.retryDelays, [1000, 1000, 1000]);
   assert.match(app.elements.get('weatherTxt').textContent, /晴 25° · 杭州/);
 });

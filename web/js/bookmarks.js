@@ -28,10 +28,20 @@ function inFolder(item) {
   if (!state.folder) return true;
   return item.path === state.folder || item.path.startsWith(state.folder + "/") || item.group === state.folder;
 }
+let searchTermsFor = null;
+let searchTerms = [];
+// Split the query once per change, not once per bookmark.
+function currentSearchTerms() {
+  if (searchTermsFor !== state.q) {
+    searchTermsFor = state.q;
+    const q = state.q.trim().toLowerCase();
+    searchTerms = q ? q.split(/\s+/) : [];
+  }
+  return searchTerms;
+}
 function hitSearch(item) {
-  const q = state.q.trim().toLowerCase();
-  if (!q) return true;
-  return q.split(/\s+/).every(word => item.search.includes(word));
+  const terms = currentSearchTerms();
+  return terms.every(word => item.search.includes(word));
 }
 function matches(item) { return (!activeFolder() || inFolder(item)) && hitSearch(item); }
 function sectionKey(item) {
@@ -149,11 +159,15 @@ function folderNameWidth(items) {
   return Math.min(4, Math.max(1, ...items.map((item) => folderNameLength(item.name))));
 }
 function updateFolderNameScroll() {
+  // Measure every label before changing any, so the browser lays the menu out once.
+  const measured = [];
   for (const label of document.querySelectorAll("#nav .folder > b")) {
     const name = label.querySelector(".folder-name");
     if (!name) continue;
     const overflow = Math.ceil(name.scrollWidth - label.clientWidth);
-    const shouldScroll = folderNameLength(name.textContent.trim()) > 4 && overflow > 1;
+    measured.push([label, overflow, folderNameLength(name.textContent.trim()) > 4 && overflow > 1]);
+  }
+  for (const [label, overflow, shouldScroll] of measured) {
     label.classList.toggle("is-overflow", shouldScroll);
     if (shouldScroll) label.style.setProperty("--folder-overflow", overflow + "px");
   }
@@ -190,10 +204,17 @@ function applyFlips() {
     );
   }
 }
+// Cards rise in when a new view opens; searching, pinning or showing more keeps them still.
+let renderedView = null;
 function render() {
   snapshotFlips();
+  const view = document.documentElement.dataset.layout + "\n" + state.folder;
+  const entering = view !== renderedView;
+  renderedView = view;
+  for (const id of ["main", "pinnedGrid"]) document.getElementById(id).setAttribute("data-enter", entering ? "on" : "off");
   const searched = ITEMS.filter(hitSearch);
-  const visible = searched.filter(matches);
+  const filtered = !!activeFolder();
+  const visible = filtered ? searched.filter(inFolder) : searched;
   const groupCounts = new Map();
   const pathCounts = new Map();
   for (const item of searched) {
@@ -314,10 +335,9 @@ function render() {
   updateCategoryArrangementDirection();
   applyFlips();
 }
+const HTML_ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-  }[c]));
+  return String(s).replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
 }
 
 function pickFolder(e) {
@@ -377,6 +397,7 @@ function pickFolder(e) {
   }
 }
 
+let itemsByUrl = null;
 function renderLibraryChrome(count) {
   const title = document.getElementById("libraryTitle");
   if (!title) return;
@@ -390,11 +411,12 @@ function renderLibraryChrome(count) {
   local.textContent = state.folder ? `仅 ${state.folder.split("/").pop()}` : "当前分类";
   local.setAttribute("aria-pressed", String(state.searchLocal));
   const shelf = document.getElementById("pinnedShelf");
-  const byUrl = new Map(ITEMS.map(item => [item.href, item]));
-  const pinned = pinnedUrls.map(url => byUrl.get(url)).filter(Boolean);
+  if (!itemsByUrl) itemsByUrl = new Map(ITEMS.map(item => [item.href, item]));
+  const pinned = pinnedUrls.map(url => itemsByUrl.get(url)).filter(Boolean);
   shelf.hidden = searching || pinned.length === 0;
   document.getElementById("pinnedCount").textContent = String(pinned.length);
-  document.getElementById("pinnedGrid").innerHTML = pinned.map(item => cardHtml(item, { shelf: true })).join("");
+  // The shelf is hidden while searching, so typing does not rebuild its cards.
+  document.getElementById("pinnedGrid").innerHTML = shelf.hidden ? "" : pinned.map(item => cardHtml(item, { shelf: true })).join("");
 }
 
 let libraryStatusTimer = 0;

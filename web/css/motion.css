@@ -223,6 +223,7 @@ html[data-fx="off"] .card {
 }
 html[data-fx="off"] .card {
   transition: none;
+  animation: none;
 }
 html[data-fx="off"] .ico,
 html[data-fx="off"] .motion-swatch .motion-anim,
