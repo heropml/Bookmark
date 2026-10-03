@@ -126,7 +126,7 @@ function fxChoice({ stored, fx = 'on' } = {}) {
   const root = { dataset: { fx } };
   const context = vm.createContext({
     Event: class { constructor(type) { this.type = type; } },
-    window: { dispatchEvent() {} },
+    window: { addEventListener() {}, dispatchEvent() {} },
     document: {
       documentElement: root, querySelector: () => null,
       getElementById: id => ({ innerHTML: '', querySelectorAll: () => [], addEventListener: (type, callback) => handlers.set(id + ':' + type, callback) })

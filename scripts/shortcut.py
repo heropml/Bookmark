@@ -28,12 +28,26 @@ def icon_path(skin: str = "aurora") -> Path:
     return path if path.is_file() else ICON_DIR / "bookmark.ico"
 
 
+def shortcut_files() -> list[Path]:
+    desk = Path.home() / "Desktop" / LNK.name
+    return [LNK, desk] if desk.parent.is_dir() else [LNK]
+
+
+def shortcut_state() -> tuple:
+    """Changes whenever a shortcut is written, recreated or removed, by this app or anything else."""
+    state = []
+    for path in shortcut_files():
+        try:
+            stat = path.stat()
+            state.append((str(path), stat.st_mtime_ns, stat.st_size))
+        except OSError:
+            state.append((str(path), None, None))
+    return tuple(state)
+
+
 def write_lnk(icon: Path) -> None:
     target, arguments = launch_command()
-    desk = Path.home() / "Desktop" / LNK.name
-    targets = [LNK]
-    if desk.parent.is_dir():
-        targets.append(desk)
+    targets = shortcut_files()
     lines = ['Set w = CreateObject("WScript.Shell")']
     for dest in targets:
         lines += [

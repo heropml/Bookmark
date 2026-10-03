@@ -140,6 +140,10 @@ class BookmarkParserTests(TestCase):
                 '<DT><H3>F</H3><DL><DT><A HREF="https://f.example">F1<DT><A>无地址</A><DT><A HREF="  ">空白</A></DL></DL>')
         self.assertEqual(self.paths(text), [("E", "其他"), ("F1", "F")])
 
+    def test_description_after_an_unclosed_link_is_not_part_of_its_title(self):
+        text = '<DL><p>\n<DT><A HREF="https://a.example/">A\n<DD>说明\n<DT><A HREF="https://b.example/">B</A>\n</DL>'
+        self.assertEqual(self.paths(text), [("A", "其他"), ("B", "其他")])
+
     def test_duplicates_are_skipped_in_page_data_without_rewriting_the_source(self):
         items = manage.parse_html('<DL><DT><A HREF="https://www.Example.com/a/">A</A><DT><H3>X</H3><DL>'
                                   '<DT><A HREF="https://example.com/a">dup</A><DT><A HREF="https://example.com/b">B</A></DL></DL>')
@@ -217,16 +221,20 @@ class BuildTests(TestCase):
                 self.assertEqual(self.data.read_bytes(), page)
         self.assertFalse((self.root / ".bookmark-backups").exists())
 
-    def test_backup_counts_are_read_cheaply_and_match_the_parser(self):
+    def test_backup_counts_match_restore_and_are_read_once(self):
         manage.build()
-        self.source.write_text(manage.render_bookmarks_html([
-            {"title": "C", "href": "https://c.example/", "path": "其他", "group": "其他", "host": "c.example"},
-        ]), encoding="utf-8")
+        self.source.write_text(
+            '<DL><DT><A HREF="https://c.example/">C</A><DT><A HREF="https://c.example">dup</A>'
+            '<DT><A HREF="">空</A></DL>\n', encoding="utf-8")
         manage.replace_bookmark_source(self.source.read_text(encoding="utf-8") + "\n")
         backup = manage.backup_files()[0]
-        self.assertEqual(manage.bookmark_backups()[0]["count"], len(manage.parse_html(backup.read_text(encoding="utf-8"))))
-        with patch.object(Path, "read_bytes", side_effect=AssertionError("cached")):
-            self.assertEqual(manage.bookmark_backups()[0]["count"], 1)
+        self.assertEqual(manage.bookmark_backups()[0]["count"], len(manage.restore_bookmarks(backup.stem)))
+        counted = manage.bookmark_backups()  # restoring took a snapshot of its own
+        with patch.object(Path, "read_text", side_effect=AssertionError("cached")):
+            self.assertEqual(manage.bookmark_backups(), counted)
+        backup.unlink()
+        manage.bookmark_backups()
+        self.assertFalse(any(key[0] == backup.name for key in manage._BACKUP_COUNTS))
 
 
 class PickerTests(TestCase):

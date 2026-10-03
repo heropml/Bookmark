@@ -286,15 +286,31 @@ class WeatherCacheTests(ServiceTestCase):
 
 
 class ShortcutIconTests(ServiceTestCase):
+    def icons(self, changed, state):
+        def set_icon(skin):
+            changed.append(skin)
+            state[0] += 1
+        return SimpleNamespace(set_icon=set_icon, shortcut_state=lambda: state[0])
+
     def test_repeating_the_same_skin_does_not_rewrite_the_shortcut(self):
         changed = []
-        icons = SimpleNamespace(set_icon=changed.append)
         page = {"Origin": self.page}
-        with patch.object(manage.sys, "platform", "win32"), patch.dict("sys.modules", {"shortcut": icons}):
+        with patch.object(manage.sys, "platform", "win32"), \
+                patch.dict("sys.modules", {"shortcut": self.icons(changed, [0])}):
             for skin in ("cyber", "cyber", "snow", "snow", "cyber"):
                 status, _, _ = self.request("POST", f"/__icon?skin={skin}", page)
                 self.assertEqual(status, 204)
         self.assertEqual(changed, ["cyber", "snow", "cyber"])
+
+    def test_shortcut_recreated_elsewhere_gets_the_icon_again(self):
+        changed, state = [], [0]
+        page = {"Origin": self.page}
+        with patch.object(manage.sys, "platform", "win32"), \
+                patch.dict("sys.modules", {"shortcut": self.icons(changed, state)}):
+            self.request("POST", "/__icon?skin=cyber", page)
+            state[0] += 1  # e.g. the installer wrote a fresh shortcut with the default icon
+            self.request("POST", "/__icon?skin=cyber", page)
+        self.assertEqual(changed, ["cyber", "cyber"])
 
 
 class StartupTests(TestCase):

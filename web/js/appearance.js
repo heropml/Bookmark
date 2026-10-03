@@ -93,12 +93,20 @@ function choicePreview(key, id) {
 const appearanceChoices = {};
 let appearanceDensity = null;
 let shortcutIconTimer = 0;
-// Previewing skins clicks through several in a row; Windows rewrites the shortcut once they settle.
+let shortcutIconPending = null;
+function sendShortcutIcon() {
+  clearTimeout(shortcutIconTimer);
+  const skin = shortcutIconPending;
+  shortcutIconPending = null;
+  // keepalive lets the request finish when it is sent while the page closes.
+  if (skin !== null) fetch("/__icon?skin=" + encodeURIComponent(skin), { method: "POST", keepalive: true }).catch(() => {});
+}
+// Previewing skins clicks through several in a row; Windows rewrites the shortcut once they settle,
+// or right away when the page is closed or reloaded first.
 function syncShortcutIcon(skin) {
   clearTimeout(shortcutIconTimer);
-  shortcutIconTimer = setTimeout(() => {
-    fetch("/__icon?skin=" + encodeURIComponent(skin), { method: "POST" }).catch(() => {});
-  }, 800);
+  shortcutIconPending = skin;
+  shortcutIconTimer = setTimeout(sendShortcutIcon, 800);
 }
 function setupChoice(list, key, containerId, resolve) {
   const root = document.documentElement;
@@ -207,6 +215,7 @@ function initAppearance() {
   setupChoice(TRAILS, "trail", "trailChoices");
   setupChoice(SKYS, "sky", "skyChoices");
   setupChoice(FX, "fx", "fxChoices");
+  window.addEventListener("pagehide", sendShortcutIcon);
   const colorSchemeMq = matchMedia("(prefers-color-scheme: light)");
   colorSchemeMq.addEventListener("change", () => {
     if (appearanceChoices.skin.value() === "auto") {

@@ -40,8 +40,6 @@ WINDOW_STATE = DATA_DIR / ".window-state.json"
 PORT = 8765
 APP_VERSION = "v1.1.5"
 HEALTH_RESPONSE = b"bookmark-weather-v3\n"
-# Counts links in a backup without parsing the whole tree; snapshots never change once written.
-BACKUP_LINK_RE = re.compile(rb"<a\b[^>]*\bhref\s*=", re.I)
 UPDATE_SOURCES = (
     ("Gitee", "https://gitee.com/heropml/Bookmark.git"),
     ("GitHub", "https://github.com/heropml/Bookmark.git"),
@@ -327,7 +325,9 @@ class BookmarkServer(ThreadingHTTPServer):
         self.restarting = False
         self.restart_lock = threading.Lock()
         self.update_check = None  # (checked_at, status or UpdateError)
-        self.icon_skin = None  # shortcut icon applied by this service, so repeats cost nothing
+        # (skin, shortcut files' state) after this service last set the icon; a repeat costs nothing,
+        # but a shortcut recreated by an installer or launcher is rewritten again.
+        self.icon_applied = None
 
     def update_status(self, refresh: bool = False) -> dict[str, object]:
         """Reuse this service's recent update check; retry a failed one sooner."""
@@ -509,17 +509,18 @@ class _NetscapeBookmarkParser(HTMLParser):
         self.link: dict | None = None  # <A> being read
 
     def handle_starttag(self, tag, attrs):
-        if tag in ("a", "h3", "dt", "dl"):
+        # Exports may leave <A> unclosed; the next entry or a <DD> description ends its title.
+        if tag in ("a", "h3", "dt", "dd", "dl"):
             self.finish_link()
         if tag == "h3":
             self.pending = None
             # Browsers mark their toolbar folder in exports; its localized name is not a category.
             self.folder = {"toolbar": any(
-                (name or "").lower() == "personal_toolbar_folder" and (value or "").lower() == "true"
+                name == "personal_toolbar_folder" and (value or "").lower() == "true"
                 for name, value in attrs), "text": []}
         elif tag == "a":
             self.pending = None
-            href = next((value for name, value in attrs if (name or "").lower() == "href"), None)
+            href = next((value for name, value in attrs if name == "href"), None)
             self.link = {"href": href, "text": []} if href and href.strip() else None
         elif tag == "dl":
             self.stack.append(self.pending or "")
@@ -823,21 +824,31 @@ def backup_bookmarks() -> None:
         old.unlink(missing_ok=True)
 
 
-_BACKUP_COUNTS: dict[tuple[str, int], int] = {}
-
-
-def backup_link_count(path: Path) -> int:
-    """Snapshots are written once, so a count stays valid for the file's size and mtime."""
-    stat = path.stat()
-    key = (path.name, stat.st_mtime_ns)
-    if key not in _BACKUP_COUNTS:
-        _BACKUP_COUNTS[key] = len(BACKUP_LINK_RE.findall(path.read_bytes()))
-    return _BACKUP_COUNTS[key]
+# Snapshots are written once, so each is parsed once; entries leave with the snapshots they count.
+_BACKUP_COUNTS: dict[tuple[str, int, int], int] = {}
+_BACKUP_COUNTS_LOCK = threading.Lock()
 
 
 def bookmark_backups() -> list[dict]:
-    return [{"id": path.stem, "created": path.stat().st_mtime, "count": backup_link_count(path)}
-            for path in backup_files()]
+    """List snapshots with the number of bookmarks restoring each one would show."""
+    backups = []
+    keys = set()
+    for path in backup_files():
+        stat = path.stat()
+        key = (path.name, stat.st_mtime_ns, stat.st_size)
+        keys.add(key)
+        with _BACKUP_COUNTS_LOCK:
+            count = _BACKUP_COUNTS.get(key)
+        if count is None:
+            count = len(dedupe_items(parse_html(path.read_text(encoding="utf-8")))[0])
+            with _BACKUP_COUNTS_LOCK:
+                _BACKUP_COUNTS[key] = count
+        backups.append({"id": path.stem, "created": stat.st_mtime, "count": count})
+    with _BACKUP_COUNTS_LOCK:
+        for key in list(_BACKUP_COUNTS):
+            if key not in keys:
+                del _BACKUP_COUNTS[key]
+    return backups
 
 
 def write_atomic(path: Path, data: bytes) -> None:
@@ -1373,11 +1384,11 @@ class Handler(SimpleHTTPRequestHandler):
             skin = (parse_qs(parsed.query).get("skin") or [""])[0]
             try:
                 # Rewriting the shortcut starts cscript; the same icon again changes nothing.
-                if skin != self.server.icon_skin:
-                    from shortcut import set_icon
+                from shortcut import set_icon, shortcut_state
 
+                if self.server.icon_applied != (skin, shortcut_state()):
                     set_icon(skin)
-                    self.server.icon_skin = skin
+                    self.server.icon_applied = (skin, shortcut_state())
                 self.send_response(204)
                 self.end_headers()
             except (Exception, SystemExit):

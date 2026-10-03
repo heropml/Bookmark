@@ -332,8 +332,11 @@ def install(root, version, progress=None):
                 raise ArchiveUpdateError("下载的版本与已确认版本不一致")
             _report(progress, "applying", "备份现有程序，准备应用新版文件", source)
             backup = _apply(root, stage, changes, originals, progress, source)
-        prune_backups(root / "data/.update-backups")
     except OSError as error:
         raise ArchiveUpdateError("程序文件无法读写或磁盘空间不足，升级未完成") from error
+    try:
+        prune_backups(root / "data/.update-backups")
+    except OSError:
+        pass  # the new files are already in place; old backups only cost disk space
     return {"ok": True, "updated": True, "mode": "archive", "previous": version,
             "current": status["remote"], "source": source, "backup": backup}

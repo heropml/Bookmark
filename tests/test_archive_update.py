@@ -228,6 +228,12 @@ class ArchiveTests(TestCase):
         self.assertNotIn("backup-old0", kept)
         self.assertTrue((backups / "notes.txt").is_file())
 
+    def test_failing_to_prune_old_backups_does_not_fail_an_applied_upgrade(self):
+        with patch.object(updater, "read_url", side_effect=self.remote), \
+                patch.object(updater, "prune_backups", side_effect=PermissionError("locked")):
+            result = self.install()
+        self.assertTrue(result["updated"])
+
     def test_edit_during_download_is_preserved_and_upgrade_is_cancelled(self):
         def editing(source, url, *args):
             if url.endswith("web/js/new.js"):

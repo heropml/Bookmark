@@ -31,7 +31,10 @@ function readAppearancePresets() {
   for (const item of value) {
     const settings = validateAppearanceSnapshot(item?.settings);
     const name = typeof item?.name === "string" ? item.name.trim() : "";
-    if (settings && name && name.length <= 40 && !names.has(name)) {
+    // A later copy of a name is redundant, not from another version; keeping it hidden would make
+    // it reappear once the visible one is deleted.
+    if (names.has(name)) continue;
+    if (settings && name && name.length <= 40) {
       names.add(name);
       presets.push({ name, settings });
     } else incompatible.push(item);

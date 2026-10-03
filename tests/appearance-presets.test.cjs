@@ -73,7 +73,7 @@ function fixture(stored = {}) {
     localStorage,
     fetch: () => Promise.resolve(),
     setTimeout: callback => { callback(); return 1; }, clearTimeout() {},
-    window: { dispatchEvent: event => events.push(event.type) },
+    window: { addEventListener() {}, dispatchEvent: event => events.push(event.type) },
     document: {
       documentElement: root, body, getElementById: element, createElement: tag => new Element(tag), addEventListener() {},
       querySelector: selector => {
@@ -284,4 +284,18 @@ test('与当前版本不兼容的方案被隐藏但原样保留，其余方案�
   const stored = JSON.parse(app.storage.get('bm-appearance-presets'));
   assert.deepEqual(stored.map(item => item.name), ['日常', '新方案', '旧版方案']);
   assert.deepEqual(stored[2], foreign);
+});
+
+test('同名的重复方案只保留第一份，删除后不会再出现', () => {
+  const valid = fixture().snapshot();
+  const app = fixture({ 'bm-appearance-presets': JSON.stringify([
+    { name: '日常', settings: valid }, { name: '日常', settings: { ...valid, density: 80 } }
+  ]) });
+  app.open();
+  assert.equal(app.list.children.length, 1);
+  assert.equal(app.status.textContent, '');
+  app.action(0, 2);
+  assert.deepEqual(JSON.parse(app.storage.get('bm-appearance-presets')), []);
+  app.open();
+  assert.equal(app.list.children[0].className, 'appearance-presets-empty');
 });
