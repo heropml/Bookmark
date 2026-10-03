@@ -295,3 +295,21 @@ class ShortcutIconTests(ServiceTestCase):
                 status, _, _ = self.request("POST", f"/__icon?skin={skin}", page)
                 self.assertEqual(status, 204)
         self.assertEqual(changed, ["cyber", "snow", "cyber"])
+
+
+class StartupTests(TestCase):
+    def test_starting_the_service_does_not_wait_for_reverse_dns(self):
+        # Reverse DNS for 127.0.0.1 can take many seconds; the service must listen without it.
+        with patch("socket.getfqdn", side_effect=AssertionError("reverse DNS lookup")):
+            server = manage.BookmarkServer(("127.0.0.1", 0), manage.Handler)
+        self.addCleanup(server.server_close)
+        self.assertEqual(server.server_name, "127.0.0.1")
+        self.assertEqual(server.server_port, server.server_address[1])
+        worker = threading.Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        self.addCleanup(worker.join, 2)
+        self.addCleanup(server.shutdown)
+        connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=3)
+        self.addCleanup(connection.close)
+        connection.request("GET", "/__service", headers={"Host": f"127.0.0.1:{server.server_port}"})
+        self.assertEqual(connection.getresponse().status, 200)

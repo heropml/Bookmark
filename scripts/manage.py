@@ -10,6 +10,7 @@ import math
 import os
 import plistlib
 import re
+import socketserver
 import subprocess
 import sys
 import threading
@@ -312,6 +313,13 @@ def file_stamp(path) -> str:
 class BookmarkServer(ThreadingHTTPServer):
     # A page load opens several connections at once; the default backlog of 5 resets some of them.
     request_queue_size = 64
+
+    def server_bind(self):
+        # HTTPServer looks up the host's full name here, before listening. That reverse DNS lookup
+        # can stall startup for many seconds (seen on macOS), longer than launchers wait for the
+        # page, and nothing here reads the name.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
