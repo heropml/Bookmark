@@ -23,7 +23,7 @@ import server
 import settings
 
 # Installers, release checks and older ZIP updaters read the version from this exact line.
-APP_VERSION = "v1.1.6"
+APP_VERSION = "v1.1.7"
 # settings reads the line above from this file; the packaged macOS app has no file to read.
 settings.APP_VERSION = APP_VERSION
 

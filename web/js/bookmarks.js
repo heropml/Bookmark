@@ -109,9 +109,15 @@ function faviconImg(host) {
 // The local service answers at once while a first lookup is still running, so its icons are asked
 // for again a little later; a site without an icon simply keeps its letter after the last try.
 const SITE_ICON_RETRY_MS = [3000, 10000];
+function handleIconLoad(event) {
+  const img = event.target;
+  if (img.tagName !== "IMG" || img.dataset.fallback === undefined) return;
+  img.dataset.loaded = "1";
+}
 function handleIconError(event) {
   const img = event.target;
   if (img.tagName !== "IMG" || img.dataset.fallback === undefined) return;
+  delete img.dataset.loaded;
   if (!img.dataset.fallback) {
     const tries = Number(img.dataset.tries || 0);
     if (tries >= SITE_ICON_RETRY_MS.length) { img.remove(); return; }
@@ -507,6 +513,7 @@ function initBookmarks() {
   nav.addEventListener("focusout", hideFolderNameTooltip);
   const main = document.getElementById("main");
   main.addEventListener("click", pickFolder);
+  main.addEventListener("load", handleIconLoad, true);
   main.addEventListener("error", handleIconError, true);
   let searchTimer = 0;
   document.getElementById("q").addEventListener("input", (e) => {

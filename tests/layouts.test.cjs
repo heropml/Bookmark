@@ -409,6 +409,28 @@ test('本地服务打开时网站图标从本服务取，稍后重取两次，�
   assert.equal(removed, true);
 });
 
+test('图标加载成功才显示，重试等待期间保持首字母，其他图片不受影响', () => {
+  const app = fixture({ location: { protocol: 'http:', hostname: '127.0.0.1' } });
+  const retries = [];
+  app.context.setTimeout = (callback, delay) => { retries.push({ callback, delay }); };
+  const img = { tagName: 'IMG', src: '/__siteicon?host=a.example', dataset: { fallback: '' },
+    getAttribute() { return this.src; }, remove() { throw new Error('a pending retry must keep the image'); } };
+  app.handlers.get('main:load')({ target: img });
+  assert.equal(img.dataset.loaded, '1');
+  app.handlers.get('main:error')({ target: img });
+  assert.equal(img.dataset.loaded, undefined);
+  assert.equal(img.src, '/__siteicon?host=a.example', '等待重试时不改变地址');
+  assert.equal(retries[0].delay, 3000);
+  retries[0].callback();
+  assert.equal(img.dataset.loaded, undefined, '重试开始后仍等待成功加载');
+  assert.equal(img.src, '/__siteicon?host=a.example&retry=1');
+  app.handlers.get('main:load')({ target: img });
+  assert.equal(img.dataset.loaded, '1');
+  const other = { tagName: 'IMG', dataset: {} };
+  app.handlers.get('main:load')({ target: other });
+  assert.equal(other.dataset.loaded, undefined);
+});
+
 test('网站图标不含内联脚本和账号密码，失败时先换备用源再保留首字母', () => {
   const app = fixture({ layout: 'classic', folder: '工作', items: [
     work('Router', 'http://admin:secret@192.168.1.1/', "admin:secret@192.168.1.1"),

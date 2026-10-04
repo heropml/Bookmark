@@ -11,6 +11,7 @@ function initLibrary() {
   const pins = document.getElementById("pinnedGrid");
   initPinnedSort(pins);
   pins.addEventListener("click", pickFolder);
+  pins.addEventListener("load", handleIconLoad, true);
   pins.addEventListener("error", handleIconError, true);
   document.addEventListener("keydown", (event) => {
     // Enter and Esc also pick or cancel IME candidates; they must not open or clear results.

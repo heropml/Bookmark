@@ -271,6 +271,8 @@ button.card {
   background: transparent;
   transition: transform 0.22s ease, filter 0.22s ease;
 }
+/* Keep the letter visible while an icon is loading or being retried. */
+img[data-fallback]:not([data-loaded]) { visibility: hidden; }
 html[data-icon="logo"] .ico {
   background: linear-gradient(145deg, rgba(255,255,255,0.2), rgba(255,255,255,0.07));
 }

@@ -28,6 +28,7 @@ function fixture() {
     PAGE: 36,
     render: () => renders.push(true),
     pickFolder() {},
+    handleIconLoad() {},
     handleIconError() {},
     reorderPinnedBookmark: (...args) => reordered.push(args),
     appearanceMenu: { hidden: true },
@@ -50,6 +51,12 @@ function fixture() {
   };
   return { context, search, opened, renders, press, elements, elementHandlers, reordered };
 }
+
+test('置顶图标沿用主页的加载成功与失败处理', () => {
+  const app = fixture();
+  assert.equal(app.elementHandlers.get('pinnedGrid:load'), app.context.handleIconLoad);
+  assert.equal(app.elementHandlers.get('pinnedGrid:error'), app.context.handleIconError);
+});
 
 test('输入法选词时的回车和 Esc 交给输入法，不打开结果也不清空搜索', () => {
   const app = fixture();
