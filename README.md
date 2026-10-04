@@ -120,7 +120,15 @@ Bookmark/
 ├─ runtime/
 │  └─ python/               Windows 便携 Python 运行时
 ├─ scripts/                 Python 管理脚本
-│  ├─ manage.py             构建数据、同步 Chrome/Edge/Safari、启动服务
+│  ├─ manage.py             命令行入口和版本号：构建数据、同步书签、启动服务
+│  ├─ settings.py           各模块共用的路径、端口、版本和原子写入
+│  ├─ bookmark_formats.py   读写书签 HTML，解析 Chrome/Safari 书签文件
+│  ├─ bookmark_store.py     书签源文件、备份恢复，生成 web/data.js
+│  ├─ browser_sync.py       查找并导入 Chrome/Edge/Safari 等浏览器书签
+│  ├─ server.py             本地网页服务和页面调用的接口
+│  ├─ weather.py            天气备用源和查询缓存
+│  ├─ site_icons.py         网站图标获取和本地缓存
+│  ├─ updates.py            在线升级检查和 Git 通道升级
 │  ├─ archive_update.py     ZIP 安装的免 Git 双源更新与文件校验
 │  ├─ shortcut.py           创建快捷方式并更新图标
 │  └─ _make_icons.py        生成图标资源

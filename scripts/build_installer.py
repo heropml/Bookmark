@@ -15,10 +15,13 @@ import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_TREES = ("web/", "assets/icons/", "runtime/python/", "launchers/windows/")
-PUBLIC_FILES = {
-    "README.md", "LICENSE", "data/bookmarks.example.html",
-    "scripts/manage.py", "scripts/archive_update.py", "scripts/shortcut.py",
-}
+# The service's Python modules; manage.py imports the rest when it starts.
+SERVICE_SCRIPTS = (
+    "scripts/manage.py", "scripts/settings.py", "scripts/bookmark_formats.py", "scripts/bookmark_store.py",
+    "scripts/browser_sync.py", "scripts/server.py", "scripts/site_icons.py", "scripts/updates.py",
+    "scripts/weather.py", "scripts/archive_update.py", "scripts/shortcut.py",
+)
+PUBLIC_FILES = {"README.md", "LICENSE", "data/bookmarks.example.html", *SERVICE_SCRIPTS}
 REQUIRED = PUBLIC_FILES | {
     "web/index.html", "web/data.example.js", "web/js/update.js",
     "web/js/bookmark-sync.js", "web/css/bookmark-sync.css",

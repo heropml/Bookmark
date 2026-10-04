@@ -1,4 +1,6 @@
-import importlib.util
+import os
+import subprocess
+import sys
 import json
 from pathlib import Path
 import tempfile
@@ -13,9 +15,15 @@ from urllib.request import Request, build_opener, install_opener, urlopen
 install_opener(build_opener())
 
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location("bookmark_sync_manage", ROOT / "scripts/manage.py")
-manage = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(manage)
+SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))  # the scripts import each other by name
+
+import manage  # noqa: E402
+import bookmark_store  # noqa: E402
+import browser_sync  # noqa: E402
+import server as bookmark_server  # noqa: E402
+import settings  # noqa: E402
 
 
 class DirectoryServiceTests(TestCase):
@@ -39,11 +47,11 @@ class DirectoryServiceTests(TestCase):
             (opera / "Bookmarks").write_text('{"roots": {}}', encoding="utf-8")
             sogou.mkdir(parents=True)
             (sogou / "Bookmarks").write_text('{"roots": {}}', encoding="utf-8")
-            with patch.object(manage.sys, "platform", "win32"), patch.dict(
-                manage.os.environ, {"LOCALAPPDATA": str(local), "APPDATA": str(roaming)}
+            with patch.object(sys, "platform", "win32"), patch.dict(
+                os.environ, {"LOCALAPPDATA": str(local), "APPDATA": str(roaming)}
             ):
                 self.assertEqual(
-                    manage.supported_sync_browsers(),
+                    browser_sync.supported_sync_browsers(),
                     ["chrome", "brave", "opera", "qq", "sogou", "quark", "html"],
                 )
 
@@ -56,19 +64,19 @@ class DirectoryServiceTests(TestCase):
             brave = local / "BraveSoftware/Brave-Browser/User Data"
             (brave / "Default").mkdir(parents=True)
             (brave / "Default/Bookmarks").write_text('{"roots": {}}', encoding="utf-8")
-            with patch.dict(manage.os.environ, {"LOCALAPPDATA": str(local)}):
+            with patch.dict(os.environ, {"LOCALAPPDATA": str(local)}):
                 (edge / "Local State").write_text("{broken", encoding="utf-8")
                 with self.assertRaisesRegex(SystemExit, "unable to read Edge profile"):
-                    manage.edge_bookmarks_file()
+                    browser_sync.edge_bookmarks_file()
                 for state in ("[]", '{"profile": []}', '{"profile": {"last_used": null}}'):
                     with self.subTest(state=state):
                         (edge / "Local State").write_text(state, encoding="utf-8")
                         with self.assertRaisesRegex(SystemExit, "Edge active profile was not found"):
-                            manage.edge_bookmarks_file()
+                            browser_sync.edge_bookmarks_file()
                         # Browsers without a usable Local State still fall back to Default.
                         (brave / "Local State").write_text(state, encoding="utf-8")
-                        self.assertEqual(manage.chromium_bookmarks_file("brave"), ("Default", brave / "Default/Bookmarks"))
-                self.assertEqual(manage.edge_bookmarks_file("Default"), ("Default", edge / "Default/Bookmarks"))
+                        self.assertEqual(browser_sync.chromium_bookmarks_file("brave"), ("Default", brave / "Default/Bookmarks"))
+                self.assertEqual(browser_sync.edge_bookmarks_file("Default"), ("Default", edge / "Default/Bookmarks"))
 
     def test_local_url_reuses_this_directory_service_or_starts_one(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -76,7 +84,7 @@ class DirectoryServiceTests(TestCase):
             (web / "index.html").write_text("<html>", encoding="utf-8")
             (web / "data.js").write_text("window.BOOKMARKS = [];", encoding="utf-8")
             version = f"{(web / 'index.html').stat().st_mtime_ns}-{(web / 'data.js').stat().st_mtime_ns}"
-            with patch.object(manage, "WEB_ROOT", web), patch.object(manage, "DATA_JS", web / "data.js"), patch.object(manage, "pick_port", return_value=8767):
+            with patch.object(settings, "WEB_ROOT", web), patch.object(settings, "DATA_JS", web / "data.js"), patch.object(manage, "pick_port", return_value=8767):
                 with patch.object(manage, "page_ok", return_value=True), patch.object(manage, "serve_hidden") as start:
                     self.assertEqual(manage.local_url(), f"http://127.0.0.1:8767/index.html?v={version}")
                     start.assert_not_called()
@@ -87,14 +95,14 @@ class DirectoryServiceTests(TestCase):
     def test_url_option_prints_only_the_address_for_launchers(self):
         from io import StringIO
         output = StringIO()
-        with patch.object(manage.sys, "argv", ["manage.py", "--url"]), patch.object(manage, "local_url", return_value="http://127.0.0.1:8765/index.html?v=1-2"), patch.object(manage, "build") as build, patch("sys.stdout", output):
+        with patch.object(sys, "argv", ["manage.py", "--url"]), patch.object(manage, "local_url", return_value="http://127.0.0.1:8765/index.html?v=1-2"), patch.object(bookmark_store, "build") as build, patch("sys.stdout", output):
             manage.main()
         self.assertEqual(output.getvalue(), "http://127.0.0.1:8765/index.html?v=1-2\n")
         build.assert_not_called()
 
     def test_macos_sync_failure_explains_full_disk_access(self):
-        with patch.object(manage.sys, "platform", "darwin"):
-            failure = manage.sync_failure("chrome")
+        with patch.object(sys, "platform", "darwin"):
+            failure = browser_sync.sync_failure("chrome")
         self.assertEqual(failure["message"], "macOS 未允许“书签”读取 Chrome 数据。")
         self.assertTrue(failure["settings"])
         self.assertTrue(failure["restart"])
@@ -105,8 +113,8 @@ class DirectoryServiceTests(TestCase):
         self.assertIn("“−”移除", steps)
         self.assertIn("“＋”重新添加", steps)
         self.assertIn("“重启书签”重启后台服务", steps)
-        with patch.object(manage.sys, "platform", "win32"):
-            failure = manage.sync_failure("edge")
+        with patch.object(sys, "platform", "win32"):
+            failure = browser_sync.sync_failure("edge")
         self.assertEqual(failure["message"], "无法读取或保存 Edge 书签。")
         self.assertNotIn("settings", failure, "只有 macOS 权限问题提供系统设置入口")
         self.assertNotIn("restart", failure)
@@ -114,21 +122,21 @@ class DirectoryServiceTests(TestCase):
     def test_directory_identity_is_stable_distinct_and_not_a_plain_path(self):
         with tempfile.TemporaryDirectory() as folder:
             first = Path(folder) / "源码"
-            with patch.object(manage, "ROOT", first):
-                key = manage.installation_id()
-                self.assertEqual(key, manage.installation_id())
+            with patch.object(settings, "ROOT", first):
+                key = settings.installation_id()
+                self.assertEqual(key, settings.installation_id())
                 self.assertEqual(len(key), 64)
                 self.assertNotIn(str(first), key)
-            with patch.object(manage, "ROOT", Path(folder) / "安装"):
-                self.assertNotEqual(key, manage.installation_id())
+            with patch.object(settings, "ROOT", Path(folder) / "安装"):
+                self.assertNotEqual(key, settings.installation_id())
 
     def test_reuses_own_service_even_if_a_lower_port_is_free(self):
-        with patch.object(manage, "port_in_use", side_effect=lambda port: port == manage.PORT + 2), patch.object(manage, "page_ok", return_value=True):
-            self.assertEqual(manage.pick_port(), manage.PORT + 2)
+        with patch.object(manage, "port_in_use", side_effect=lambda port: port == settings.PORT + 2), patch.object(manage, "page_ok", return_value=True):
+            self.assertEqual(manage.pick_port(), settings.PORT + 2)
 
     def test_foreign_or_legacy_service_is_not_reused_or_stopped(self):
-        with patch.object(manage, "port_in_use", side_effect=lambda port: port == manage.PORT), patch.object(manage, "page_ok", return_value=False), patch.object(manage.subprocess, "Popen") as spawn:
-            self.assertEqual(manage.pick_port(), manage.PORT + 1)
+        with patch.object(manage, "port_in_use", side_effect=lambda port: port == settings.PORT), patch.object(manage, "page_ok", return_value=False), patch.object(subprocess, "Popen") as spawn:
+            self.assertEqual(manage.pick_port(), settings.PORT + 1)
             spawn.assert_not_called()
 
     def test_no_ports_free_reports_an_error(self):
@@ -142,27 +150,27 @@ class DirectoryServiceTests(TestCase):
             stream = BytesIO(content)
             stream.status = 200
             return stream
-        for identity in (manage.installation_id(), "another-installation", None):
+        for identity in (settings.installation_id(), "another-installation", None):
             with self.subTest(identity=identity):
                 service = {"version": "v1.0.4", "installation": identity}
-                replies = [response(b'<!doctype html><html>'), response(manage.HEALTH_RESPONSE), response(json.dumps(service).encode())]
+                replies = [response(b'<!doctype html><html>'), response(settings.HEALTH_RESPONSE), response(json.dumps(service).encode())]
                 with patch("urllib.request.urlopen", side_effect=replies):
-                    self.assertEqual(manage.page_ok(8765), identity == manage.installation_id())
+                    self.assertEqual(manage.page_ok(8765), identity == settings.installation_id())
 
 
 class BookmarkSyncHTTPTests(TestCase):
     def setUp(self):
-        self.server = manage.BookmarkServer(("127.0.0.1", 0), manage.Handler)
+        self.server = bookmark_server.BookmarkServer(("127.0.0.1", 0), bookmark_server.Handler)
         self.worker = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.worker.start()
         self.base = f"http://127.0.0.1:{self.server.server_port}"
-        self.platform = patch.object(manage.sys, "platform", "win32")
+        self.platform = patch.object(sys, "platform", "win32")
         self.platform.start()
         self.supported_patch = patch.object(
-            manage, "supported_sync_browsers", return_value=["chrome", "edge", "brave", "qq", "html"]
+            browser_sync, "supported_sync_browsers", return_value=["chrome", "edge", "brave", "qq", "html"]
         )
         self.supported_patch.start()
-        self.sync_patch = patch.object(manage, "sync_chrome", return_value=[{}, {}])
+        self.sync_patch = patch.object(browser_sync, "sync_chrome", return_value=[{}, {}])
         self.sync = self.sync_patch.start()
 
     def tearDown(self):
@@ -196,16 +204,16 @@ class BookmarkSyncHTTPTests(TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(data, {"ok": True, "count": 2, "browser": "chrome"})
         self.sync.assert_called_once_with()
-        with patch.object(manage, "sync_edge", return_value=[{}]) as edge:
+        with patch.object(browser_sync, "sync_edge", return_value=[{}]) as edge:
             self.assertEqual(self.post({"browser": "edge", "confirmed": True})[0], 200)
             edge.assert_called_once_with()
-        with patch.object(manage, "sync_html", return_value=[{}]) as sync_html:
+        with patch.object(browser_sync, "sync_html", return_value=[{}]) as sync_html:
             self.assertEqual(self.post({"browser": "html", "confirmed": True})[0], 200)
             sync_html.assert_called_once_with()
-        with patch.object(manage, "sync_chromium", return_value=[{}]) as sync_chromium:
+        with patch.object(browser_sync, "sync_chromium", return_value=[{}]) as sync_chromium:
             self.assertEqual(self.post({"browser": "brave", "confirmed": True})[0], 200)
             sync_chromium.assert_called_once_with("brave")
-        with patch.object(manage, "sync_chromium", return_value=[{}]) as sync_chromium:
+        with patch.object(browser_sync, "sync_chromium", return_value=[{}]) as sync_chromium:
             self.assertEqual(self.post({"browser": "qq", "confirmed": True})[0], 200)
             sync_chromium.assert_called_once_with("qq")
 
@@ -230,7 +238,7 @@ class BookmarkSyncHTTPTests(TestCase):
         self.sync.assert_not_called()
 
     def test_busy_sync_and_restarting_service_do_not_write(self):
-        with manage.BOOKMARK_SYNC_LOCK:
+        with bookmark_server.BOOKMARK_SYNC_LOCK:
             self.assertEqual(self.post()[0], 409)
         self.server.restarting = True
         self.assertEqual(self.post()[0], 409)
@@ -244,10 +252,10 @@ class BookmarkSyncHTTPTests(TestCase):
             self.assertNotIn("private", data["message"])
             self.assertNotIn("secret", data["message"])
             # The response can arrive before the server thread enters finally.
-            acquired = manage.BOOKMARK_SYNC_LOCK.acquire(timeout=1)
+            acquired = bookmark_server.BOOKMARK_SYNC_LOCK.acquire(timeout=1)
             self.assertTrue(acquired)
             if acquired:
-                manage.BOOKMARK_SYNC_LOCK.release()
+                bookmark_server.BOOKMARK_SYNC_LOCK.release()
 
     def test_real_sync_reads_only_fixture_profile_and_changes_only_fixture_site(self):
         self.sync_patch.stop()
@@ -263,7 +271,7 @@ class BookmarkSyncHTTPTests(TestCase):
             browser_file = profile / "Bookmarks"
             source = json.dumps({"roots": {"bookmark_bar": {"type": "folder", "name": "书签栏", "children": [{"type": "url", "name": "同步测试", "url": "https://example.com"}]}}}, ensure_ascii=False)
             browser_file.write_text(source, encoding="utf-8")
-            with patch.dict(manage.os.environ, {"LOCALAPPDATA": str(root / "profiles")}), patch.object(manage, "SRC", data_dir / "bookmarks.html"), patch.object(manage, "DATA_JS", web / "data.js"):
+            with patch.dict(os.environ, {"LOCALAPPDATA": str(root / "profiles")}), patch.object(settings, "SRC", data_dir / "bookmarks.html"), patch.object(settings, "DATA_JS", web / "data.js"):
                 code, result = self.post()
             self.assertEqual(code, 200)
             self.assertEqual(result["count"], 1)
@@ -271,8 +279,8 @@ class BookmarkSyncHTTPTests(TestCase):
             self.assertEqual(browser_file.read_text(encoding="utf-8"), source)
 
     def test_macos_offers_existing_chrome_and_safari_implementation(self):
-        with patch.object(manage.sys, "platform", "darwin"), patch.object(manage, "supported_sync_browsers", return_value=["chrome", "safari", "html"]), patch.object(manage, "sync_safari", return_value=[{}]) as safari:
-            self.assertEqual(manage.supported_sync_browsers(), ["chrome", "safari", "html"])
+        with patch.object(sys, "platform", "darwin"), patch.object(browser_sync, "supported_sync_browsers", return_value=["chrome", "safari", "html"]), patch.object(browser_sync, "sync_safari", return_value=[{}]) as safari:
+            self.assertEqual(browser_sync.supported_sync_browsers(), ["chrome", "safari", "html"])
             self.assertEqual(self.post({"browser": "safari", "confirmed": True})[0], 200)
             safari.assert_called_once_with()
 
@@ -281,15 +289,15 @@ class BookmarkSyncHTTPTests(TestCase):
             root = Path(folder)
             source = root / "export.html"
             source.write_text('<DT><A HREF="https://example.com">导入测试</A>', encoding="utf-8")
-            with patch.object(manage, "pick_html", return_value=source), patch.object(manage, "SRC", root / "bookmarks.html"), patch.object(manage, "DATA_JS", root / "data.js"):
-                items = manage.sync_html()
+            with patch.object(browser_sync, "pick_html", return_value=source), patch.object(settings, "SRC", root / "bookmarks.html"), patch.object(settings, "DATA_JS", root / "data.js"):
+                items = browser_sync.sync_html()
             self.assertEqual(len(items), 1)
             self.assertIn("导入测试", (root / "data.js").read_text(encoding="utf-8"))
 
     def test_settings_shortcut_opens_full_disk_access_only_on_macos_and_only_from_this_page(self):
         url = self.base + "/__bookmarks/settings"
         page = {"Origin": self.base}
-        with patch.object(manage.subprocess, "run") as run:
+        with patch.object(subprocess, "run") as run:
             for origin in ("https://evil.example", None):
                 headers = {} if origin is None else {"Origin": origin}
                 with self.assertRaises(HTTPError) as caught:
@@ -301,11 +309,11 @@ class BookmarkSyncHTTPTests(TestCase):
             caught.exception.close()
             self.assertEqual(caught.exception.code, 404, "Windows 上没有对应的设置页")
             run.assert_not_called()
-            with patch.object(manage.sys, "platform", "darwin"):
+            with patch.object(sys, "platform", "darwin"):
                 with urlopen(Request(url, method="POST", headers=page), timeout=3) as response:
                     self.assertEqual(response.status, 204)
-        self.assertEqual(run.call_args.args[0], ["open", manage.FULL_DISK_ACCESS_SETTINGS])
-        self.assertIn("Privacy_AllFiles", manage.FULL_DISK_ACCESS_SETTINGS)
+        self.assertEqual(run.call_args.args[0], ["open", browser_sync.FULL_DISK_ACCESS_SETTINGS])
+        self.assertIn("Privacy_AllFiles", browser_sync.FULL_DISK_ACCESS_SETTINGS)
 
     def post_restart(self, headers=None):
         request_headers = {"Origin": self.base, "X-Bookmark-Sync": "1"}
@@ -319,29 +327,29 @@ class BookmarkSyncHTTPTests(TestCase):
             return response.status, json.load(response)
 
     def test_restart_schedules_existing_mechanism_after_response_on_windows_and_macos(self):
-        send_json = manage.Handler.send_json
+        send_json = bookmark_server.Handler.send_json
 
         def record_response(handler, status, data):
             send_json(handler, status, data)
             sequence.append("response")
 
         def schedule():
-            sequence.append(("restart", manage.BOOKMARK_SYNC_LOCK.locked()))
+            sequence.append(("restart", bookmark_server.BOOKMARK_SYNC_LOCK.locked()))
             scheduled.set()
 
         for platform in ("win32", "darwin"):
             with self.subTest(platform=platform):
                 sequence = []
                 scheduled = threading.Event()
-                with patch.object(manage.sys, "platform", platform), patch.object(
-                    manage.Handler, "send_json", record_response
+                with patch.object(sys, "platform", platform), patch.object(
+                    bookmark_server.Handler, "send_json", record_response
                 ), patch.object(self.server, "schedule_restart", side_effect=schedule) as restart:
                     status, data = self.post_restart()
                     self.assertTrue(scheduled.wait(timeout=1))
-                    acquired = manage.BOOKMARK_SYNC_LOCK.acquire(timeout=1)
+                    acquired = bookmark_server.BOOKMARK_SYNC_LOCK.acquire(timeout=1)
                     self.assertTrue(acquired)
                     if acquired:
-                        manage.BOOKMARK_SYNC_LOCK.release()
+                        bookmark_server.BOOKMARK_SYNC_LOCK.release()
                 self.assertEqual(status, 200)
                 self.assertEqual(data, {"ok": True, "instance": self.server.instance})
                 self.assertEqual(sequence, ["response", ("restart", True)])
@@ -350,7 +358,7 @@ class BookmarkSyncHTTPTests(TestCase):
 
     def test_restart_rejects_foreign_origins_and_missing_action_header(self):
         for platform in ("win32", "darwin"):
-            with self.subTest(platform=platform), patch.object(manage.sys, "platform", platform), patch.object(self.server, "schedule_restart") as restart:
+            with self.subTest(platform=platform), patch.object(sys, "platform", platform), patch.object(self.server, "schedule_restart") as restart:
                 for headers in (
                     {"Origin": "https://evil.example"}, {"Origin": "null"}, {"Origin": ""},
                     {"Host": "evil.example", "Origin": "http://evil.example"},
@@ -364,9 +372,9 @@ class BookmarkSyncHTTPTests(TestCase):
 
     def test_restart_does_not_interrupt_sync_or_repeat_restart(self):
         for platform in ("win32", "darwin"):
-            with self.subTest(platform=platform), patch.object(manage.sys, "platform", platform), patch.object(self.server, "schedule_restart") as restart:
+            with self.subTest(platform=platform), patch.object(sys, "platform", platform), patch.object(self.server, "schedule_restart") as restart:
                 self.server.restarting = False
-                with manage.BOOKMARK_SYNC_LOCK:
+                with bookmark_server.BOOKMARK_SYNC_LOCK:
                     status, data = self.post_restart()
                     self.assertEqual(status, 409)
                     self.assertIn("同步正在进行", data["message"])
@@ -375,13 +383,13 @@ class BookmarkSyncHTTPTests(TestCase):
                 self.assertEqual(status, 409)
                 self.assertIn("正在重启", data["message"])
                 restart.assert_not_called()
-                acquired = manage.BOOKMARK_SYNC_LOCK.acquire(timeout=1)
+                acquired = bookmark_server.BOOKMARK_SYNC_LOCK.acquire(timeout=1)
                 self.assertTrue(acquired)
                 if acquired:
-                    manage.BOOKMARK_SYNC_LOCK.release()
+                    bookmark_server.BOOKMARK_SYNC_LOCK.release()
 
     def test_restart_is_not_available_on_unsupported_platform(self):
-        with patch.object(manage.sys, "platform", "linux"), patch.object(self.server, "schedule_restart") as restart:
+        with patch.object(sys, "platform", "linux"), patch.object(self.server, "schedule_restart") as restart:
             request = Request(self.base + "/__bookmarks/restart", method="POST",
                               headers={"Origin": self.base, "X-Bookmark-Sync": "1"})
             with self.assertRaises(HTTPError) as caught:

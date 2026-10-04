@@ -1,4 +1,7 @@
-import importlib.util
+import os
+import subprocess
+import sys
+import time
 import json
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -9,69 +12,74 @@ from urllib.request import urlopen
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location("bookmark_restart", ROOT / "scripts" / "manage.py")
-manage = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(manage)
+SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))  # the scripts import each other by name
+
+import manage  # noqa: E402
+import server as bookmark_server  # noqa: E402
+import settings  # noqa: E402
+import updates  # noqa: E402
 
 
 class RestartTests(TestCase):
     def test_installed_version_reads_disk_without_executing_it(self):
         with patch.object(Path, "read_text", return_value='APP_VERSION = "v9.0.0"\nraise RuntimeError()'):
-            self.assertEqual(manage.installed_version(), "v9.0.0")
+            self.assertEqual(updates.installed_version(), "v9.0.0")
         with patch.object(Path, "read_text", return_value="not a version"):
-            with self.assertRaises(manage.UpdateError):
-                manage.installed_version()
+            with self.assertRaises(updates.UpdateError):
+                updates.installed_version()
 
     def test_listener_is_closed_before_replacing_only_this_service(self):
         order = []
         server = Mock(restarting=True)
         server.serve_forever.side_effect = lambda: order.append("serve")
         server.server_close.side_effect = lambda: order.append("close")
-        with patch.object(manage.sys, "platform", "darwin"), patch.object(manage, "BookmarkServer", return_value=server), patch.object(manage.os, "execv", side_effect=lambda *args: order.append("exec")) as execute:
-            manage.serve(8799)
+        with patch.object(sys, "platform", "darwin"), patch.object(bookmark_server, "BookmarkServer", return_value=server), patch.object(os, "execv", side_effect=lambda *args: order.append("exec")) as execute:
+            bookmark_server.serve(8799)
         self.assertEqual(order, ["serve", "close", "exec"])
-        execute.assert_called_once_with(manage.sys.executable, [
-            manage.sys.executable, "-X", "utf8", str(Path(manage.__file__).resolve()), "--serve", "8799",
+        execute.assert_called_once_with(sys.executable, [
+            sys.executable, "-X", "utf8", str(settings.MANAGE_SCRIPT), "--serve", "8799",
         ])
 
     def test_windows_closes_listener_then_starts_hidden_replacement(self):
         order = []
         server = Mock(restarting=True)
         server.server_close.side_effect = lambda: order.append("close")
-        with patch.object(manage.sys, "platform", "win32"), patch.object(manage, "BookmarkServer", return_value=server), patch.object(manage, "start_hidden_server", side_effect=lambda port: order.append(port)), patch.object(manage.os, "execv") as execute:
-            manage.serve(8799)
+        with patch.object(sys, "platform", "win32"), patch.object(bookmark_server, "BookmarkServer", return_value=server), patch.object(bookmark_server, "start_hidden_server", side_effect=lambda port: order.append(port)), patch.object(os, "execv") as execute:
+            bookmark_server.serve(8799)
         self.assertEqual(order, ["close", 8799])
         execute.assert_not_called()
 
     def test_windows_spawn_keeps_space_paths_in_one_argument_and_hides_console(self):
-        with patch.object(manage.sys, "platform", "win32"), patch.object(manage, "__file__", "D:/Bookmark demo/scripts/manage.py"), patch.object(manage.subprocess, "Popen") as spawn, patch.object(manage.subprocess, "CREATE_NO_WINDOW", 0x08000000, create=True):
-            manage.start_hidden_server(8799)
-        self.assertEqual(spawn.call_args.args[0][-3:], [str(Path("D:/Bookmark demo/scripts/manage.py").resolve()), "--serve", "8799"])
+        with patch.object(sys, "platform", "win32"), patch.object(settings, "MANAGE_SCRIPT", Path("D:/Bookmark demo/scripts/manage.py")), patch.object(subprocess, "Popen") as spawn, patch.object(subprocess, "CREATE_NO_WINDOW", 0x08000000, create=True):
+            bookmark_server.start_hidden_server(8799)
+        self.assertEqual(spawn.call_args.args[0][-3:], [str(Path("D:/Bookmark demo/scripts/manage.py")), "--serve", "8799"])
         self.assertEqual(spawn.call_args.kwargs["creationflags"], 0x08000000)
 
     def test_worker_only_stops_loop_and_does_not_replace_during_interpreter_exit(self):
         server = Mock()
-        with patch.object(manage.time, "sleep"), patch.object(manage.os, "execv") as execute:
-            manage.restart_after_update(server)
+        with patch.object(time, "sleep"), patch.object(os, "execv") as execute:
+            bookmark_server.restart_after_update(server)
         server.shutdown.assert_called_once()
         server.server_close.assert_not_called()
         execute.assert_not_called()
 
     def test_duplicate_restart_requests_schedule_one_replacement(self):
-        server = manage.BookmarkServer(("127.0.0.1", 0), manage.Handler)
+        server = bookmark_server.BookmarkServer(("127.0.0.1", 0), bookmark_server.Handler)
         self.addCleanup(server.server_close)
-        with patch.object(manage.threading, "Thread") as worker:
+        with patch.object(threading, "Thread") as worker:
             server.schedule_restart()
             server.schedule_restart()
         self.assertTrue(server.restarting)
-        worker.assert_called_once_with(target=manage.restart_after_update, args=(server,), daemon=False)
+        worker.assert_called_once_with(target=bookmark_server.restart_after_update, args=(server,), daemon=False)
         worker.return_value.start.assert_called_once()
 
     def test_simultaneous_clients_cannot_start_multiple_replacements(self):
-        server = manage.BookmarkServer(("127.0.0.1", 0), manage.Handler)
+        server = bookmark_server.BookmarkServer(("127.0.0.1", 0), bookmark_server.Handler)
         self.addCleanup(server.server_close)
         started = threading.Event()
-        with patch.object(manage, "restart_after_update", side_effect=lambda _: started.set()) as restart:
+        with patch.object(bookmark_server, "restart_after_update", side_effect=lambda _: started.set()) as restart:
             with ThreadPoolExecutor(max_workers=8) as clients:
                 list(clients.map(lambda _: server.schedule_restart(), range(20)))
             self.assertTrue(started.wait(2))
@@ -80,7 +88,7 @@ class RestartTests(TestCase):
 
 class RestartHTTPTests(TestCase):
     def setUp(self):
-        self.server = manage.BookmarkServer(("127.0.0.1", 0), manage.Handler)
+        self.server = bookmark_server.BookmarkServer(("127.0.0.1", 0), bookmark_server.Handler)
         self.worker = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.worker.start()
         self.base = f"http://127.0.0.1:{self.server.server_port}"
@@ -99,7 +107,7 @@ class RestartHTTPTests(TestCase):
             return json.load(response)
 
     def test_page_update_check_restarts_stale_backend_even_with_local_changes(self):
-        with patch.object(manage, "installed_version", return_value="v9.0.0"), patch.object(manage, "repository_update_status") as git:
+        with patch.object(updates, "installed_version", return_value="v9.0.0"), patch.object(updates, "repository_update_status") as git:
             result = self.read_json("/__update")
         self.assertTrue(result["restarting"])
         self.assertEqual(result["instance"], self.server.instance)
@@ -109,7 +117,7 @@ class RestartHTTPTests(TestCase):
 
     def test_same_version_keeps_normal_update_check_without_restart(self):
         status = {"available": False, "version": manage.APP_VERSION}
-        with patch.object(manage, "installed_version", return_value=manage.APP_VERSION), patch.object(manage, "repository_update_status", return_value=status):
+        with patch.object(updates, "installed_version", return_value=manage.APP_VERSION), patch.object(updates, "repository_update_status", return_value=status):
             self.assertEqual(self.read_json("/__update"), status)
         self.schedule.assert_not_called()
 
@@ -117,15 +125,15 @@ class RestartHTTPTests(TestCase):
         result = self.read_json("/__service")
         self.assertEqual(result, {
             "version": manage.APP_VERSION, "instance": self.server.instance,
-            "installation": manage.installation_id(),
-            "can_restart": manage.sys.platform in ("win32", "darwin"),
+            "installation": settings.installation_id(),
+            "can_restart": sys.platform in ("win32", "darwin"),
         })
         with urlopen(self.base + "/__health", timeout=2) as response:
-            self.assertEqual(response.read(), manage.HEALTH_RESPONSE)
+            self.assertEqual(response.read(), settings.HEALTH_RESPONSE)
         self.schedule.assert_not_called()
 
     def test_multiple_pages_share_one_healthy_service(self):
-        with patch.object(manage, "installed_version", return_value=manage.APP_VERSION), patch.object(manage, "repository_update_status", return_value={"available": False}):
+        with patch.object(updates, "installed_version", return_value=manage.APP_VERSION), patch.object(updates, "repository_update_status", return_value={"available": False}):
             def visit(_):
                 self.read_json("/__update")
                 return self.read_json("/__service")["instance"]
@@ -136,7 +144,7 @@ class RestartHTTPTests(TestCase):
 
     def test_version_probe_error_does_not_restart(self):
         from urllib.error import HTTPError
-        with patch.object(manage, "installed_version", side_effect=OSError("unreadable")):
+        with patch.object(updates, "installed_version", side_effect=OSError("unreadable")):
             with self.assertRaises(HTTPError) as caught:
                 self.read_json("/__update")
         self.assertEqual(caught.exception.code, 503)
@@ -144,7 +152,7 @@ class RestartHTTPTests(TestCase):
 
     def test_certificate_error_is_exposed_without_restarting_service(self):
         from urllib.error import HTTPError
-        with patch.object(manage, "repository_update_status", side_effect=manage.UpdateError("Gitee：证书验证失败", "certificate_error")):
+        with patch.object(updates, "repository_update_status", side_effect=updates.UpdateError("Gitee：证书验证失败", "certificate_error")):
             with self.assertRaises(HTTPError) as caught:
                 self.read_json("/__update")
         self.assertEqual(caught.exception.code, 503)

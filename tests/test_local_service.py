@@ -1,5 +1,5 @@
+import sys
 import http.client
-import importlib.util
 import json
 import os
 import tempfile
@@ -12,9 +12,16 @@ from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location("bookmark_local_service", ROOT / "scripts" / "manage.py")
-manage = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(manage)
+SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))  # the scripts import each other by name
+
+import manage  # noqa: E402
+import server as bookmark_server  # noqa: E402
+import settings  # noqa: E402
+import site_icons  # noqa: E402
+import updates  # noqa: E402
+import weather  # noqa: E402
 
 
 class ServiceTestCase(TestCase):
@@ -28,10 +35,10 @@ class ServiceTestCase(TestCase):
         (self.web / "js/app.js").write_text("render();", encoding="utf-8")
         self.window_state = Path(folder.name) / "window-state.json"
         for name, value in (("WEB_ROOT", self.web), ("WINDOW_STATE", self.window_state)):
-            patcher = patch.object(manage, name, value)
+            patcher = patch.object(settings, name, value)
             patcher.start()
             self.addCleanup(patcher.stop)
-        self.server = manage.BookmarkServer(("127.0.0.1", 0), manage.Handler)
+        self.server = bookmark_server.BookmarkServer(("127.0.0.1", 0), bookmark_server.Handler)
         worker = threading.Thread(target=self.server.serve_forever, daemon=True)
         worker.start()
         self.addCleanup(worker.join, 2)
@@ -102,7 +109,7 @@ class StaticRevalidationTests(ServiceTestCase):
 
     def test_restart_capability_matches_supported_platform(self):
         for platform in ("darwin", "win32", "linux"):
-            with self.subTest(platform=platform), patch.object(manage.sys, "platform", platform):
+            with self.subTest(platform=platform), patch.object(sys, "platform", platform):
                 status, _, body = self.request("GET", "/__service")
                 self.assertEqual(status, 200)
                 self.assertEqual(json.loads(body)["can_restart"], platform in ("win32", "darwin"))
@@ -119,7 +126,7 @@ class UpdateCheckCacheTests(ServiceTestCase):
         super().setUp()
         for name, kwargs in (("installed_version", {"return_value": manage.APP_VERSION}),
                              ("repository_update_status", {"return_value": {"available": False, "version": manage.APP_VERSION}})):
-            patcher = patch.object(manage, name, **kwargs)
+            patcher = patch.object(updates, name, **kwargs)
             mock = patcher.start()
             self.addCleanup(patcher.stop)
         self.check = mock
@@ -132,7 +139,7 @@ class UpdateCheckCacheTests(ServiceTestCase):
         for _ in range(3):
             self.assertEqual(self.check_update(), (200, {"available": False, "version": manage.APP_VERSION}))
         self.check.assert_called_once_with()
-        with patch.object(manage, "UPDATE_CACHE_SECONDS", 0):
+        with patch.object(updates, "UPDATE_CACHE_SECONDS", 0):
             self.check_update()
         self.assertEqual(self.check.call_count, 2)
 
@@ -144,19 +151,19 @@ class UpdateCheckCacheTests(ServiceTestCase):
         self.assertEqual(self.check.call_count, 2)
 
     def test_failed_check_is_repeated_after_a_short_pause(self):
-        self.check.side_effect = manage.UpdateError("Gitee：证书验证失败", "certificate_error")
+        self.check.side_effect = updates.UpdateError("Gitee：证书验证失败", "certificate_error")
         for _ in range(2):
             status, result = self.check_update()
             self.assertEqual(status, 503)
             self.assertEqual(result["error"], "certificate_error")
         self.check.assert_called_once_with()
-        with patch.object(manage, "UPDATE_RETRY_SECONDS", 0):
+        with patch.object(updates, "UPDATE_RETRY_SECONDS", 0):
             self.check_update()
         self.assertEqual(self.check.call_count, 2)
 
     def test_an_upgrade_attempt_makes_the_previous_check_stale(self):
         self.check_update()
-        with patch.object(manage, "update_repository", return_value={"ok": True, "updated": False}):
+        with patch.object(updates, "update_repository", return_value={"ok": True, "updated": False}):
             status, _, _ = self.request("POST", "/__update", {"Origin": self.page})
         self.assertEqual(status, 200)
         self.check_update()
@@ -203,7 +210,7 @@ class AssetCacheTests(ServiceTestCase):
         self.assertEqual(status, 200)
         self.assertEqual(headers["Cache-Control"], "no-cache")
         self.assertEqual(int(headers["Content-Length"]), len(body))
-        stamp = manage.file_stamp(self.web / "js/app.js")
+        stamp = settings.file_stamp(self.web / "js/app.js")
         self.assertIn(f'src="js/app.js?v={stamp}"', page)
         self.assertIn('href="css/base.css?v=', page)
         self.assertIn('src="js/missing.js"', page, "不存在的文件保持原地址")
@@ -213,10 +220,10 @@ class AssetCacheTests(ServiceTestCase):
 
     def test_stamped_assets_are_cached_for_good_and_changes_get_new_addresses(self):
         _, _, body = self.request("GET", "/index.html")
-        stamp = manage.file_stamp(self.web / "js/app.js")
+        stamp = settings.file_stamp(self.web / "js/app.js")
         status, headers, _ = self.request("GET", f"/js/app.js?v={stamp}")
         self.assertEqual(status, 200)
-        self.assertEqual(headers["Cache-Control"], manage.IMMUTABLE_CACHE)
+        self.assertEqual(headers["Cache-Control"], bookmark_server.IMMUTABLE_CACHE)
         for query in ("", "?v=old", "?v=" + stamp + "x"):
             with self.subTest(query=query):
                 _, headers, _ = self.request("GET", "/js/app.js" + query)
@@ -225,7 +232,7 @@ class AssetCacheTests(ServiceTestCase):
         (self.web / "js/app.js").write_text("changed();", encoding="utf-8")
         status, after, body = self.request("GET", "/index.html", {"If-None-Match": before["ETag"]})
         self.assertEqual(status, 200, "资源变化后页面也必须重新下载")
-        self.assertIn(f'js/app.js?v={manage.file_stamp(self.web / "js/app.js")}', body.decode("utf-8"))
+        self.assertIn(f'js/app.js?v={settings.file_stamp(self.web / "js/app.js")}', body.decode("utf-8"))
 
     def test_one_connection_serves_a_whole_page_load(self):
         connection = http.client.HTTPConnection("127.0.0.1", self.port, timeout=3)
@@ -260,11 +267,11 @@ class FaviconTests(ServiceTestCase):
 class WeatherCacheTests(ServiceTestCase):
     def setUp(self):
         super().setUp()
-        manage.WEATHER_CACHE.clear()
-        self.addCleanup(manage.WEATHER_CACHE.clear)
+        weather.WEATHER_CACHE.clear()
+        self.addCleanup(weather.WEATHER_CACHE.clear)
 
     def test_tabs_opened_together_share_one_upstream_lookup(self):
-        with patch.object(manage, "weather_from_uapis", return_value=(21.5, 0, "晴")) as upstream:
+        with patch.object(weather, "weather_from_uapis", return_value=(21.5, 0, "晴")) as upstream:
             for _ in range(3):
                 status, headers, body = self.request("GET", "/__weather?city=%E6%9D%AD%E5%B7%9E")
                 self.assertEqual(status, 200)
@@ -273,13 +280,13 @@ class WeatherCacheTests(ServiceTestCase):
             self.assertEqual(upstream.call_count, 1)
             self.request("GET", "/__weather?city=%E5%AE%81%E6%B3%A2")
             self.assertEqual(upstream.call_count, 2, "不同城市各自查询")
-            with patch.object(manage, "WEATHER_CACHE_SECONDS", 0):
+            with patch.object(weather, "WEATHER_CACHE_SECONDS", 0):
                 self.request("GET", "/__weather?city=%E6%9D%AD%E5%B7%9E")
             self.assertEqual(upstream.call_count, 3, "过期后重新查询")
 
     def test_failures_are_not_cached(self):
-        with patch.object(manage, "weather_from_uapis", side_effect=OSError), \
-                patch.object(manage, "weather_from_open_meteo", side_effect=OSError) as fallback:
+        with patch.object(weather, "weather_from_uapis", side_effect=OSError), \
+                patch.object(weather, "weather_from_open_meteo", side_effect=OSError) as fallback:
             for _ in range(2):
                 status, _, _ = self.request("GET", "/__weather?city=x")
                 self.assertEqual(status, 502)
@@ -296,7 +303,7 @@ class ShortcutIconTests(ServiceTestCase):
     def test_repeating_the_same_skin_does_not_rewrite_the_shortcut(self):
         changed = []
         page = {"Origin": self.page}
-        with patch.object(manage.sys, "platform", "win32"), \
+        with patch.object(sys, "platform", "win32"), \
                 patch.dict("sys.modules", {"shortcut": self.icons(changed, [0])}):
             for skin in ("cyber", "cyber", "snow", "snow", "cyber"):
                 status, _, _ = self.request("POST", f"/__icon?skin={skin}", page)
@@ -306,7 +313,7 @@ class ShortcutIconTests(ServiceTestCase):
     def test_shortcut_recreated_elsewhere_gets_the_icon_again(self):
         changed, state = [], [0]
         page = {"Origin": self.page}
-        with patch.object(manage.sys, "platform", "win32"), \
+        with patch.object(sys, "platform", "win32"), \
                 patch.dict("sys.modules", {"shortcut": self.icons(changed, state)}):
             self.request("POST", "/__icon?skin=cyber", page)
             state[0] += 1  # e.g. the installer wrote a fresh shortcut with the default icon
@@ -322,7 +329,7 @@ class SiteIconTests(ServiceTestCase):
         super().setUp()
         self.icons = self.web.parent / "site-icons"
         for name, value in (("SITE_ICON_DIR", self.icons), ("SITE_ICON_PAUSED_UNTIL", 0.0), ("SITE_ICON_FAILURES", 0)):
-            patcher = patch.object(manage, name, value)
+            patcher = patch.object(site_icons, name, value)
             patcher.start()
             self.addCleanup(patcher.stop)
         self.addCleanup(self.finish_lookups)
@@ -331,11 +338,11 @@ class SiteIconTests(ServiceTestCase):
         return self.request("GET", f"/__siteicon?host={host}", headers)
 
     def finish_lookups(self):
-        for lookup in list(manage.SITE_ICON_PENDING.values()):
+        for lookup in list(site_icons.SITE_ICON_PENDING.values()):
             lookup.join(3)
 
     def test_icon_is_fetched_once_then_served_from_disk(self):
-        with patch.object(manage, "fetch_site_icon", return_value=PNG) as fetch:
+        with patch.object(site_icons, "fetch_site_icon", return_value=PNG) as fetch:
             status, headers, body = self.get("github.com")
             again, _, _ = self.get("github.com")
         self.assertEqual((status, again, body), (200, 200, PNG))
@@ -343,33 +350,33 @@ class SiteIconTests(ServiceTestCase):
         self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
         self.assertIn("max-age", headers["Cache-Control"])
         fetch.assert_called_once_with("github.com")
-        with patch.object(manage, "fetch_site_icon", side_effect=OSError("offline")):
+        with patch.object(site_icons, "fetch_site_icon", side_effect=OSError("offline")):
             status, _, body = self.get("github.com")
             self.assertEqual((status, body), (200, PNG), "cached icons show offline")
             self.assertEqual(self.get("github.com", {"If-None-Match": headers["ETag"]})[0], 304)
 
     def test_sites_without_icons_keep_their_letter_and_are_not_asked_again_soon(self):
-        with patch.object(manage, "fetch_site_icon", return_value=None) as fetch:
+        with patch.object(site_icons, "fetch_site_icon", return_value=None) as fetch:
             self.assertEqual(self.get("no-icon.example")[0], 404)
             self.assertEqual(self.get("no-icon.example")[0], 404)
         fetch.assert_called_once()
 
     def test_one_slow_site_does_not_pause_the_others(self):
-        with patch.object(manage, "fetch_site_icon", side_effect=OSError("timed out")):
+        with patch.object(site_icons, "fetch_site_icon", side_effect=OSError("timed out")):
             self.assertEqual(self.get("slow.example")[0], 502)
-        with patch.object(manage, "fetch_site_icon", return_value=PNG):
+        with patch.object(site_icons, "fetch_site_icon", return_value=PNG):
             self.assertEqual(self.get("other.example")[0], 200)
 
     def test_unreachable_services_are_left_alone_for_a_while(self):
-        with patch.object(manage, "fetch_site_icon", side_effect=OSError("offline")):
+        with patch.object(site_icons, "fetch_site_icon", side_effect=OSError("offline")):
             for host in ("a.example", "b.example", "example.com"):
                 self.assertEqual(self.get(host)[0], 502)
-        with patch.object(manage, "fetch_site_icon", return_value=PNG) as fetch:
+        with patch.object(site_icons, "fetch_site_icon", return_value=PNG) as fetch:
             # Blocked networks must not make every later card wait for timeouts again.
             self.assertEqual(self.get("example.com")[0], 502)
             self.assertEqual(self.get("other.example")[0], 502)
             fetch.assert_not_called()
-            manage.SITE_ICON_PAUSED_UNTIL = 0.0  # the pause is over
+            site_icons.SITE_ICON_PAUSED_UNTIL = 0.0  # the pause is over
             self.assertEqual(self.get("example.com")[0], 200)
 
     def test_slow_lookup_keeps_the_letter_now_and_shows_the_icon_next_time(self):
@@ -377,8 +384,8 @@ class SiteIconTests(ServiceTestCase):
             time.sleep(0.5)
             return PNG
 
-        with patch.object(manage, "SITE_ICON_WAIT_SECONDS", 0.05), \
-                patch.object(manage, "fetch_site_icon", side_effect=slow) as fetch:
+        with patch.object(site_icons, "SITE_ICON_WAIT_SECONDS", 0.05), \
+                patch.object(site_icons, "fetch_site_icon", side_effect=slow) as fetch:
             started = time.monotonic()
             status, _, _ = self.get("example.com")
             self.assertEqual(status, 502)
@@ -398,26 +405,26 @@ class SiteIconTests(ServiceTestCase):
             queued.set()
             released.wait(3)
 
-        with patch.object(manage, "SITE_ICON_WAITERS", waiters), \
-                patch.object(manage, "SITE_ICON_FETCHES") as slots, \
+        with patch.object(site_icons, "SITE_ICON_WAITERS", waiters), \
+                patch.object(site_icons, "SITE_ICON_FETCHES") as slots, \
                 patch("urllib.request.urlopen", side_effect=OSError("offline")) as urlopen:
             slots.__enter__.side_effect = wait_for_slot
             try:
                 self.assertEqual(self.get("queued.example")[0], 502)
                 self.assertTrue(queued.wait(1), "the lookup is waiting for an upstream slot")
-                paused_until = time.monotonic() + manage.SITE_ICON_PAUSE_SECONDS
-                manage.SITE_ICON_PAUSED_UNTIL = paused_until
+                paused_until = time.monotonic() + site_icons.SITE_ICON_PAUSE_SECONDS
+                site_icons.SITE_ICON_PAUSED_UNTIL = paused_until
             finally:
                 released.set()
                 self.finish_lookups()
             urlopen.assert_not_called()
-            self.assertFalse(manage.SITE_ICON_PENDING)
-            self.assertEqual(manage.SITE_ICON_FAILURES, 0, "a cancelled lookup is not another network failure")
-            self.assertEqual(manage.SITE_ICON_PAUSED_UNTIL, paused_until)
+            self.assertFalse(site_icons.SITE_ICON_PENDING)
+            self.assertEqual(site_icons.SITE_ICON_FAILURES, 0, "a cancelled lookup is not another network failure")
+            self.assertEqual(site_icons.SITE_ICON_PAUSED_UNTIL, paused_until)
             self.assertFalse(self.icons.exists(), "a pause must not cache a missing icon")
 
-        manage.SITE_ICON_PAUSED_UNTIL = 0.0
-        with patch.object(manage, "fetch_site_icon", return_value=PNG) as fetch:
+        site_icons.SITE_ICON_PAUSED_UNTIL = 0.0
+        with patch.object(site_icons, "fetch_site_icon", return_value=PNG) as fetch:
             self.assertEqual(self.get("queued.example")[0], 200)
         fetch.assert_called_once_with("queued.example")
 
@@ -425,12 +432,12 @@ class SiteIconTests(ServiceTestCase):
         from urllib.error import URLError
 
         def pause(request, timeout):
-            manage.SITE_ICON_PAUSED_UNTIL = time.monotonic() + manage.SITE_ICON_PAUSE_SECONDS
+            site_icons.SITE_ICON_PAUSED_UNTIL = time.monotonic() + site_icons.SITE_ICON_PAUSE_SECONDS
             raise URLError("offline")
 
         with patch("urllib.request.urlopen", side_effect=pause) as urlopen:
             with self.assertRaises(OSError):
-                manage.fetch_site_icon("example.com")
+                site_icons.fetch_site_icon("example.com")
         self.assertEqual(urlopen.call_count, 1, "the fallback must respect the pause too")
 
     def test_only_a_few_requests_wait_so_other_requests_are_not_held_up(self):
@@ -440,8 +447,8 @@ class SiteIconTests(ServiceTestCase):
 
         waiters = threading.BoundedSemaphore(1)
         waiters.acquire()  # another icon request is already waiting
-        with patch.object(manage, "SITE_ICON_WAITERS", waiters), patch.object(manage, "SITE_ICON_WAIT_SECONDS", 5), \
-                patch.object(manage, "fetch_site_icon", side_effect=slow):
+        with patch.object(site_icons, "SITE_ICON_WAITERS", waiters), patch.object(site_icons, "SITE_ICON_WAIT_SECONDS", 5), \
+                patch.object(site_icons, "fetch_site_icon", side_effect=slow):
             started = time.monotonic()
             self.assertEqual(self.get("example.com")[0], 502)
             self.assertLess(time.monotonic() - started, 0.4)
@@ -449,26 +456,26 @@ class SiteIconTests(ServiceTestCase):
             self.assertEqual(self.get("example.com")[0], 200)
 
     def test_stale_icon_is_refreshed_and_kept_when_the_refresh_fails(self):
-        with patch.object(manage, "fetch_site_icon", return_value=PNG):
+        with patch.object(site_icons, "fetch_site_icon", return_value=PNG):
             self.get("example.com")
         icon = next(self.icons.iterdir())
         os.utime(icon, (1, 1))
         newer = PNG + b"2"
-        with patch.object(manage, "fetch_site_icon", return_value=newer):
+        with patch.object(site_icons, "fetch_site_icon", return_value=newer):
             self.assertEqual(self.get("example.com")[2], PNG, "the old icon shows while refreshing")
             self.finish_lookups()
             self.assertEqual(self.get("example.com")[2], newer)
         os.utime(icon, (1, 1))
-        with patch.object(manage, "fetch_site_icon", return_value=None):
+        with patch.object(site_icons, "fetch_site_icon", return_value=None):
             self.assertEqual(self.get("example.com")[2], newer)
             self.finish_lookups()
         self.assertEqual(self.get("example.com")[2], newer)
         os.utime(icon, (1, 1))
-        with patch.object(manage, "fetch_site_icon", side_effect=OSError("offline")):
+        with patch.object(site_icons, "fetch_site_icon", side_effect=OSError("offline")):
             self.assertEqual(self.get("example.com")[2], newer, "offline keeps the old icon")
 
     def test_local_addresses_and_odd_names_never_reach_icon_services(self):
-        with patch.object(manage, "fetch_site_icon") as fetch:
+        with patch.object(site_icons, "fetch_site_icon") as fetch:
             for host in ("192.168.1.1", "10.0.0.2:8080", "%5B%3A%3A1%5D", "nas.local", "router", "",
                          "a%2Fb.example", "x.example%20y", "printer.lan"):
                 with self.subTest(host=host):
@@ -476,14 +483,14 @@ class SiteIconTests(ServiceTestCase):
         fetch.assert_not_called()
 
     def test_international_and_port_hosts_are_normalized(self):
-        self.assertEqual(manage.site_icon_host("例子.测试"), "xn--fsqu00a.xn--0zwm56d")
-        self.assertEqual(manage.site_icon_host("Example.COM:8443"), "example.com:8443")
-        self.assertEqual(manage.site_icon_host("example.com."), "example.com")
+        self.assertEqual(site_icons.site_icon_host("例子.测试"), "xn--fsqu00a.xn--0zwm56d")
+        self.assertEqual(site_icons.site_icon_host("Example.COM:8443"), "example.com:8443")
+        self.assertEqual(site_icons.site_icon_host("example.com."), "example.com")
 
     def test_only_raster_images_are_kept(self):
-        self.assertIsNone(manage.site_icon_type(b"<svg onload='alert(1)'/>"))
-        self.assertIsNone(manage.site_icon_type(b"<!doctype html>"))
-        self.assertEqual(manage.site_icon_type(b"\x00\x00\x01\x00rest"), "image/x-icon")
+        self.assertIsNone(site_icons.site_icon_type(b"<svg onload='alert(1)'/>"))
+        self.assertIsNone(site_icons.site_icon_type(b"<!doctype html>"))
+        self.assertEqual(site_icons.site_icon_type(b"\x00\x00\x01\x00rest"), "image/x-icon")
 
     def test_fetch_tries_the_second_service_and_tells_no_icon_from_offline(self):
         from urllib.error import HTTPError, URLError
@@ -492,10 +499,10 @@ class SiteIconTests(ServiceTestCase):
             raise HTTPError(request.full_url, 404, "Not Found", {}, None)
 
         with patch("urllib.request.urlopen", side_effect=missing):
-            self.assertIsNone(manage.fetch_site_icon("example.com"))
+            self.assertIsNone(site_icons.fetch_site_icon("example.com"))
         with patch("urllib.request.urlopen", side_effect=URLError("offline")):
             with self.assertRaises(OSError):
-                manage.fetch_site_icon("example.com")
+                site_icons.fetch_site_icon("example.com")
 
         class Response:
             def __init__(self, data):
@@ -509,7 +516,7 @@ class SiteIconTests(ServiceTestCase):
 
         answers = iter([Response(b"<svg/>"), Response(PNG)])
         with patch("urllib.request.urlopen", side_effect=lambda request, timeout: next(answers)) as urlopen:
-            self.assertEqual(manage.fetch_site_icon("example.com"), PNG)
+            self.assertEqual(site_icons.fetch_site_icon("example.com"), PNG)
         self.assertIn("duckduckgo", urlopen.call_args.args[0].full_url)
 
 
@@ -517,7 +524,7 @@ class StartupTests(TestCase):
     def test_starting_the_service_does_not_wait_for_reverse_dns(self):
         # Reverse DNS for 127.0.0.1 can take many seconds; the service must listen without it.
         with patch("socket.getfqdn", side_effect=AssertionError("reverse DNS lookup")):
-            server = manage.BookmarkServer(("127.0.0.1", 0), manage.Handler)
+            server = bookmark_server.BookmarkServer(("127.0.0.1", 0), bookmark_server.Handler)
         self.addCleanup(server.server_close)
         self.assertEqual(server.server_name, "127.0.0.1")
         self.assertEqual(server.server_port, server.server_address[1])

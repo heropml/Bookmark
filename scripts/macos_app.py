@@ -126,7 +126,7 @@ def prepare_runtime() -> Path:
 
 
 def open_page(manage) -> None:
-    manage.build_if_stale()
+    manage.bookmark_store.build_if_stale()
     webbrowser.open(manage.local_url())
 
 

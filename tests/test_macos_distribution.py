@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import os
+import sys
 import tempfile
 import threading
 from pathlib import Path
@@ -15,6 +16,15 @@ ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("bookmark_macos_app", ROOT / "scripts" / "macos_app.py")
 macos_app = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(macos_app)
+SCRIPTS = ROOT / "scripts"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))  # the scripts import each other by name
+
+import archive_update  # noqa: E402
+import manage  # noqa: E402
+import server as bookmark_server  # noqa: E402
+import settings  # noqa: E402
+import updates  # noqa: E402
 
 
 class MacOSDistributionTests(TestCase):
@@ -56,19 +66,29 @@ class MacOSDistributionTests(TestCase):
             self.assertEqual((runtime / "web/index.html").read_text(encoding="utf-8"), "new page!")
             self.assertEqual(list(runtime.rglob("*.tmp")), [])
 
-    def packaged_manage(self):
-        spec = importlib.util.spec_from_file_location("bookmark_packaged_manage", ROOT / "scripts" / "manage.py")
-        manage = importlib.util.module_from_spec(spec)
-        with patch.dict(os.environ, {"BOOKMARK_PACKAGED": "1"}):
-            spec.loader.exec_module(manage)
-        return manage
+    def packaged(self):
+        """Run as the installed macOS app, whose launcher sets BOOKMARK_PACKAGED=1."""
+        patcher = patch.object(settings, "PACKAGED_APP", True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_installed_app_launcher_switches_the_scripts_to_packaged_mode(self):
+        # macos_app sets these before importing manage; settings reads them when it loads.
+        spec = importlib.util.spec_from_file_location("bookmark_packaged_settings", SCRIPTS / "settings.py")
+        packaged = importlib.util.module_from_spec(spec)
+        runtime = Path("/Users/me/Library/Application Support/Bookmark")
+        with patch.dict(os.environ, {"BOOKMARK_PACKAGED": "1", "BOOKMARK_ROOT": str(runtime)}):
+            spec.loader.exec_module(packaged)
+        self.assertTrue(packaged.PACKAGED_APP)
+        self.assertEqual(packaged.DATA_JS, runtime / "web/data.js")
+        self.assertFalse(settings.PACKAGED_APP, "测试进程本身不是安装版")
 
     def test_packaged_update_status_reports_a_new_dmg_without_offering_to_install_it(self):
-        manage = self.packaged_manage()
+        self.packaged()
         remote = {"available": True, "can_update": True, "mode": "archive", "remote": "v9.9.9",
                   "source": "GitHub", "target": "a" * 40, "tree": "b" * 40}
-        with patch.object(manage.archive_update, "update_status", return_value=remote):
-            status = manage.repository_update_status()
+        with patch.object(archive_update, "update_status", return_value=remote):
+            status = updates.repository_update_status()
         self.assertEqual(status["mode"], "dmg")
         self.assertTrue(status["available"])
         self.assertFalse(status["can_update"], "安装版不能就地改写自身")
@@ -77,19 +97,19 @@ class MacOSDistributionTests(TestCase):
         self.assertNotIn("target", status, "安装版不需要提交号，不能被当作可升级来源")
 
     def test_packaged_update_status_stays_quiet_on_the_current_version(self):
-        manage = self.packaged_manage()
+        self.packaged()
         remote = {"available": False, "can_update": True, "mode": "archive",
                   "remote": manage.APP_VERSION, "source": "Gitee"}
-        with patch.object(manage.archive_update, "update_status", return_value=remote):
-            status = manage.repository_update_status()
+        with patch.object(archive_update, "update_status", return_value=remote):
+            status = updates.repository_update_status()
         self.assertFalse(status["available"])
         self.assertEqual(status["download"], "https://gitee.com/heropml/Bookmark/releases")
 
     def test_packaged_install_is_refused_even_if_a_page_posts_an_upgrade(self):
-        manage = self.packaged_manage()
-        with patch.object(manage.archive_update, "install", side_effect=AssertionError("must not rewrite the app")):
-            with self.assertRaises(manage.UpdateError):
-                manage.update_repository()
+        self.packaged()
+        with patch.object(archive_update, "install", side_effect=AssertionError("must not rewrite the app")):
+            with self.assertRaises(updates.UpdateError):
+                updates.update_repository()
 
     def test_files_dropped_by_a_newer_bundle_are_removed_but_private_data_survives(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -148,20 +168,17 @@ class MacOSDistributionTests(TestCase):
             self.assertEqual(shortcut.icon_path("aurora").read_bytes(), b"aurora icon")
 
     def test_skin_change_outside_windows_answers_instead_of_dropping_the_connection(self):
-        spec = importlib.util.spec_from_file_location("bookmark_icon_manage", ROOT / "scripts" / "manage.py")
-        manage = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(manage)
-        server = manage.BookmarkServer(("127.0.0.1", 0), manage.Handler)
+        server = bookmark_server.BookmarkServer(("127.0.0.1", 0), bookmark_server.Handler)
         self.addCleanup(server.server_close)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         self.addCleanup(server.shutdown)
         url = f"http://127.0.0.1:{server.server_port}/__icon?skin=aurora"
         page = {"Origin": f"http://127.0.0.1:{server.server_port}"}
-        with patch.object(manage.sys, "platform", "darwin"):
+        with patch.object(sys, "platform", "darwin"):
             with urlopen(Request(url, method="POST", headers=page), timeout=5) as response:
                 self.assertEqual(response.status, 204)
         # Windows still reports a failure rather than resetting the connection.
-        with patch.object(manage.sys, "platform", "win32"):
+        with patch.object(sys, "platform", "win32"):
             with patch.dict("sys.modules", {"shortcut": SimpleNamespace(
                     set_icon=lambda skin: (_ for _ in ()).throw(SystemExit("missing icon")))}):
                 with self.assertRaises(HTTPError) as failure:
@@ -170,17 +187,14 @@ class MacOSDistributionTests(TestCase):
         self.assertEqual(failure.exception.code, 400)
 
     def test_other_sites_cannot_change_the_shortcut_icon(self):
-        spec = importlib.util.spec_from_file_location("bookmark_icon_origin_manage", ROOT / "scripts" / "manage.py")
-        manage = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(manage)
-        server = manage.BookmarkServer(("127.0.0.1", 0), manage.Handler)
+        server = bookmark_server.BookmarkServer(("127.0.0.1", 0), bookmark_server.Handler)
         self.addCleanup(server.server_close)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         self.addCleanup(server.shutdown)
         url = f"http://127.0.0.1:{server.server_port}/__icon?skin=cyber"
         changed = []
         icons = SimpleNamespace(set_icon=changed.append)
-        with patch.object(manage.sys, "platform", "win32"), patch.dict("sys.modules", {"shortcut": icons}):
+        with patch.object(sys, "platform", "win32"), patch.dict("sys.modules", {"shortcut": icons}):
             # An <img> or form on another site cannot carry this page's Origin.
             for request in (Request(url), Request(url, method="POST", headers={"Origin": "https://evil.example"})):
                 with self.subTest(method=request.get_method()):
@@ -191,17 +205,14 @@ class MacOSDistributionTests(TestCase):
         self.assertEqual(changed, [])
 
     def test_packaged_restart_relaunches_the_app_not_a_python_script(self):
-        spec = importlib.util.spec_from_file_location("bookmark_packaged_restart", ROOT / "scripts" / "manage.py")
-        manage = importlib.util.module_from_spec(spec)
-        with patch.dict(os.environ, {"BOOKMARK_PACKAGED": "1"}):
-            spec.loader.exec_module(manage)
-        self.assertEqual(manage.serve_command("/Applications/Bookmark.app/Contents/MacOS/Bookmark", 8765),
+        self.packaged()
+        self.assertEqual(bookmark_server.serve_command("/Applications/Bookmark.app/Contents/MacOS/Bookmark", 8765),
                          ["/Applications/Bookmark.app/Contents/MacOS/Bookmark", "--serve", "8765"])
 
     def test_open_page_uses_the_default_browser(self):
         steps = []
         manage = SimpleNamespace(
-            build_if_stale=lambda: steps.append("build"),
+            bookmark_store=SimpleNamespace(build_if_stale=lambda: steps.append("build")),
             local_url=lambda: steps.append("url") or "http://127.0.0.1:8765/index.html?v=1-2",
         )
         with patch.object(macos_app.webbrowser, "open") as browser:

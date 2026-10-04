@@ -16,7 +16,16 @@ from urllib.error import URLError
 from urllib.parse import unquote
 from urllib.request import Request, urlopen
 
-from scripts import archive_update as updater
+SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))  # the scripts import each other by name
+
+# The same module objects the service uses, so patches here reach it.
+import archive_update as updater  # noqa: E402
+import build_installer  # noqa: E402
+import server as bookmark_server  # noqa: E402
+import settings  # noqa: E402
+import updates  # noqa: E402
 
 
 COMMIT = "a" * 40
@@ -289,14 +298,12 @@ class ArchiveTests(TestCase):
                 updater._destination(self.root, "web/js/new.js")
 
     def test_zip_http_check_and_stream_install_use_real_adapter_without_git(self):
-        from scripts import manage
-
-        server = manage.BookmarkServer(("127.0.0.1", 0), manage.Handler)
+        server = bookmark_server.BookmarkServer(("127.0.0.1", 0), bookmark_server.Handler)
         worker = threading.Thread(target=server.serve_forever, daemon=True)
         worker.start()
         endpoint = f"http://127.0.0.1:{server.server_port}/__update"
         try:
-            with patch.object(manage, "APP_VERSION", "v1.0.4"), patch.object(manage, "installed_version", return_value="v1.0.4"), patch.object(manage, "ROOT", self.root), patch.object(updater, "read_url", side_effect=self.remote), patch.object(manage, "git_output", side_effect=AssertionError("ZIP must not invoke Git")), patch.object(server, "schedule_restart") as restart:
+            with patch.object(settings, "APP_VERSION", "v1.0.4"), patch.object(updates, "installed_version", return_value="v1.0.4"), patch.object(settings, "ROOT", self.root), patch.object(updater, "read_url", side_effect=self.remote), patch.object(updates, "git_output", side_effect=AssertionError("ZIP must not invoke Git")), patch.object(server, "schedule_restart") as restart:
                 with urlopen(endpoint, timeout=2) as response:
                     status = json.load(response)
                 self.assertEqual(status["mode"], "archive")
@@ -362,8 +369,9 @@ class LaunchZIPTests(TestCase):
         with tempfile.TemporaryDirectory(prefix="bookmark ZIP launch ") as directory:
             installation = Path(directory)
             (installation / "scripts").mkdir()
-            for name in ("manage.py", "archive_update.py"):
-                shutil.copy2(root / "scripts" / name, installation / "scripts" / name)
+            # Exactly the scripts the installer ships: a module missing there fails here too.
+            for name in build_installer.SERVICE_SCRIPTS:
+                shutil.copy2(root / name, installation / name)
             with socket.socket() as reservation:
                 reservation.bind(("127.0.0.1", 0))
                 port = reservation.getsockname()[1]
