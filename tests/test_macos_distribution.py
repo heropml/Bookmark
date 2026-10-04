@@ -83,6 +83,20 @@ class MacOSDistributionTests(TestCase):
         self.assertEqual(packaged.DATA_JS, runtime / "web/data.js")
         self.assertFalse(settings.PACKAGED_APP, "测试进程本身不是安装版")
 
+    def test_installed_app_reports_its_version_without_a_script_file_to_read(self):
+        # The installed app runs manage from its bundle, so settings finds no manage.py beside it.
+        with tempfile.TemporaryDirectory() as folder:
+            copy = Path(folder) / "settings.py"
+            copy.write_bytes((SCRIPTS / "settings.py").read_bytes())
+            spec = importlib.util.spec_from_file_location("settings", copy)
+            bundled = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(bundled)
+        self.assertEqual(bundled.APP_VERSION, "")
+        spec = importlib.util.spec_from_file_location("bookmark_bundled_manage", SCRIPTS / "manage.py")
+        with patch.dict(sys.modules, {"settings": bundled}):
+            spec.loader.exec_module(importlib.util.module_from_spec(spec))
+        self.assertEqual(bundled.APP_VERSION, manage.APP_VERSION, "页面、更新检查和数据构建都读这个版本")
+
     def test_packaged_update_status_reports_a_new_dmg_without_offering_to_install_it(self):
         self.packaged()
         remote = {"available": True, "can_update": True, "mode": "archive", "remote": "v9.9.9",

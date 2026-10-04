@@ -38,8 +38,9 @@ class RestartTests(TestCase):
         with patch.object(sys, "platform", "darwin"), patch.object(bookmark_server, "BookmarkServer", return_value=server), patch.object(os, "execv", side_effect=lambda *args: order.append("exec")) as execute:
             bookmark_server.serve(8799)
         self.assertEqual(order, ["serve", "close", "exec"])
+        # The replacement runs the real launcher script, wherever the service code lives.
         execute.assert_called_once_with(sys.executable, [
-            sys.executable, "-X", "utf8", str(settings.MANAGE_SCRIPT), "--serve", "8799",
+            sys.executable, "-X", "utf8", str(Path(manage.__file__).resolve()), "--serve", "8799",
         ])
 
     def test_windows_closes_listener_then_starts_hidden_replacement(self):

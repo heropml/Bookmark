@@ -202,6 +202,27 @@ class BuildTests(TestCase):
             bookmark_store.build_if_stale()
             self.assertEqual(build.call_count, 3, "缺少 data.js 时重新生成")
 
+    def test_launch_rebuilds_when_the_code_that_reads_bookmarks_changes(self):
+        import os
+
+        code = {}
+        for module in (bookmark_formats, bookmark_store):
+            code[module.__name__] = self.root / f"{module.__name__}.py"
+            code[module.__name__].write_text("", encoding="utf-8")
+            patcher = patch.object(module, "__file__", str(code[module.__name__]))
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        bookmark_store.build()
+        later = max(path.stat().st_mtime_ns for path in code.values())
+        with patch.object(bookmark_store, "build", wraps=bookmark_store.build) as build:
+            bookmark_store.build_if_stale()
+            build.assert_not_called()
+            for count, (name, path) in enumerate(code.items(), 1):
+                later += 1_000_000_000
+                os.utime(path, ns=(later, later))
+                bookmark_store.build_if_stale()
+                self.assertEqual(build.call_count, count, f"{name} 修改后重新生成")
+
     def test_unchanged_page_data_keeps_its_timestamp(self):
         import os
 
