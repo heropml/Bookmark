@@ -59,6 +59,8 @@ def main():
         assert not (target / ".git").exists()
         assert not (target / "data/bookmarks.html").exists()
         assert not (target / "web/data.js").exists()
+        assert not (target / "data/preferences.json").exists()
+        assert not (target / "data/.preferences-backups").exists()
         report["installation"] = f"{len(manifest['files'])} public files match SHA-256"
         print(report["installation"], flush=True)
         menu = Path(os.environ["APPDATA"]) / "Microsoft/Windows/Start Menu/Programs/Bookmark Installer Test"
@@ -69,6 +71,11 @@ def main():
         private = {
             "data/.window-state.json": b'{"test":true}',
             "data/.update-backups/fixture/old.txt": b"previous application fixture",
+            "data/preferences.json": json.dumps({
+                "format": 1, "revision": "a" * 32, "updated": 0,
+                "values": {"bm-skin": "celadon", "bm-pins": '["https://example.com/"]'},
+            }).encode("utf-8"),
+            "data/.preferences-backups/fixture.json": b'{"private":"backup fixture"}',
         }
         for name, content in private.items():
             path = target / name
@@ -101,6 +108,7 @@ def main():
         assert status["version"] == "v" + manifest["version"]
         with urlopen(f"http://127.0.0.1:{port}/index.html", timeout=5) as response:
             assert response.status == 200
+            assert b'"bm-skin": "celadon"' in response.read()
         report["service"] = f"Installed Python serves v{manifest['version']} on isolated port {port}"
         print(report["service"], flush=True)
 

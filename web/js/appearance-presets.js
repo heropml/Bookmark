@@ -21,7 +21,7 @@ function validateAppearanceSnapshot(value) {
 // An entry this version cannot apply (e.g. saved by a version with another theme list) is hidden
 // but written back unchanged, so one such entry no longer makes every other preset unreadable.
 function readAppearancePresets() {
-  const raw = localStorage.getItem(APPEARANCE_PRESETS_KEY);
+  const raw = bookmarkStorage.getItem(APPEARANCE_PRESETS_KEY);
   if (raw === null) return { presets: [], incompatible: [] };
   const value = JSON.parse(raw);
   if (!Array.isArray(value)) throw new Error("外观方案数据无效，无法读取。");
@@ -58,11 +58,11 @@ function applyAppearanceSnapshot(value) {
   let persisted = true;
   try {
     for (const key of Object.keys(APPEARANCE_PRESET_CHOICES)) {
-      if (key === "fx" && settings.fxFollowsSystem) localStorage.removeItem("bm-fx");
-      else localStorage.setItem("bm-" + key, settings[key]);
+      if (key === "fx" && settings.fxFollowsSystem) bookmarkStorage.removeItem("bm-fx");
+      else bookmarkStorage.setItem("bm-" + key, settings[key]);
     }
     for (const [key, field] of [["card-density", "density"], ["focus", "focus"], ["trail-size", "trailSize"], ["sky-size", "skySize"], ["sky-count", "skyCount"]]) {
-      localStorage.setItem("bm-" + key, String(settings[field]));
+      bookmarkStorage.setItem("bm-" + key, String(settings[field]));
     }
   } catch (e) { persisted = false; }
   const previousLayout = document.documentElement.dataset.layout;
@@ -94,7 +94,7 @@ function initAppearancePresets() {
   section.className = "appearance-group appearance-presets-section";
   section.dataset.settingPanel = "presets";
   section.dataset.title = "外观方案";
-  section.dataset.description = "保存当前主题、布局、密度、动效和专注状态，仅保存在此浏览器。";
+  section.dataset.description = "保存当前主题、布局、密度、动效和专注状态；本地服务会自动保存到本机。";
   section.hidden = true;
   section.innerHTML = `<form class="appearance-preset-form"><label for="appearancePresetName">方案名称</label><div><input id="appearancePresetName" type="text" maxlength="40" autocomplete="off" placeholder="例如：日常使用" required><button class="appearance-preset-save" type="submit">保存当前外观</button></div></form>
     <p class="sync-status" role="status" aria-live="polite"></p><ul class="appearance-presets-list" aria-label="已保存的外观方案"></ul>`;
@@ -115,8 +115,8 @@ function initAppearancePresets() {
     (button || input).focus();
   };
   const save = next => {
-    try { localStorage.setItem(APPEARANCE_PRESETS_KEY, JSON.stringify([...next, ...incompatible])); }
-    catch (e) { showStatus("无法保存到此浏览器，方案未更改。请检查浏览器存储权限或空间。", true); return false; }
+    try { bookmarkStorage.setItem(APPEARANCE_PRESETS_KEY, JSON.stringify([...next, ...incompatible])); }
+    catch (e) { showStatus("无法保存配置，方案未更改。请查看主页配置提示。", true); return false; }
     presets = next;
     draw();
     return true;

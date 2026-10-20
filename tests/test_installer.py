@@ -36,6 +36,7 @@ class InstallerTests(TestCase):
     def test_private_and_development_files_are_excluded(self):
         for name in (
             "web/data.js", "web/DATA.JS", "data/bookmarks.html", "data/.window-state.json",
+            "data/preferences.json", "data/.preferences-backups/old.json",
             "data/.update-backups/old.py", ".git/config", "web/.env", "tests/private.json",
             "scripts/__pycache__/manage.pyc", "runtime/python/Lib/__pycache__/os.pyc",
             "launchers/windows/private.lnk", "launchers/windows/build-installer.bat",
@@ -48,6 +49,7 @@ class InstallerTests(TestCase):
     def test_runtime_native_modules_and_public_app_files_are_included(self):
         for name in (
             "scripts/manage.py", "scripts/archive_update.py", "web/index.html",
+            "scripts/preferences.py", "web/js/preferences.js", "web/js/preferences-ui.js",
             "web/js/update.js", "web/data.example.js", "data/bookmarks.example.html",
             "runtime/python/pythonw.exe", "runtime/python/DLLs/_ssl.pyd",
             "runtime/python/Lib/site-packages/PIL/_imaging.pyd", "LICENSE",

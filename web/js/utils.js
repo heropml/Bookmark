@@ -1,8 +1,8 @@
 function readJson(key) {
-  try { return JSON.parse(localStorage.getItem(key) || "null"); } catch { return null; }
+  try { return JSON.parse(bookmarkStorage.getItem(key) || "null"); } catch { return null; }
 }
 function writeJson(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+  try { bookmarkStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
 }
 function fetchJson(url, ms) {
   const ctrl = new AbortController();

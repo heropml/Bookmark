@@ -56,11 +56,11 @@ class BackupTests(TestCase):
         self.source.write_bytes(b"<DL><p>\r\n<DT><A HREF=\"https://example.com\">Old</A>\r\n</DL>")
         before = self.source.read_bytes()
         incoming = self.root / "incoming.html"
-        incoming.write_text(bookmark_formats.render_bookmarks_html([bookmark("imported")]))
+        incoming.write_text(bookmark_formats.render_bookmarks_html([bookmark("imported")]), encoding="utf-8")
         bookmark_store.replace_src(incoming)
         snapshot = next((self.root / ".bookmark-backups").glob("*.html"))
         self.assertEqual(snapshot.read_bytes(), before)
-        self.assertEqual(self.source.read_text(), incoming.read_text())
+        self.assertEqual(self.source.read_text(encoding="utf-8"), incoming.read_text(encoding="utf-8"))
 
     def test_backup_failure_does_not_replace_existing_bookmarks(self):
         bookmark_store.write_bookmarks_html([bookmark("original")])

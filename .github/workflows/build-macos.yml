@@ -1,0 +1,29 @@
+name: build-macos
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          architecture: arm64
+      - name: Build and verify signed application and DMG
+        run: bash scripts/build_macos.sh --dmg
+      - name: Verify packaged service and private configuration preservation
+        run: python3.11 tests/macos_installer_smoke.py
+      - uses: actions/upload-artifact@v5
+        with:
+          name: bookmark-macos-arm64
+          path: |
+            dist/Bookmark_v*_macos_arm64.dmg
+            dist/Bookmark_v*_macos_arm64.dmg.sha256
+          if-no-files-found: error

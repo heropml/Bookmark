@@ -47,7 +47,7 @@ function initLibrary() {
   focus.addEventListener("click", () => {
     const next = document.documentElement.dataset.focus === "on" ? "off" : "on";
     document.documentElement.dataset.focus = next;
-    try { localStorage.setItem("bm-focus", next); } catch (e) {}
+    try { bookmarkStorage.setItem("bm-focus", next); } catch (e) {}
     applyFocus();
     window.dispatchEvent(new Event("bm-fx"));
   });
@@ -179,6 +179,9 @@ function initBookmarkBackups() {
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error(result.message || "恢复失败，请检查目录写入权限。");
       status.textContent = `已恢复 ${result.count} 个书签，正在刷新主页。`;
+      if (!await bookmarkPreferences.flush()) {
+        throw new Error("书签已恢复，但配置尚未保存。请先在“配置备份”中导出当前配置，再刷新主页。");
+      }
       location.reload();
     } catch (error) {
       status.textContent = error.message || "恢复结果未确认，请刷新后检查书签。";

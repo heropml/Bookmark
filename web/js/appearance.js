@@ -111,7 +111,7 @@ function syncShortcutIcon(skin) {
 function setupChoice(list, key, containerId, resolve) {
   const root = document.documentElement;
   let stored = null;
-  try { stored = localStorage.getItem("bm-" + key); } catch (e) {}
+  try { stored = bookmarkStorage.getItem("bm-" + key); } catch (e) {}
   let followsSystem = key === "fx" && stored === null;
   let selectedId = null;
   const cur = stored && list.some((x) => x.id === stored)
@@ -127,7 +127,7 @@ function setupChoice(list, key, containerId, resolve) {
     selectedId = item.id;
     root.dataset[key] = resolve ? resolve(item.id) : item.id;
     if (persist) {
-      try { localStorage.setItem("bm-" + key, item.id); } catch (e) {}
+      try { bookmarkStorage.setItem("bm-" + key, item.id); } catch (e) {}
     }
     for (const btn of container.querySelectorAll(".choice")) {
       btn.setAttribute("aria-pressed", String(btn.dataset.value === item.id));
@@ -142,8 +142,8 @@ function setupChoice(list, key, containerId, resolve) {
     }
     if (key === "fx" || key === "sky") window.dispatchEvent(new Event("bm-fx"));
   };
-  // Loading rewrites only a stored choice; defaults such as the reduced-motion one stay unset.
-  apply(list.some((x) => x.id === cur) ? cur : list[0].id, false, stored !== null);
+  // Render a usable choice without overwriting an invalid legacy value before migration.
+  apply(list.some((x) => x.id === cur) ? cur : list[0].id, false, false);
   appearanceChoices[key] = {
     value: () => selectedId,
     followsSystem: () => followsSystem,
@@ -270,7 +270,7 @@ function initLayoutDensity() {
     120: { name: "舒展", card: "254px", compact: "198px", icon: "116px", start: "132px", gap: "16px", columns: "2", cardGap: "14px", padding: "16px", height: "100px", cardIcon: "44px", image: "26px", title: "16px", host: "13px", metaMargin: "10px", metaGap: "7px", tag: "12px", tagPadding: "8px" }
   };
   let stored = 100;
-  try { stored = Number(localStorage.getItem("bm-card-density")) || 100; } catch (e) {}
+  try { stored = Number(bookmarkStorage.getItem("bm-card-density")) || 100; } catch (e) {}
   let value = sizes[stored] ? stored : 100;
   const apply = (next, persist = true) => {
     value = Math.max(60, Math.min(120, next));
@@ -300,11 +300,11 @@ function initLayoutDensity() {
     out.disabled = value === 60;
     increase.disabled = value === 120;
     if (persist) {
-      try { localStorage.setItem("bm-card-density", String(value)); } catch (e) {}
+      try { bookmarkStorage.setItem("bm-card-density", String(value)); } catch (e) {}
     }
   };
   appearanceDensity = { value: () => value, apply };
-  apply(value);
+  apply(value, false);
   out.addEventListener("click", () => apply(value - 10));
   increase.addEventListener("click", () => apply(value + 10));
   reset.addEventListener("click", () => apply(100));

@@ -59,7 +59,7 @@ function fixture({ items, writeText } = {}) {
   doc.body = new Element('body');
   doc.createElement = tag => new Element(tag);
   const context = vm.createContext({ document: doc, window: { BOOKMARKS: books, open: (...args) => opened.push(args), addEventListener() {} },
-    navigator: { clipboard: { writeText: writeText || (async text => { copied.push(text); }) } }, localStorage: { getItem: () => null } });
+    navigator: { clipboard: { writeText: writeText || (async text => { copied.push(text); }) } }, bookmarkStorage: { getItem: () => null } });
   for (const file of ['bookmarks.js', 'bookmark-menu.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, '../web/js', file), 'utf8'), context, { filename: file });
   vm.runInContext('initBookmarkMenu()', context);
   const cards = books.map(book => {

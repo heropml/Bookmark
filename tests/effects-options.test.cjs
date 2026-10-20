@@ -28,7 +28,7 @@ function effectsFixture({ reduceMotion = false } = {}) {
     console,
     document: { documentElement: root, getElementById: element },
     window: { devicePixelRatio: 1, addEventListener() {}, dispatchEvent() {} },
-    localStorage: { getItem: () => null, setItem() {} },
+    bookmarkStorage: { getItem: () => null, setItem() {} },
     matchMedia: query => ({ matches: query.includes('prefers-reduced-motion') && reduceMotion, addEventListener() {} }),
     innerWidth: 960, innerHeight: 640,
     requestAnimationFrame: () => 1, cancelAnimationFrame() {},
@@ -104,7 +104,7 @@ function bootstrapFx({ reduceMotion, stored }) {
   const root = { dataset: { fx: 'on' } };
   const context = vm.createContext({
     URL, location: { href: 'http://127.0.0.1:8765/index.html' }, history: { replaceState() {} },
-    localStorage: { getItem: key => storage.get(key) ?? null },
+    bookmarkStorage: { getItem: key => storage.get(key) ?? null },
     matchMedia: query => ({ matches: query.includes('prefers-reduced-motion') && reduceMotion }),
     document: { documentElement: root, createElement: () => ({}), head: { appendChild() {} } }
   });
@@ -131,7 +131,7 @@ function fxChoice({ stored, fx = 'on' } = {}) {
       documentElement: root, querySelector: () => null,
       getElementById: id => ({ innerHTML: '', querySelectorAll: () => [], addEventListener: (type, callback) => handlers.set(id + ':' + type, callback) })
     },
-    localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
+    bookmarkStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
     matchMedia: () => ({ matches: false, addEventListener: (type, callback) => { mediaChange = callback; } })
   });
   for (const file of ['config.js', 'appearance.js']) vm.runInContext(script(file), context, { filename: file });
@@ -157,7 +157,11 @@ test('加载时不把默认值写入本地存储，系统设置变化后仍能�
   assert.equal(app.storage.get('bm-fx'), 'on');
   app.setReducedMotion(true);
   assert.equal(app.root.dataset.fx, 'on', '手动选择后不再受系统设置变化影响');
-  assert.equal(fxChoice({ stored: 'broken' }).storage.get('bm-fx'), 'on', '无效的保存值会被纠正');
+  const legacy = fxChoice({ stored: 'broken' });
+  assert.equal(legacy.root.dataset.fx, 'on', '无效旧值仍使用可显示的选项');
+  assert.equal(legacy.storage.get('bm-fx'), 'broken', '加载不覆盖原值，留给迁移和导出');
+  legacy.choose('off');
+  assert.equal(legacy.storage.get('bm-fx'), 'off', '用户选择后才替换无效旧值');
 });
 
 test('高刷屏幕上背景最多每秒绘制 60 帧，慢速环境特效和后台窗口 30 帧', () => {

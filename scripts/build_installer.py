@@ -19,11 +19,12 @@ PUBLIC_TREES = ("web/", "assets/icons/", "runtime/python/", "launchers/windows/"
 SERVICE_SCRIPTS = (
     "scripts/manage.py", "scripts/settings.py", "scripts/bookmark_formats.py", "scripts/bookmark_store.py",
     "scripts/browser_sync.py", "scripts/server.py", "scripts/site_icons.py", "scripts/updates.py",
-    "scripts/weather.py", "scripts/archive_update.py", "scripts/shortcut.py",
+    "scripts/weather.py", "scripts/archive_update.py", "scripts/shortcut.py", "scripts/preferences.py",
 )
 PUBLIC_FILES = {"README.md", "LICENSE", "data/bookmarks.example.html", *SERVICE_SCRIPTS}
 REQUIRED = PUBLIC_FILES | {
     "web/index.html", "web/data.example.js", "web/js/update.js",
+    "web/js/preferences.js", "web/js/preferences-ui.js",
     "web/js/bookmark-sync.js", "web/css/bookmark-sync.css",
     "runtime/python/python.exe", "runtime/python/pythonw.exe",
     "assets/icons/bookmark.ico", "assets/icons/icon-aurora.ico",

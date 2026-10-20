@@ -19,6 +19,7 @@ from urllib.parse import parse_qs, urlparse
 
 import bookmark_store
 import browser_sync
+import preferences
 import settings
 import site_icons
 import updates
@@ -182,7 +183,19 @@ class Handler(SimpleHTTPRequestHandler):
             return f'{match.group(1)}="{match.group(2)}?v={settings.file_stamp(asset)}"'
 
         with open(path, encoding="utf-8") as stream:
-            return ASSET_REF_RE.sub(stamp, stream.read()).encode("utf-8")
+            page = stream.read()
+        if "<!-- bookmark-preferences -->" in page:
+            try:
+                snapshot = preferences.load()
+            except (OSError, ValueError, TypeError):
+                snapshot = {"error": "无法读取本地配置，已停止自动保存。请检查配置文件或目录权限。"}
+            snapshot["installation"] = settings.installation_id()
+            # This precedes bootstrap and all deferred modules, so a cleared browser never
+            # initializes pins from an empty cache. Escape HTML, including user preset names.
+            payload = json.dumps(snapshot, ensure_ascii=True).replace("<", "\\u003c").replace("&", "\\u0026")
+            page = page.replace("<!-- bookmark-preferences -->",
+                                f"<script>window.BOOKMARK_PREFERENCES = {payload};</script>")
+        return ASSET_REF_RE.sub(stamp, page).encode("utf-8")
 
     def send_head(self):
         path = self.translate_path(self.path)
@@ -249,6 +262,12 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if self.cross_site_subresource():
             self.send_json(403, {"ok": False, "message": "请从本地书签主页打开。"})
+            return
+        if urlparse(self.path).path == "/__preferences/backups":
+            try:
+                self.send_json(200, {"backups": preferences.backups()})
+            except (OSError, ValueError, TypeError):
+                self.send_json(500, {"message": "无法读取配置备份，请检查文件和目录权限。"})
             return
         parsed = urlparse(self.path)
         if parsed.path == "/__health":
@@ -425,6 +444,9 @@ class Handler(SimpleHTTPRequestHandler):
         if not self.same_origin():
             self.send_json(403, {"ok": False, "message": "请从本地书签主页操作。"})
             return
+        if path in ("/__preferences", "/__preferences/restore"):
+            self.save_preferences(path.endswith("/restore"))
+            return
         if path == "/__bookmarks/sync":
             self.sync_bookmarks()
             return
@@ -559,6 +581,34 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_json(422, {"ok": False, "message": "恢复失败，请检查备份文件和目录写入权限。"})
         finally:
             BOOKMARK_SYNC_LOCK.release()
+
+    def save_preferences(self, restore=False):
+        try:
+            size = int(self.headers.get("Content-Length", "0"))
+            # A merge carries each changed field twice (new value and the page's base value).
+            if not 0 < size <= 2 * preferences.MAX_BYTES + 4096:
+                raise ValueError("配置请求大小无效")
+            if self.headers.get("Content-Type", "").split(";")[0] != "application/json":
+                raise ValueError("请使用 JSON 配置文件")
+            request = json.loads(self.rfile.read(size))
+            if not isinstance(request, dict):
+                raise ValueError("配置请求无效")
+            if restore:
+                result = preferences.restore(request.get("id"))
+            elif "changes" in request:
+                migration = request.get("migration", False)
+                if not isinstance(migration, bool):
+                    raise ValueError("迁移标记无效")
+                result = preferences.merge(request["changes"], request.get("base"), migration=migration)
+            else:
+                result = preferences.replace(request.get("values"))
+            self.send_json(200, result)
+        except preferences.Conflict as error:
+            self.send_json(409, {"message": str(error)})
+        except (ValueError, TypeError) as error:
+            self.send_json(400, {"message": str(error)})
+        except OSError:
+            self.send_json(500, {"message": "配置未能保存到本机，请检查文件和目录写入权限。"})
 
     def sync_bookmarks(self):
         # do_POST already required this page's origin; the JSON type and custom header also

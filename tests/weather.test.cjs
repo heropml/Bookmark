@@ -47,7 +47,7 @@ function fixture({ savedCity = city, route } = {}) {
     },
     clearTimeout,
     setInterval: (callback, ms) => { intervals.push({ callback, ms }); return intervals.length; },
-    localStorage: {
+    bookmarkStorage: {
       getItem: key => storage.get(key) ?? null,
       setItem: (key, value) => storage.set(key, value),
       removeItem: key => storage.delete(key)
@@ -144,6 +144,20 @@ test('自动定位较晚返回时，不覆盖用户手动选择的城市', async
   await pending;
   assert.equal(app.saved('bm-city').name, '宁波');
   assert.match(app.elements.get('weatherTxt').textContent, /宁波$/);
+});
+
+test('IP 定位结果只缓存在本浏览器，不写入同步的城市配置，下次直接复用', async () => {
+  const app = fixture({ savedCity: null, route: url => {
+    if (url.startsWith('https://get.geojs.io/')) return response({ city: 'IP城市', latitude: '39.9', longitude: '116.4' });
+    if (url.startsWith('https://ipwho.is/')) return new Promise(() => {});
+  } });
+  const located = await app.run('locateCity()');
+  assert.equal(located.name, 'IP城市');
+  assert.equal(app.saved('bm-city'), null);
+  assert.equal(app.saved('bm-city-auto').name, 'IP城市');
+  const count = app.requests.length;
+  assert.equal((await app.run('locateCity()')).name, 'IP城市');
+  assert.equal(app.requests.length, count);
 });
 
 test('打开和手动刷新仍绕过新鲜缓存', async () => {

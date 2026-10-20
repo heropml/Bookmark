@@ -7,7 +7,7 @@ const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '../web/js/bookmark-sync.js'), 'utf8');
 const updateSource = fs.readFileSync(path.join(__dirname, '../web/js/update.js'), 'utf8');
 const response = (result, ok = true) => ({ ok, json: async () => result });
-function fixture({ navigator = { userAgent: 'Chrome/140.0 Safari/537.36' }, location = {}, canRestart = false, serviceError = false, route } = {}) {
+function fixture({ navigator = { userAgent: 'Chrome/140.0 Safari/537.36' }, location = {}, canRestart = false, serviceError = false, route, flush = async () => true } = {}) {
   const listeners = new Map(), elements = new Map(), requests = [], timers = [];
   const storage = new Map([['bm-folder', '旧分类'], ['bm-skin', 'celadon']]);
   let reloads = 0;
@@ -39,7 +39,8 @@ function fixture({ navigator = { userAgent: 'Chrome/140.0 Safari/537.36' }, loca
   const context = vm.createContext({
     navigator, document: { getElementById: element, createElement: tag => ({ tag }) },
     setAppearanceOpen(open) { element('appearanceMenu').hidden = !open; },
-    localStorage: { setItem(key, value) { storage.set(key, value); } },
+    bookmarkStorage: { setItem(key, value) { storage.set(key, value); } },
+    bookmarkPreferences: { flush },
     location: pageLocation,
     window: { location: pageLocation, setTimeout(callback) { timers.push(callback); } },
     fetch: fetchMock,
@@ -116,6 +117,24 @@ test('取消同步不提交数据、不刷新主页', async () => {
   assert.equal(app.reloads, 0);
   assert.equal(app.storage.get('bm-folder'), '旧分类');
   assert.equal(app.elements.get('bookmarkSyncDialog').open, false);
+});
+
+test('同步结束等待配置落盘后才刷新，保存失败不会自动离开页面', async () => {
+  let release;
+  const app = fixture({ flush: () => new Promise(resolve => { release = resolve; }) });
+  await app.open();
+  const syncing = app.submit();
+  await app.settled();
+  assert.equal(app.storage.get('bm-folder'), '');
+  assert.equal(app.reloads, 0);
+  release(true);
+  await syncing;
+  assert.equal(app.reloads, 1);
+  const failed = fixture({ flush: async () => false });
+  await failed.open();
+  await failed.submit();
+  assert.equal(failed.reloads, 0);
+  assert.match(failed.elements.get('bookmarkSyncStatus').textContent, /书签已同步，但配置尚未保存/);
 });
 
 test('确认后只同步选定浏览器，携带确认字段，成功刷新一次', async () => {

@@ -178,7 +178,10 @@ function initBookmarkSync() {
       if (!response.ok || !result.ok) throw Object.assign(new Error(result.message || '同步失败，请检查浏览器书签和目录写入权限。'), { result });
       message(`已同步 ${result.count} 个书签，正在刷新主页。`);
       // The previous category may not exist in the newly imported bookmarks.
-      try { localStorage.setItem('bm-folder', ''); } catch (error) {}
+      try { bookmarkStorage.setItem('bm-folder', ''); } catch (error) {}
+      if (!await bookmarkPreferences.flush()) {
+        throw new Error('书签已同步，但配置尚未保存。请先在“配置备份”中导出当前配置，再刷新主页。');
+      }
       location.reload();
     } catch (error) {
       message(error.message || '同步结果未确认，请刷新主页查看后再决定是否重试。', 'error', error.result);

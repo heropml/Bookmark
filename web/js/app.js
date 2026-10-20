@@ -1,4 +1,5 @@
 // 模块已按依赖顺序加载；事件绑定和启动操作统一在这里执行。
+initPreferences();
 initBookmarks();
 initLibrary();
 initCategoryArrangement();

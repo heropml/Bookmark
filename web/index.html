@@ -2,6 +2,8 @@
 <html lang="zh-CN" data-skin="aurora" data-icon="logo" data-layout="classic" data-motion="float" data-fx="on" data-trail="stardust" data-sky="auto">
 <head>
   <meta charset="UTF-8" />
+  <!-- bookmark-preferences -->
+  <script src="js/preferences.js"></script>
   <script src="js/bootstrap.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>书签</title>
@@ -32,7 +34,7 @@
   <canvas id="fx-canvas" aria-hidden="true"></canvas>
   <div id="folderNameTooltip" class="folder-name-tooltip" role="tooltip" hidden></div>
   <div class="app-meta">
-    <div id="appVersion" class="app-version" aria-label="当前版本">v1.1.7</div>
+    <div id="appVersion" class="app-version" aria-label="当前版本">v1.1.8</div>
     <div id="updateNotice" class="update-notice" hidden>
       <button type="button" id="updateBtn" class="update-action" aria-label="发现新版本，点击升级" title="发现新版本，点击升级"></button>
     </div>
@@ -329,6 +331,7 @@
       </section>
       <div class="library-toolbar">
         <div class="library-heading"><h1 id="libraryTitle">我的书签</h1><span id="libraryCount"></span></div>
+        <button type="button" id="preferencesOpen" class="library-button" aria-haspopup="dialog">配置备份</button>
         <button type="button" id="categoryArrangeBtn" class="library-button" hidden>整理分类</button>
         <div id="searchScope" class="search-scope" role="group" aria-label="搜索范围" hidden>
           <button type="button" id="searchAll" aria-pressed="true">全部书签</button>
@@ -336,9 +339,25 @@
         </div>
       </div>
       <p id="libraryStatus" class="library-status" role="status"></p>
+      <p id="preferencesNotice" class="library-status" role="status"></p>
       <main id="main"></main>
     </div>
   </div>
+  <dialog id="preferencesDialog" class="sync-dialog backup-dialog" aria-labelledby="preferencesTitle">
+    <div class="sync-head"><div><h2 id="preferencesTitle">置顶与外观备份</h2><p>保留常用链接、外观方案与分类布局。</p></div><button type="button" id="preferencesClose" class="sync-close" aria-label="关闭配置备份">×</button></div>
+    <p id="preferencesDescription" class="sync-description">普通书签请在“同步书签”中备份。</p>
+    <div class="sync-actions">
+      <button type="button" id="preferencesExport">导出当前配置</button>
+      <label class="library-button">导入配置文件<input type="file" id="preferencesFile" accept=".json,application/json" /></label>
+    </div>
+    <p id="preferencesStatus" class="sync-status" role="status"></p>
+    <div id="preferencesDrafts" class="backup-list"></div>
+    <div id="preferencesBackups" class="backup-list"></div>
+    <div id="preferencesConfirmPanel" class="backup-confirm-panel" hidden>
+      <p id="preferencesConfirmText"></p>
+      <div class="sync-actions"><button type="button" id="preferencesCancel">取消</button><button type="button" id="preferencesConfirm" class="sync-confirm">确认恢复</button></div>
+    </div>
+  </dialog>
   <!-- Public sample first; the optional private data.js replaces it. Both load before the deferred scripts. -->
   <script src="data.example.js"></script>
   <script src="data.js"></script>
@@ -358,6 +377,7 @@
   <script defer src="js/update.js"></script>
   <script defer src="js/effects.js"></script>
   <script defer src="js/library.js"></script>
+  <script defer src="js/preferences-ui.js"></script>
   <script defer src="js/app.js"></script>
 </body>
 </html>

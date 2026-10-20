@@ -11,15 +11,15 @@ try {
   }
 } catch (e) {}
 try {
-  document.documentElement.dataset.focus = localStorage.getItem("bm-focus") === "on" ? "on" : "off";
-  let s = localStorage.getItem("bm-skin");
+  document.documentElement.dataset.focus = bookmarkStorage.getItem("bm-focus") === "on" ? "on" : "off";
+  let s = bookmarkStorage.getItem("bm-skin");
   if (s === "auto") s = matchMedia("(prefers-color-scheme: light)").matches ? "snow" : "aurora";
-  const i = localStorage.getItem("bm-icon");
-  const l = localStorage.getItem("bm-layout");
-  const m = localStorage.getItem("bm-motion");
-  const f = localStorage.getItem("bm-fx");
-  const t = localStorage.getItem("bm-trail");
-  const k = localStorage.getItem("bm-sky");
+  const i = bookmarkStorage.getItem("bm-icon");
+  const l = bookmarkStorage.getItem("bm-layout");
+  const m = bookmarkStorage.getItem("bm-motion");
+  const f = bookmarkStorage.getItem("bm-fx");
+  const t = bookmarkStorage.getItem("bm-trail");
+  const k = bookmarkStorage.getItem("bm-sky");
   if (s) document.documentElement.dataset.skin = s;
   if (i) document.documentElement.dataset.icon = i;
   if (l) document.documentElement.dataset.layout = l;

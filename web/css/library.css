@@ -34,6 +34,10 @@
 .empty p { margin: 8px 0 16px; }
 .library-status { margin: 0 8px; color: var(--muted); font-size: 12px; }
 .library-status:empty { display: none; }
+.library-status[data-state="error"] { color: var(--text); border-left: 3px solid #e99b43; padding: 8px; }
+#preferencesDialog .sync-actions { flex-wrap: wrap; }
+#preferencesDialog .library-button { position: relative; cursor: pointer; }
+#preferencesFile { display: block; max-width: 100%; margin-top: 6px; font: inherit; }
 .focus-preset { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font: inherit; }
 .focus-preset svg { width: 16px; height: 16px; }
 .focus-preset[aria-pressed="true"] { border-color: var(--skin-accent, #7dd3fc); color: var(--text); }

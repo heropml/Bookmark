@@ -63,14 +63,14 @@ function fixture(stored = {}) {
   const appearanceBody = new Element();
   element('appearancePanel').append(appearanceBody);
   element('appearancePanel').queries['.appearance-body'] = appearanceBody;
-  const localStorage = {
+  const bookmarkStorage = {
     getItem: key => { if (storageFails) throw new Error('unavailable'); return storage.get(key) ?? null; },
     setItem: (key, value) => { if (storageFails) throw new Error('quota'); storage.set(key, String(value)); },
     removeItem: key => { if (storageFails) throw new Error('unavailable'); storage.delete(key); }
   };
   const context = vm.createContext({
     console, Event: class { constructor(type) { this.type = type; } },
-    localStorage,
+    bookmarkStorage,
     fetch: () => Promise.resolve(),
     setTimeout: callback => { callback(); return 1; }, clearTimeout() {},
     window: { addEventListener() {}, dispatchEvent: event => events.push(event.type) },
@@ -97,7 +97,7 @@ function fixture(stored = {}) {
   element('focusPreset').addEventListener('click', () => {
     root.dataset.focus = root.dataset.focus === 'on' ? 'off' : 'on';
     element('focusPreset').setAttribute('aria-pressed', String(root.dataset.focus === 'on'));
-    try { localStorage.setItem('bm-focus', root.dataset.focus); } catch {}
+    try { bookmarkStorage.setItem('bm-focus', root.dataset.focus); } catch {}
   });
   const section = appearanceBody.children[0];
   const input = section.querySelector('input');
@@ -122,6 +122,13 @@ function fixture(stored = {}) {
     renderCount: () => renderCount, populationCount: () => populationCount
   };
 }
+
+test('初始化外观和密度只读取配置，不将默认值写回本地文件', () => {
+  const app = fixture();
+  assert.equal(app.storage.size, 0);
+  app.elements.get('layoutDensityIn').click();
+  assert.equal(app.storage.get('bm-card-density'), '110');
+});
 
 test('外观方案复用设置面板，悬停不抢焦点，点击聚焦输入，关闭返回入口', () => {
   const app = fixture();

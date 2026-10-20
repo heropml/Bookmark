@@ -17,8 +17,9 @@ BUNDLE_MANIFEST = "data/.bundle-files.json"
 BUNDLE_STAMP = "data/.bundle-stamp"
 # Never shipped in a bundle, so never pruned even if a manifest claims otherwise.
 PRIVATE_FILES = frozenset({"web/data.js", "data/bookmarks.html", "data/.window-state.json",
-                           "data/.data-build.json", BUNDLE_MANIFEST, BUNDLE_STAMP})
-PRIVATE_TREES = ("data/.update-backups/", "data/.update-stage-", "data/.site-icons/")
+                           "data/.data-build.json", "data/preferences.json", BUNDLE_MANIFEST, BUNDLE_STAMP})
+PRIVATE_TREES = ("data/.update-backups/", "data/.update-stage-", "data/.site-icons/",
+                 "data/.preferences-backups/")
 
 
 def bundle_root() -> Path:

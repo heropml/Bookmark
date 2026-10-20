@@ -25,7 +25,7 @@ function fixture({ layout = 'board', folder = '', items, pins = [], location } =
     window: { BOOKMARKS: books },
     document: { documentElement: { dataset: { layout, fx: 'off' } },
       body: { classList: { toggle() {} } }, getElementById: element, querySelectorAll: () => [] },
-    localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
+    bookmarkStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
     matchMedia: () => ({ matches: false }), setTimeout: callback => { callback(); return 1; }, clearTimeout() {}
   });
   for (const file of ['config.js', 'bookmarks.js', 'bookmark-layouts.js', 'category-arrangement.js']) {
@@ -623,7 +623,7 @@ test('无效目标、未改变顺序和存储失败均保留原置顶顺序', ()
     'reorderPinnedBookmark("missing", urls[0], true)',
     'reorderPinnedBookmark(urls[0], urls[1], false)'
   ]) assert.equal(app.run(command), false);
-  app.context.localStorage.setItem = () => { throw new Error('storage denied'); };
+  app.context.bookmarkStorage.setItem = () => { throw new Error('storage denied'); };
   assert.equal(app.run('reorderPinnedBookmark(urls[0], urls[1], true)'), false);
   assert.equal(app.run('JSON.stringify(pinnedUrls)'), JSON.stringify(urls));
   assert.deepEqual(JSON.parse(app.storage.get('bm-pins')), urls);
@@ -642,7 +642,7 @@ test('“置顶顺序已保存”约 2.5 秒后自动消失，错误提示保留
   assert.equal(timers.at(-1).ms, 2500);
   timers.at(-1).callback();
   assert.equal(status.textContent, '');
-  app.context.localStorage.setItem = () => { throw new Error('storage denied'); };
+  app.context.bookmarkStorage.setItem = () => { throw new Error('storage denied'); };
   const pending = timers.length;
   // Order is now [1, 0]; moving 1 after 0 is a real change, so it reaches the failing save.
   assert.equal(app.run('reorderPinnedBookmark(urls[1], urls[0], true)'), false);

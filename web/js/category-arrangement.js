@@ -1,8 +1,8 @@
-// Category presentation is local to this browser; imported bookmarks and pins keep their order.
+// Category presentation is stored with preferences; imported bookmarks and pins keep their order.
 const CATEGORY_LAYOUT_KEY = "bm-category-layout";
 const categoryPreferences = new Map();
 try {
-  const saved = JSON.parse(localStorage.getItem(CATEGORY_LAYOUT_KEY) || "{}");
+  const saved = JSON.parse(bookmarkStorage.getItem(CATEGORY_LAYOUT_KEY) || "{}");
   if (saved && typeof saved === "object" && !Array.isArray(saved)) {
     for (const [scope, value] of Object.entries(saved)) {
       if (!value || typeof value !== "object" || Array.isArray(value)) continue;
@@ -111,9 +111,9 @@ function saveCategoryPreference(preference) {
   const scope = activeFolder();
   const next = new Map(categoryPreferences);
   next.set(scope, preference);
-  try { localStorage.setItem(CATEGORY_LAYOUT_KEY, JSON.stringify(Object.fromEntries(next))); }
+  try { bookmarkStorage.setItem(CATEGORY_LAYOUT_KEY, JSON.stringify(Object.fromEntries(next))); }
   catch (error) {
-    setLibraryStatus("无法保存分类排列，请检查浏览器是否允许本地存储。");
+    setLibraryStatus("无法保存分类排列，请查看配置保存提示。");
     return false;
   }
   categoryPreferences.set(scope, preference);

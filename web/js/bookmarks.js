@@ -11,7 +11,7 @@ const ITEMS = (window.BOOKMARKS || []).map((it) => {
 const folderNameTooltip = document.getElementById("folderNameTooltip");
 let pinnedUrls = [];
 try {
-  const saved = JSON.parse(localStorage.getItem("bm-pins") || "[]");
+  const saved = JSON.parse(bookmarkStorage.getItem("bm-pins") || "[]");
   if (Array.isArray(saved)) pinnedUrls = [...new Set(saved.filter(url => typeof url === "string"))];
 } catch (e) {}
 
@@ -376,9 +376,9 @@ function pickFolder(e) {
   if (pin) {
     const url = pin.dataset.pin;
     const next = pinnedUrls.includes(url) ? pinnedUrls.filter(item => item !== url) : [...pinnedUrls, url];
-    try { localStorage.setItem("bm-pins", JSON.stringify(next)); }
+    try { bookmarkStorage.setItem("bm-pins", JSON.stringify(next)); }
     catch (error) {
-      setLibraryStatus("无法保存置顶，请检查浏览器是否允许本地存储。");
+      setLibraryStatus("无法保存置顶，请查看配置保存提示。");
       return;
     }
     pinnedUrls = next;
@@ -413,7 +413,7 @@ function pickFolder(e) {
   const treeScroll = document.getElementById("nav").firstElementChild?.scrollTop || 0;
   state.folder = btn.getAttribute("data-folder");
   if (state.q.trim()) state.searchLocal = !!state.folder;
-  try { localStorage.setItem("bm-folder", state.folder); } catch (e) {}
+  try { bookmarkStorage.setItem("bm-folder", state.folder); } catch (e) {}
   state.shown = PAGE;
   render();
   if (document.documentElement.dataset.layout === "tree") {
@@ -463,9 +463,9 @@ function reorderPinnedBookmark(source, target, after) {
   const next = pinnedUrls.filter(url => url !== source);
   next.splice(next.indexOf(target) + (after ? 1 : 0), 0, source);
   if (next.every((url, index) => url === pinnedUrls[index])) return false;
-  try { localStorage.setItem("bm-pins", JSON.stringify(next)); }
+  try { bookmarkStorage.setItem("bm-pins", JSON.stringify(next)); }
   catch (error) {
-    setLibraryStatus("无法保存置顶顺序，请检查浏览器是否允许本地存储。");
+    setLibraryStatus("无法保存置顶顺序，请查看配置保存提示。");
     return false;
   }
   pinnedUrls = next;
@@ -494,7 +494,7 @@ function initBookmarks() {
   // The saved or default category may not exist in these bookmarks, e.g. after a sync.
   if (state.folder && !ITEMS.some(inFolder)) {
     state.folder = "";
-    try { localStorage.setItem("bm-folder", ""); } catch (e) {}
+    try { bookmarkStorage.setItem("bm-folder", ""); } catch (e) {}
   }
   const nav = document.getElementById("nav");
   nav.addEventListener("click", pickFolder);

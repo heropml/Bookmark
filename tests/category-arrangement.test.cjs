@@ -25,7 +25,7 @@ function fixture({ layout = 'board', folder = '', items = [...books('A', 40), ..
   const context = vm.createContext({ window: { BOOKMARKS: items },
     document: { documentElement: { dataset: { layout, fx: 'off' } }, body: { classList: { toggle() {} } },
       getElementById: element, querySelectorAll: () => [], createElement: () => element('created-' + nextElement++) },
-    localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
+    bookmarkStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
     getComputedStyle: element => element.computedStyle,
     ResizeObserver: class {
       constructor(callback) { this.callback = callback; }
@@ -176,7 +176,7 @@ test('存储失败、无效目标和边界移动不会改变展示顺序或保�
   assert.equal(app.run('reorderCategory("missing", "A")'), false);
   assert.equal(app.run('reorderCategory("A", "A")'), false);
   assert.equal(app.run('reorderCategory("A", "B", false)'), false);
-  app.context.localStorage.setItem = () => { throw new Error('denied'); };
+  app.context.bookmarkStorage.setItem = () => { throw new Error('denied'); };
   assert.equal(app.run('moveCategory("C", -1)'), false);
   assert.deepEqual(app.order(), ['A', 'B', 'C']);
   assert.deepEqual(app.saved(), {});
@@ -192,7 +192,7 @@ test('恢复默认只重置当前分类顺序，保留列宽和其他分类设�
   assert.deepEqual(app.saved(), { '': { width: 'large' }, 'A': preferences.A });
   const failed = fixture({ preferences });
   failed.edit();
-  failed.context.localStorage.setItem = () => { throw new Error('denied'); };
+  failed.context.bookmarkStorage.setItem = () => { throw new Error('denied'); };
   assert.equal(failed.run('resetCategoryOrder()'), false);
   assert.deepEqual(failed.order(), ['C', 'B', 'A']);
 });
@@ -253,7 +253,7 @@ test('看板列宽独立保存并跟随当前分类，设置失败不改变当�
   assert.equal(app.context.document.documentElement.dataset.categoryWidth, 'small');
   assert.deepEqual(app.saved()[''], { width: 'small' });
   assert.match(app.elements.get('toolbar').child.innerHTML, /data-category-width="small" aria-pressed="true"/);
-  app.context.localStorage.setItem = () => { throw new Error('denied'); };
+  app.context.bookmarkStorage.setItem = () => { throw new Error('denied'); };
   panelClick(widthEvent('large'));
   assert.equal(app.context.document.documentElement.dataset.categoryWidth, 'small');
   app.choose('A');

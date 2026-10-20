@@ -157,8 +157,12 @@ class MacOSDistributionTests(TestCase):
             (bundle / "web/index.html").write_text("page", encoding="utf-8")
             (runtime / "data").mkdir(parents=True)
             (runtime / "data/bookmarks.html").write_text("private bookmarks", encoding="utf-8")
+            (runtime / "data/preferences.json").write_text("private preferences", encoding="utf-8")
+            (runtime / "data/.preferences-backups").mkdir()
+            (runtime / "data/.preferences-backups/old.json").write_text("private backup", encoding="utf-8")
             (runtime / macos_app.BUNDLE_MANIFEST).write_text(
-                json.dumps(["../escape.txt", "data/bookmarks.html", "web/../../escape.txt", 7]),
+                json.dumps(["../escape.txt", "data/bookmarks.html", "web/../../escape.txt", 7,
+                            "data/preferences.json", "data/.preferences-backups/old.json"]),
                 encoding="utf-8")
             outside = root / "escape.txt"
             outside.write_text("must survive", encoding="utf-8")
@@ -166,6 +170,8 @@ class MacOSDistributionTests(TestCase):
                 macos_app.prepare_runtime()
             self.assertEqual(outside.read_text(encoding="utf-8"), "must survive")
             self.assertTrue((runtime / "data/bookmarks.html").is_file())
+            self.assertEqual((runtime / "data/preferences.json").read_text(), "private preferences")
+            self.assertEqual((runtime / "data/.preferences-backups/old.json").read_text(), "private backup")
 
     def test_packaged_icons_are_read_from_the_user_directory_not_the_app_bundle(self):
         with tempfile.TemporaryDirectory() as folder:

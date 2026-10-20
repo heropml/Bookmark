@@ -32,7 +32,7 @@ function fixture() {
     handleIconError() {},
     reorderPinnedBookmark: (...args) => reordered.push(args),
     appearanceMenu: { hidden: true },
-    localStorage: { getItem: () => null, setItem() {} },
+    bookmarkStorage: { getItem: () => null, setItem() {} },
     window: { dispatchEvent() {} },
     document: {
       documentElement: { dataset: {} },

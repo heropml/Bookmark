@@ -15,6 +15,9 @@ async function locateCity() {
   const saved = readJson("bm-city");
   if (saved && Number.isFinite(saved.lat) && Number.isFinite(saved.lon)) return saved;
   if (saved && typeof saved.name === "string" && saved.name.trim()) return saved;
+  // IP 定位只是默认值，缓存在本浏览器而不写入本机配置：多个标签首次打开时不会争写同一字段。
+  const located = readJson("bm-city-auto");
+  if (located && Number.isFinite(located.lat) && Number.isFinite(located.lon)) return located;
   try {
     const city = await Promise.any([
       fetchJson("https://get.geojs.io/v1/ip/geo.json", 4000).then((ip) => {
@@ -29,7 +32,7 @@ async function locateCity() {
     // 定位期间可能已经手动选了城市，用户的选择优先。
     const selected = readJson("bm-city");
     if (selected && typeof selected.name === "string" && selected.name.trim()) return selected;
-    writeJson("bm-city", city);
+    writeJson("bm-city-auto", city);
     return city;
   } catch (e) {
     return { name: "北京", lat: 39.9, lon: 116.4 };
@@ -262,7 +265,7 @@ function initWeatherRefresh() {
 function initWeatherControls() {
   document.getElementById("weatherRefresh").addEventListener("click", () => loadWeather(false, true));
   document.getElementById("weather").addEventListener("click", async () => {
-    const cur = readJson("bm-city");
+    const cur = readJson("bm-city") || readJson("bm-city-auto");
     const name = window.prompt("输入城市", cur && cur.name || "");
     if (!name || !name.trim()) return;
     const lookup = ++cityLookup;
@@ -280,7 +283,7 @@ function initWeatherControls() {
       return;
     }
     writeJson("bm-city", city);
-    try { localStorage.removeItem("bm-weather"); } catch (e) {}
+    try { bookmarkStorage.removeItem("bm-weather"); } catch (e) {}
     setWeatherUI("天气加载中…", null);
     loadWeather(false, true);
   });

@@ -4,6 +4,8 @@ __pycache__/
 !runtime/python/Lib/site-packages/PIL/*.pyd
 *.lnk
 data/.window-state.json
+data/preferences.json
+data/.preferences-backups/
 data/.update-backups/
 data/.bookmark-backups/
 data/.update-stage-*/

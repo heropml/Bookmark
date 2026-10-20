@@ -5,11 +5,11 @@ let populatedType = null;
 let skyDrops = [];
 let starTrail = [];
 let trailScale = 1;
-try { trailScale = Math.min(2.5, Math.max(0.5, parseFloat(localStorage.getItem("bm-trail-size")) || 1)); } catch (e) {}
+try { trailScale = Math.min(2.5, Math.max(0.5, parseFloat(bookmarkStorage.getItem("bm-trail-size")) || 1)); } catch (e) {}
 let skyScale = 1;
 let skyCount = 1;
-try { skyScale = Math.min(2.5, Math.max(0.5, parseFloat(localStorage.getItem("bm-sky-size")) || 1)); } catch (e) {}
-try { skyCount = Math.min(2.5, Math.max(0.25, parseFloat(localStorage.getItem("bm-sky-count")) || 1)); } catch (e) {}
+try { skyScale = Math.min(2.5, Math.max(0.5, parseFloat(bookmarkStorage.getItem("bm-sky-size")) || 1)); } catch (e) {}
+try { skyCount = Math.min(2.5, Math.max(0.25, parseFloat(bookmarkStorage.getItem("bm-sky-count")) || 1)); } catch (e) {}
 let skyRunning = false;
 let skyRaf = 0;
 let skyLast = 0;
@@ -559,7 +559,7 @@ function setTrailSize(v, save) {
   trailSizeInput.value = Math.round(trailScale * 100);
   trailSizeVal.textContent = trailScale.toFixed(1) + "×";
   if (save) {
-    try { localStorage.setItem("bm-trail-size", String(trailScale)); } catch (e) {}
+    try { bookmarkStorage.setItem("bm-trail-size", String(trailScale)); } catch (e) {}
   }
 }
 
@@ -572,7 +572,7 @@ function setSkySize(v, save) {
   skySizeInput.value = Math.round(skyScale * 100);
   skySizeVal.textContent = skyScale.toFixed(1) + "×";
   if (save) {
-    try { localStorage.setItem("bm-sky-size", String(skyScale)); } catch (e) {}
+    try { bookmarkStorage.setItem("bm-sky-size", String(skyScale)); } catch (e) {}
     skyPopulate();
   }
 }
@@ -581,7 +581,7 @@ function setSkyCount(v, save) {
   skyCountInput.value = Math.round(skyCount * 100);
   skyCountVal.textContent = skyCount.toFixed(2).replace(/0$/, "").replace(/\.$/, "") + "×";
   if (save) {
-    try { localStorage.setItem("bm-sky-count", String(skyCount)); } catch (e) {}
+    try { bookmarkStorage.setItem("bm-sky-count", String(skyCount)); } catch (e) {}
     skyPopulate();
   }
 }
